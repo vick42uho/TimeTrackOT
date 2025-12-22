@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { TimeInput } from '../components/TimeInput';
@@ -23,6 +24,15 @@ const SettingsContent: React.FC = () => {
   useEffect(() => {
     loadWorkSchedule();
   }, [selectedMonth, selectedYear]);
+
+  // Refresh data when screen comes into focus (only if data is stale)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isReady && (startTime === '08:00' && endTime === '17:00')) {
+        loadWorkSchedule();
+      }
+    }, [isReady, selectedMonth, selectedYear, startTime, endTime])
+  );
 
   const loadWorkSchedule = async () => {
     if (!isReady) return;
@@ -51,18 +61,14 @@ const SettingsContent: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const success = await saveWorkSchedule({
+      await saveWorkSchedule({
         month: selectedMonth,
         year: selectedYear,
         startTime,
         endTime,
       });
 
-      if (success) {
-        Alert.alert('สำเร็จ', 'บันทึกเวลาทำงานมาตรฐานเรียบร้อยแล้ว');
-      } else {
-        Alert.alert('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้');
-      }
+      Alert.alert('สำเร็จ', 'บันทึกเวลาทำงานมาตรฐานเรียบร้อยแล้ว');
     } catch (error) {
       console.error('Error saving work schedule:', error);
       Alert.alert('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -288,6 +294,11 @@ const SettingsContent: React.FC = () => {
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>ระบบบันทึกเวลาทำงาน</Text>
             <Text style={styles.settingLabel}>OT Management</Text>
+          </View>
+
+          <View style={styles.settingItem}>
+            <Text style={styles.settingLabel}>ผู้พัฒนา</Text>
+            <Text style={styles.settingLabel}>John Wick</Text>
           </View>
         </View>
       </ScrollView>

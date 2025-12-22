@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { DateInput } from '../components/DateInput';
@@ -47,6 +48,15 @@ const TimeEntryContent: React.FC = () => {
     }
   }, [selectedDate, isReady]);
 
+  // Refresh data when screen comes into focus (only if data is stale)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isReady && !currentEntry) {
+        loadTimeEntry();
+      }
+    }, [isReady, selectedDate, currentEntry])
+  );
+
   const handleSave = async () => {
     if (!clockIn && !clockOut) {
       Alert.alert('ข้อผิดพลาด', 'กรุณากรอกเวลาเข้างานหรือเวลาเลิกงาน');
@@ -76,7 +86,7 @@ const TimeEntryContent: React.FC = () => {
         overtimeHours = calculated.overtimeHours;
       }
 
-      const success = await saveTimeEntry({
+      await saveTimeEntry({
         date: selectedDate,
         clockIn: clockIn || undefined,
         clockOut: clockOut || undefined,
@@ -85,12 +95,8 @@ const TimeEntryContent: React.FC = () => {
         overtimeHours,
       });
 
-      if (success) {
-        Alert.alert('สำเร็จ', 'บันทึกเวลาทำงานเรียบร้อยแล้ว');
-        loadTimeEntry();
-      } else {
-        Alert.alert('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้');
-      }
+      Alert.alert('สำเร็จ', 'บันทึกเวลาทำงานเรียบร้อยแล้ว');
+      loadTimeEntry();
     } catch (error) {
       console.error('Error saving time entry:', error);
       Alert.alert('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');

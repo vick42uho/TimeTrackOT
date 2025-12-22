@@ -84,7 +84,8 @@ const getCallerInfo = (): string => {
   // Skip the first few lines (Error, getCallerInfo, console override)
   for (let i = 3; i < lines.length; i++) {
     const line = lines[i];
-    if (line.indexOf('app/') !== -1 || line.indexOf('components/') !== -1 || line.indexOf('.tsx') !== -1 || line.indexOf('.ts') !== -1) {
+    // Add null/undefined check before calling indexOf
+    if (line && (line.indexOf('app/') !== -1 || line.indexOf('components/') !== -1 || line.indexOf('.tsx') !== -1 || line.indexOf('.ts') !== -1)) {
       const match = line.match(/at .+\/([^/\s:)]+\.[jt]sx?):(\d+):(\d+)/);
       if (match) {
         return ` | Called from: ${match[1]}:${match[2]}:${match[3]}`;

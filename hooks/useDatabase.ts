@@ -1,33 +1,45 @@
 
-import { useEffect, useState } from 'react';
 import * as SQLite from 'expo-sqlite';
-import { WorkSchedule, TimeEntry } from '../types';
+import { useState, useEffect } from 'react';
+import { TimeEntry, WorkSchedule, PeriodReport } from '../types';
 
-const DATABASE_NAME = 'timetracking.db';
+const DATABASE_NAME = 'timetracker.db';
 
 export const useDatabase = () => {
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
     const initDatabase = async () => {
+      // Prevent multiple initialization attempts
+      if (isInitializing || isReady) {
+        return;
+      }
+
+      setIsInitializing(true);
+      
       try {
         console.log('Initializing database...');
         
-        // ตรวจสอบว่า SQLite พร้อมใช้งานหรือไม่
-        if (!SQLite.openDatabaseAsync) {
-          throw new Error('SQLite is not available');
-        }
-        
+        // Use the modern openDatabaseAsync method
         const database = await SQLite.openDatabaseAsync(DATABASE_NAME);
         
-        // ตรวจสอบว่า database object ถูกสร้างสำเร็จ
         if (!database) {
-          throw new Error('Failed to create database instance');
+          console.error('Failed to create database instance');
+          setIsReady(false);
+          setIsInitializing(false);
+          return;
         }
         
-        // Create tables with better error handling
+        console.log('Database instance created successfully');
+        
+        // Enable WAL mode for better performance
+        await database.execAsync('PRAGMA journal_mode = WAL');
+        
+        // Create tables using execAsync with proper SQL syntax
         try {
+          console.log('Creating work_schedules table...');
           await database.execAsync(`
             CREATE TABLE IF NOT EXISTS work_schedules (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,16 +53,8 @@ export const useDatabase = () => {
               UNIQUE(month, year)
             );
           `);
-        } catch (tableError) {
-          console.error('Error creating work_schedules table:', tableError);
-          throw tableError;
-        }
-
-        try {
-          await database.execAsync(`
-            DROP TABLE IF EXISTS time_entries;
-          `);
           
+          console.log('Creating time_entries table...');
           await database.execAsync(`
             CREATE TABLE IF NOT EXISTS time_entries (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,32 +64,44 @@ export const useDatabase = () => {
               reason TEXT,
               regular_hours REAL DEFAULT 0,
               overtime_hours REAL DEFAULT 0,
+              late_arrival_hours REAL DEFAULT 0,
+              overtime_used INTEGER DEFAULT 0,
+              late_arrival_used INTEGER DEFAULT 0,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
           `);
+          
+          // Migration: Add new columns if they don't exist
+          try {
+            await database.execAsync(`ALTER TABLE time_entries ADD COLUMN late_arrival_hours REAL DEFAULT 0`);
+          } catch (e) { /* Column might already exist */ }
+          try {
+            await database.execAsync(`ALTER TABLE time_entries ADD COLUMN overtime_used INTEGER DEFAULT 0`);
+          } catch (e) { /* Column might already exist */ }
+          try {
+            await database.execAsync(`ALTER TABLE time_entries ADD COLUMN late_arrival_used INTEGER DEFAULT 0`);
+          } catch (e) { /* Column might already exist */ }
+          
+          console.log('Database initialized successfully');
+          setDb(database);
+          setIsReady(true);
         } catch (tableError) {
-          console.error('Error creating time_entries table:', tableError);
-          throw tableError;
+          console.error('Error creating tables:', tableError);
+          setIsReady(false);
+          setDb(null);
         }
-
-        console.log('Database initialized successfully');
-        setDb(database);
-        setIsReady(true);
       } catch (error) {
-        console.error('Error initializing database:', error);
+        console.error('Database initialization failed:', error);
         setIsReady(false);
         setDb(null);
-        
-        // แสดง error ให้ผู้ใช้เห็น
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-          console.error('Database initialization failed:', (error as Error).message);
-        }
+      } finally {
+        setIsInitializing(false);
       }
     };
 
     initDatabase();
-  }, []);
+  }, []); // Remove dependencies to prevent re-initialization
 
   const getWorkSchedule = async (month: number, year: number): Promise<WorkSchedule | null> => {
     if (!db || !isReady) {
@@ -104,11 +120,11 @@ export const useDatabase = () => {
           id: result.id,
           month: result.month,
           year: result.year,
-          startTime: result.startTime,
-          endTime: result.endTime,
-          workDays: result.workDays,
-          createdAt: result.createdAt,
-          updatedAt: result.updatedAt,
+          startTime: (result as any).start_time,
+          endTime: (result as any).end_time,
+          workDays: (result as any).work_days,
+          createdAt: (result as any).created_at,
+          updatedAt: (result as any).updated_at,
         };
       }
       
@@ -119,26 +135,26 @@ export const useDatabase = () => {
     }
   };
 
-  const saveWorkSchedule = async (schedule: Omit<WorkSchedule, 'id' | 'createdAt' | 'updatedAt'>): Promise<boolean> => {
+  const saveWorkSchedule = async (schedule: WorkSchedule): Promise<void> => {
     if (!db || !isReady) {
-      console.warn('Database not ready for saveWorkSchedule');
-      return false;
+      console.log('Database not ready, cannot save work schedule');
+      return;
     }
-    
+
     try {
-      const workDays = schedule.workDays || 22; // ใช้ค่า default 22 วันถ้าไม่ได้ระบุ
+      console.log('Saving work schedule:', schedule);
       
       await db.runAsync(
-        `INSERT OR REPLACE INTO work_schedules (month, year, start_time, end_time, work_days, updated_at) 
+        `INSERT OR REPLACE INTO work_schedules 
+         (month, year, start_time, end_time, work_days, updated_at) 
          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [schedule.month, schedule.year, schedule.startTime, schedule.endTime, workDays]
+        [schedule.month, schedule.year, schedule.startTime, schedule.endTime, schedule.workDays || 22]
       );
       
       console.log('Work schedule saved successfully');
-      return true;
     } catch (error) {
       console.error('Error saving work schedule:', error);
-      return false;
+      throw error;
     }
   };
 
@@ -149,13 +165,17 @@ export const useDatabase = () => {
     }
     
     try {
+      console.log('Getting time entry for date:', date); // Debug log
+      
       const result = await db.getFirstAsync<any>(
         'SELECT * FROM time_entries WHERE date = ?',
         [date]
       );
       
+      console.log('Raw database result:', result); // Debug log
+      
       if (result) {
-        return {
+        const timeEntry = {
           id: result.id,
           date: result.date,
           clockIn: result.clock_in,
@@ -163,11 +183,18 @@ export const useDatabase = () => {
           reason: result.reason,
           regularHours: result.regular_hours,
           overtimeHours: result.overtime_hours,
+          lateArrivalHours: result.late_arrival_hours || 0,
+          overtimeUsed: result.overtime_used === 1,
+          lateArrivalUsed: result.late_arrival_used === 1,
           createdAt: result.created_at,
           updatedAt: result.updated_at,
         };
+        
+        console.log('Formatted time entry:', timeEntry); // Debug log
+        return timeEntry;
       }
       
+      console.log('No time entry found for date:', date); // Debug log
       return null;
     } catch (error) {
       console.error('Error getting time entry:', error);
@@ -175,25 +202,38 @@ export const useDatabase = () => {
     }
   };
 
-  const saveTimeEntry = async (entry: Omit<TimeEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<boolean> => {
+  const saveTimeEntry = async (entry: TimeEntry): Promise<void> => {
     if (!db || !isReady) {
-      console.warn('Database not ready for saveTimeEntry');
-      return false;
+      console.log('Database not ready, cannot save time entry');
+      return;
     }
-    
+
     try {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO time_entries 
-         (date, clock_in, clock_out, reason, regular_hours, overtime_hours, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        [entry.date, entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours, entry.overtimeHours]
-      );
+      console.log('Saving time entry:', entry);
       
-      console.log('Time entry saved successfully');
-      return true;
+      const existingEntry = await getTimeEntry(entry.date);
+      
+      if (existingEntry) {
+        // Update existing entry
+        await db.runAsync(
+          `UPDATE time_entries 
+           SET clock_in = ?, clock_out = ?, reason = ?, regular_hours = ?, overtime_hours = ?, late_arrival_hours = ?, overtime_used = ?, late_arrival_used = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE date = ?`,
+          [entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.date]
+        );
+        console.log('Time entry updated successfully');
+      } else {
+        // Insert new entry
+        await db.runAsync(
+          `INSERT INTO time_entries (date, clock_in, clock_out, reason, regular_hours, overtime_hours, late_arrival_hours, overtime_used, late_arrival_used)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [entry.date, entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0]
+        );
+        console.log('Time entry saved successfully');
+      }
     } catch (error) {
       console.error('Error saving time entry:', error);
-      return false;
+      throw error;
     }
   };
 
@@ -217,6 +257,9 @@ export const useDatabase = () => {
         reason: result.reason,
         regularHours: result.regular_hours,
         overtimeHours: result.overtime_hours,
+        lateArrivalHours: result.late_arrival_hours || 0,
+        overtimeUsed: result.overtime_used === 1,
+        lateArrivalUsed: result.late_arrival_used === 1,
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }));
@@ -272,6 +315,18 @@ export const useDatabase = () => {
         updateFields.push('overtime_hours = ?');
         values.push(entry.overtimeHours);
       }
+      if (entry.lateArrivalHours !== undefined) {
+        updateFields.push('late_arrival_hours = ?');
+        values.push(entry.lateArrivalHours);
+      }
+      if (entry.overtimeUsed !== undefined) {
+        updateFields.push('overtime_used = ?');
+        values.push(entry.overtimeUsed ? 1 : 0);
+      }
+      if (entry.lateArrivalUsed !== undefined) {
+        updateFields.push('late_arrival_used = ?');
+        values.push(entry.lateArrivalUsed ? 1 : 0);
+      }
       
       if (updateFields.length === 0) {
         console.warn('No fields to update');
@@ -311,6 +366,9 @@ export const useDatabase = () => {
         reason: result.reason,
         regularHours: result.regular_hours,
         overtimeHours: result.overtime_hours,
+        lateArrivalHours: result.late_arrival_hours || 0,
+        overtimeUsed: result.overtime_used === 1,
+        lateArrivalUsed: result.late_arrival_used === 1,
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }));

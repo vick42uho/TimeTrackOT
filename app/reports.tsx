@@ -1,40 +1,103 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
-import { useStorage } from '../hooks/useStorage';
+import { useRouter } from 'expo-router';
+import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
-import { PeriodReport } from '../types';
+import { TimeEntry, PeriodReport } from '../types';
 import Icon from '../components/Icon';
 
 const ReportsContent: React.FC = () => {
   const { colors } = useThemeContext();
   const router = useRouter();
-  const { getTimeEntriesForPeriod } = useStorage();
-  const { getMonthPeriods, formatHours, formatDateThai } = useTimeCalculation();
+  const { getTimeEntriesForPeriod, getWorkSchedule, updateTimeEntry, isReady } = useDatabase();
+  const { getMonthPeriods, formatHours, formatDateThai, calculateWorkHours, calculateLateArrival } = useTimeCalculation();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [periodReports, setPeriodReports] = useState<PeriodReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     loadReports();
   }, [selectedMonth, selectedYear]);
 
+  // Refresh data when screen comes into focus (only if data is stale)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isReady && periodReports.length === 0) {
+        loadReports();
+      }
+    }, [isReady, selectedMonth, selectedYear, periodReports])
+  );
+
   const loadReports = async () => {
+    if (!isReady) {
+      console.log('Database not ready, skipping reports load');
+      return;
+    }
+    
+    console.log(`Loading reports for ${selectedMonth}/${selectedYear}`);
     setIsLoading(true);
     try {
       const periods = getMonthPeriods(selectedMonth, selectedYear);
+      console.log('Periods:', periods);
       const reports: PeriodReport[] = [];
+
+      // Get work schedule for the selected month/year
+      const workSchedule = await getWorkSchedule(selectedMonth, selectedYear);
+      console.log('Work schedule:', workSchedule);
 
       for (const period of periods) {
         const entries = await getTimeEntriesForPeriod(period.startDate, period.endDate);
-        const totalRegularHours = entries.reduce((sum, entry) => sum + entry.regularHours, 0);
-        const totalOvertimeHours = entries.reduce((sum, entry) => sum + entry.overtimeHours, 0);
+        console.log(`Entries for period ${period.name}:`, entries);
+        
+        // Recalculate hours for entries that don't have calculated values or have zero values
+        const processedEntries = entries.map(entry => {
+          let lateArrivalHours = 0;
+          
+          if ((!entry.regularHours && !entry.overtimeHours) || (entry.regularHours === 0 && entry.overtimeHours === 0)) {
+            // Only recalculate if we have clock in/out times and work schedule
+            if (entry.clockIn && entry.clockOut && workSchedule) {
+              const calculated = calculateWorkHours(entry.clockIn, entry.clockOut, workSchedule);
+              lateArrivalHours = calculateLateArrival(entry.clockIn, workSchedule);
+              console.log(`Recalculating for ${entry.date}: Regular: ${calculated.regularHours}, OT: ${calculated.overtimeHours}, Late: ${lateArrivalHours}`);
+              return {
+                ...entry,
+                regularHours: calculated.regularHours,
+                overtimeHours: calculated.overtimeHours,
+                lateArrivalHours,
+              };
+            } else {
+              console.log(`Cannot recalculate for ${entry.date}: clockIn=${entry.clockIn}, clockOut=${entry.clockOut}, workSchedule=${!!workSchedule}`);
+            }
+          } else {
+            // Calculate late arrival for existing entries
+            if (entry.clockIn && workSchedule) {
+              lateArrivalHours = calculateLateArrival(entry.clockIn, workSchedule);
+            }
+          }
+          
+          return {
+            ...entry,
+            lateArrivalHours,
+          };
+        });
+
+        const totalRegularHours = processedEntries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
+        const totalOvertimeHours = processedEntries.reduce((sum, entry) => sum + (entry.overtimeHours || 0), 0);
+        const totalLateHours = processedEntries.reduce((sum, entry) => sum + (entry.lateArrivalHours || 0), 0);
+        
+        const totalOvertimeUsed = processedEntries.reduce((sum, entry) => sum + (entry.overtimeUsed && entry.overtimeHours ? entry.overtimeHours : 0), 0);
+        const totalLateUsed = processedEntries.reduce((sum, entry) => sum + (entry.lateArrivalUsed && entry.lateArrivalHours ? entry.lateArrivalHours : 0), 0);
+        
+        console.log(`Period ${period.name} - Regular: ${totalRegularHours}, OT: ${totalOvertimeHours}, Late: ${totalLateHours}`);
 
         reports.push({
           period: period.name,
@@ -42,10 +105,14 @@ const ReportsContent: React.FC = () => {
           endDate: period.endDate,
           totalRegularHours,
           totalOvertimeHours,
-          entries,
+          totalLateHours,
+          totalOvertimeUsed,
+          totalLateUsed,
+          entries: processedEntries,
         });
       }
 
+      console.log('Final reports:', reports);
       setPeriodReports(reports);
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -59,8 +126,32 @@ const ReportsContent: React.FC = () => {
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
   ];
 
-  const totalRegularHours = periodReports.reduce((sum, report) => sum + report.totalRegularHours, 0);
-  const totalOvertimeHours = periodReports.reduce((sum, report) => sum + report.totalOvertimeHours, 0);
+  const totalRegularHours = periodReports.reduce((sum, report) => sum + (report.totalRegularHours || 0), 0);
+  const totalOvertimeHours = periodReports.reduce((sum, report) => sum + (report.totalOvertimeHours || 0), 0);
+  const totalLateHours = periodReports.reduce((sum, report) => sum + (report.totalLateHours || 0), 0);
+  const totalOvertimeUsed = periodReports.reduce((sum, report) => sum + (report.totalOvertimeUsed || 0), 0);
+  const totalLateUsed = periodReports.reduce((sum, report) => sum + (report.totalLateUsed || 0), 0);
+
+  // Toggle handlers
+  const handleToggleOvertimeUsed = async (entry: TimeEntry) => {
+    try {
+      await updateTimeEntry(entry.date, { overtimeUsed: !entry.overtimeUsed });
+      loadReports(); // Reload to reflect changes
+    } catch (error) {
+      console.error('Error toggling overtime used:', error);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถบันทึกสถานะได้');
+    }
+  };
+
+  const handleToggleLateUsed = async (entry: TimeEntry) => {
+    try {
+      await updateTimeEntry(entry.date, { lateArrivalUsed: !entry.lateArrivalUsed });
+      loadReports(); // Reload to reflect changes
+    } catch (error) {
+      console.error('Error toggling late used:', error);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถบันทึกสถานะได้');
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -183,28 +274,80 @@ const ReportsContent: React.FC = () => {
       fontFamily: 'Sarabun_400Regular',
     },
     entryItem: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 8,
+      flexDirection: 'column',
+      paddingVertical: 12,
+      paddingHorizontal: 4,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      borderRadius: 8,
+    },
+    entryContent: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    entryLeft: {
+      flex: 1,
+    },
+    entryRight: {
+      flex: 1,
+      alignItems: 'flex-end',
+    },
+    entryArrow: {
+      marginLeft: 8,
+      justifyContent: 'center',
     },
     entryDate: {
       fontSize: 14,
       color: colors.text,
-      fontFamily: 'Sarabun_400Regular',
+      fontFamily: 'Sarabun_600SemiBold',
+      fontWeight: '600',
     },
     entryTime: {
-      fontSize: 14,
+      fontSize: 13,
       color: colors.textSecondary,
       fontFamily: 'Sarabun_400Regular',
+      marginTop: 2,
     },
     entryHours: {
       fontSize: 14,
       color: colors.text,
       fontWeight: '600',
       fontFamily: 'Sarabun_600SemiBold',
+    },
+    entryDetails: {
+      fontSize: 11,
+      color: '#FF0000', // Red text color
+      fontFamily: 'Sarabun_400Regular',
+      marginTop: 2,
+      textAlign: 'right',
+      flexWrap: 'nowrap',
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      marginTop: 8,
+      gap: 12,
+    },
+    toggleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 6,
+      backgroundColor: colors.backgroundAlt,
+      gap: 4,
+    },
+    toggleButtonActive: {
+      backgroundColor: colors.backgroundAlt,
+    },
+    toggleText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontFamily: 'Sarabun_400Regular',
+    },
+    toggleTextActive: {
+      color: colors.text,
+      fontWeight: '600',
     },
     loadingText: {
       textAlign: 'center',
@@ -219,6 +362,71 @@ const ReportsContent: React.FC = () => {
       color: colors.textSecondary,
       marginTop: 40,
       fontFamily: 'Sarabun_400Regular',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      padding: 20,
+      margin: 20,
+      maxHeight: '80%',
+      width: '90%',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+      paddingBottom: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      fontFamily: 'Sarabun_700Bold',
+    },
+    closeButton: {
+      padding: 5,
+    },
+    modalBody: {
+      paddingVertical: 10,
+    },
+    modalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalLabel: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      fontFamily: 'Sarabun_400Regular',
+      flex: 1,
+    },
+    modalValue: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: '600',
+      fontFamily: 'Sarabun_600SemiBold',
+      flex: 2,
+      textAlign: 'right',
     },
   });
 
@@ -238,6 +446,16 @@ const ReportsContent: React.FC = () => {
         setSelectedMonth(selectedMonth + 1);
       }
     }
+  };
+
+  const handleEntryPress = (entry: TimeEntry) => {
+    setSelectedEntry(entry);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedEntry(null);
   };
 
   return (
@@ -283,7 +501,17 @@ const ReportsContent: React.FC = () => {
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>ชั่วโมง OT:</Text>
-            <Text style={styles.summaryValue}>{formatHours(totalOvertimeHours)}</Text>
+            <Text style={styles.summaryValue}>
+              {formatHours(totalOvertimeHours)}
+              {totalOvertimeUsed > 0 && <Text style={{fontSize: 14, opacity: 0.8}}> (ใช้แล้ว: {formatHours(totalOvertimeUsed)})</Text>}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>ชั่วโมงมาสาย:</Text>
+            <Text style={styles.summaryValue}>
+              {formatHours(totalLateHours)}
+              {totalLateUsed > 0 && <Text style={{fontSize: 14, opacity: 0.8}}> (ใช้แล้ว: {formatHours(totalLateUsed)})</Text>}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>รวมทั้งหมด:</Text>
@@ -316,6 +544,10 @@ const ReportsContent: React.FC = () => {
                   <Text style={styles.statLabel}>ชั่วโมง OT</Text>
                 </View>
                 <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{formatHours(report.totalLateHours || 0)}</Text>
+                  <Text style={styles.statLabel}>ชั่วโมงมาสาย</Text>
+                </View>
+                <View style={styles.statItem}>
                   <Text style={styles.statValue}>{report.entries.length}</Text>
                   <Text style={styles.statLabel}>วันทำงาน</Text>
                 </View>
@@ -324,19 +556,119 @@ const ReportsContent: React.FC = () => {
               {/* Entry Details */}
               {report.entries.map((entry, entryIndex) => (
                 <View key={entryIndex} style={styles.entryItem}>
-                  <Text style={styles.entryDate}>{formatDateThai(entry.date)}</Text>
-                  <Text style={styles.entryTime}>
-                    {entry.clockIn || '-'} - {entry.clockOut || '-'}
-                  </Text>
-                  <Text style={styles.entryHours}>
-                    {formatHours(entry.regularHours + entry.overtimeHours)}
-                  </Text>
+                  <TouchableOpacity 
+                    style={styles.entryContent}
+                    onPress={() => handleEntryPress(entry)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.entryLeft}>
+                      <Text style={styles.entryDate}>{formatDateThai(entry.date)}</Text>
+                      <Text style={styles.entryTime}>
+                        {entry.clockIn || '-'} - {entry.clockOut || '-'}
+                      </Text>
+                    </View>
+                    <View style={styles.entryRight}>
+                      <Text style={styles.entryHours}>
+                        รวม: {formatHours((entry.regularHours || 0) + (entry.overtimeHours || 0))}
+                      </Text>
+                      <Text style={styles.entryDetails} numberOfLines={1}>
+                        <Text style={{color: '#0563e8'}}>ปกติ: {formatHours(entry.regularHours || 0)}</Text>
+                        <Text style={{color: entry.overtimeUsed ? '#666666' : '#28a745'}}> OT: {formatHours(entry.overtimeHours || 0)}{entry.overtimeUsed ? ' ✓' : ''}</Text>
+                        <Text style={{color: entry.lateArrivalUsed ? '#666666' : '#dc3545'}}> สาย: {formatHours(entry.lateArrivalHours || 0)}{entry.lateArrivalUsed ? ' ✓' : ''}</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.entryArrow}>
+                      <Icon name="chevron-forward" size={16} color={colors.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  {/* Toggle Buttons for OT/Late Used */}
+                  <View style={styles.toggleRow}>
+                    {(entry.overtimeHours || 0) > 0 && (
+                      <TouchableOpacity 
+                        style={[styles.toggleButton, entry.overtimeUsed && styles.toggleButtonActive]}
+                        onPress={() => handleToggleOvertimeUsed(entry)}
+                      >
+                        <Icon name={entry.overtimeUsed ? "checkbox" : "square-outline"} size={18} color={entry.overtimeUsed ? '#28a745' : colors.textSecondary} />
+                        <Text style={[styles.toggleText, entry.overtimeUsed && styles.toggleTextActive]}>ใช้ OT แล้ว</Text>
+                      </TouchableOpacity>
+                    )}
+                    {(entry.lateArrivalHours || 0) > 0 && (
+                      <TouchableOpacity 
+                        style={[styles.toggleButton, entry.lateArrivalUsed && styles.toggleButtonActive]}
+                        onPress={() => handleToggleLateUsed(entry)}
+                      >
+                        <Icon name={entry.lateArrivalUsed ? "checkbox" : "square-outline"} size={18} color={entry.lateArrivalUsed ? '#dc3545' : colors.textSecondary} />
+                        <Text style={[styles.toggleText, entry.lateArrivalUsed && styles.toggleTextActive]}>ใช้สายแล้ว</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>
           ))
         )}
       </ScrollView>
+
+      {/* Modal for Entry Details */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>รายละเอียดการทำงาน</Text>
+              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                <Icon name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            
+            {selectedEntry && (
+              <View style={styles.modalBody}>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>วันที่:</Text>
+                  <Text style={styles.modalValue}>{formatDateThai(selectedEntry.date)}</Text>
+                </View>
+                
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>เวลาเข้างาน:</Text>
+                  <Text style={styles.modalValue}>{selectedEntry.clockIn || 'ไม่ได้บันทึก'}</Text>
+                </View>
+                
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>เวลาเลิกงาน:</Text>
+                  <Text style={styles.modalValue}>{selectedEntry.clockOut || 'ไม่ได้บันทึก'}</Text>
+                </View>
+                
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>ชั่วโมงปกติ:</Text>
+                  <Text style={styles.modalValue}>{formatHours(selectedEntry.regularHours || 0)}</Text>
+                </View>
+                
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>ชั่วโมง OT:</Text>
+                  <Text style={styles.modalValue}>{formatHours(selectedEntry.overtimeHours || 0)}</Text>
+                </View>
+                
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>ชั่วโมงมาสาย:</Text>
+                  <Text style={styles.modalValue}>{formatHours(selectedEntry.lateArrivalHours || 0)}</Text>
+                </View>
+                
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>เหตุผล:</Text>
+                  <Text style={styles.modalValue}>
+                    {selectedEntry.reason || 'ไม่มีเหตุผลเพิ่มเติม'}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <BottomNavigation />
     </View>

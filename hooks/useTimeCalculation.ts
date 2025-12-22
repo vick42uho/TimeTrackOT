@@ -15,7 +15,17 @@ export const useTimeCalculation = () => {
   const formatHours = (hours: number): string => {
     const h = Math.floor(hours);
     const m = Math.round((hours - h) * 60);
-    return `${h}:${m.toString().padStart(2, '0')}`;
+    
+    // Convert to decimal format (e.g., 0:30 becomes 0:5)
+    if (m === 30) {
+      return `${h}:5`;
+    } else if (m === 15) {
+      return `${h}:25`;
+    } else if (m === 45) {
+      return `${h}:75`;
+    } else {
+      return `${h}:${Math.round(m / 6)}`;
+    }
   };
 
   const calculateWorkHours = (
@@ -23,26 +33,43 @@ export const useTimeCalculation = () => {
     clockOut: string,
     workSchedule: WorkSchedule
   ): { regularHours: number; overtimeHours: number } => {
-    const clockInHours = parseTime(clockIn);
-    const clockOutHours = parseTime(clockOut);
-    const standardStart = parseTime(workSchedule.startTime);
-    const standardEnd = parseTime(workSchedule.endTime);
+    const actualClockIn = parseTime(clockIn);
+    const actualClockOut = parseTime(clockOut);
+    const scheduledStart = parseTime(workSchedule.startTime);
+    const scheduledEnd = parseTime(workSchedule.endTime);
     
     // Calculate total worked hours
-    let totalWorked = clockOutHours - clockInHours;
+    let totalWorked = actualClockOut - actualClockIn;
     if (totalWorked < 0) {
       totalWorked += 24; // Handle overnight shifts
     }
     
     // Calculate standard work hours for the day
-    let standardHours = standardEnd - standardStart;
+    let standardHours = scheduledEnd - scheduledStart;
     if (standardHours < 0) {
       standardHours += 24; // Handle overnight standard shifts
     }
     
-    // Calculate regular and overtime hours
-    const regularHours = Math.min(totalWorked, standardHours);
-    const overtimeHours = Math.max(0, totalWorked - standardHours);
+    // Calculate late arrival penalty
+    const lateArrival = Math.max(0, actualClockIn - scheduledStart);
+    
+    // Fixed OT calculation logic
+    let regularHours = 0;
+    let overtimeHours = 0;
+    
+    // Calculate overtime: any time worked beyond scheduled hours
+    // 1. Early arrival overtime (before scheduled start time)
+    const earlyArrival = Math.max(0, scheduledStart - actualClockIn);
+    
+    // 2. Late departure overtime (after scheduled end time)  
+    const lateOvertimeHours = Math.max(0, actualClockOut - scheduledEnd);
+    
+    // Total overtime = early arrival + late departure
+    overtimeHours = earlyArrival + lateOvertimeHours;
+    
+    // Calculate regular hours: total worked minus overtime, minus late arrival, capped at standard hours
+    const workedWithinSchedule = totalWorked - overtimeHours;
+    regularHours = Math.max(0, Math.min(workedWithinSchedule - lateArrival, standardHours));
     
     return {
       regularHours: Math.max(0, regularHours),
@@ -96,10 +123,25 @@ export const useTimeCalculation = () => {
     return thaiDays[date.getDay()];
   };
 
+  const calculateLateArrival = (
+    clockIn: string,
+    workSchedule: WorkSchedule
+  ): number => {
+    if (!clockIn || !workSchedule) return 0;
+    
+    const actualClockIn = parseTime(clockIn);
+    const scheduledStart = parseTime(workSchedule.startTime);
+    
+    // Calculate late arrival in hours
+    const lateHours = Math.max(0, actualClockIn - scheduledStart);
+    return lateHours;
+  };
+
   return {
     parseTime,
     formatHours,
     calculateWorkHours,
+    calculateLateArrival,
     getMonthPeriods,
     formatDate,
     formatDateThai,

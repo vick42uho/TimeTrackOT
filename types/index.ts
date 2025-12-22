@@ -18,6 +18,9 @@ export interface TimeEntry {
   reason?: string;
   regularHours: number;
   overtimeHours: number;
+  lateArrivalHours?: number;
+  overtimeUsed?: boolean;      // ติ๊กว่าใช้ OT ไปแล้ว
+  lateArrivalUsed?: boolean;   // ติ๊กว่าใช้ชั่วโมงสายไปแล้ว
   createdAt?: string;
   updatedAt?: string;
 }
@@ -28,6 +31,9 @@ export interface PeriodReport {
   endDate: string;
   totalRegularHours: number;
   totalOvertimeHours: number;
+  totalLateHours?: number;
+  totalOvertimeUsed?: number;      // รวม OT ที่ใช้ไปแล้ว
+  totalLateUsed?: number;          // รวมสายที่ใช้ไปแล้ว
   entries: TimeEntry[];
 }
 
@@ -37,6 +43,7 @@ export interface MonthlyReport {
   periods: PeriodReport[];
   totalRegularHours: number;
   totalOvertimeHours: number;
+  totalLateHours?: number;
 }
 
 export type ThemeMode = 'light' | 'dark';
