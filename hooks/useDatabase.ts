@@ -65,8 +65,10 @@ export const useDatabase = () => {
               regular_hours REAL DEFAULT 0,
               overtime_hours REAL DEFAULT 0,
               late_arrival_hours REAL DEFAULT 0,
+              early_leave_hours REAL DEFAULT 0,
               overtime_used INTEGER DEFAULT 0,
               late_arrival_used INTEGER DEFAULT 0,
+              early_leave_used INTEGER DEFAULT 0,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -81,6 +83,12 @@ export const useDatabase = () => {
           } catch (e) { /* Column might already exist */ }
           try {
             await database.execAsync(`ALTER TABLE time_entries ADD COLUMN late_arrival_used INTEGER DEFAULT 0`);
+          } catch (e) { /* Column might already exist */ }
+          try {
+            await database.execAsync(`ALTER TABLE time_entries ADD COLUMN early_leave_hours REAL DEFAULT 0`);
+          } catch (e) { /* Column might already exist */ }
+          try {
+            await database.execAsync(`ALTER TABLE time_entries ADD COLUMN early_leave_used INTEGER DEFAULT 0`);
           } catch (e) { /* Column might already exist */ }
           
           console.log('Database initialized successfully');
@@ -184,8 +192,10 @@ export const useDatabase = () => {
           regularHours: result.regular_hours,
           overtimeHours: result.overtime_hours,
           lateArrivalHours: result.late_arrival_hours || 0,
+          earlyLeaveHours: result.early_leave_hours || 0,
           overtimeUsed: result.overtime_used === 1,
           lateArrivalUsed: result.late_arrival_used === 1,
+          earlyLeaveUsed: result.early_leave_used === 1,
           createdAt: result.created_at,
           updatedAt: result.updated_at,
         };
@@ -217,17 +227,17 @@ export const useDatabase = () => {
         // Update existing entry
         await db.runAsync(
           `UPDATE time_entries 
-           SET clock_in = ?, clock_out = ?, reason = ?, regular_hours = ?, overtime_hours = ?, late_arrival_hours = ?, overtime_used = ?, late_arrival_used = ?, updated_at = CURRENT_TIMESTAMP
+           SET clock_in = ?, clock_out = ?, reason = ?, regular_hours = ?, overtime_hours = ?, late_arrival_hours = ?, early_leave_hours = ?, overtime_used = ?, late_arrival_used = ?, early_leave_used = ?, updated_at = CURRENT_TIMESTAMP
            WHERE date = ?`,
-          [entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.date]
+          [entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.earlyLeaveHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.earlyLeaveUsed ? 1 : 0, entry.date]
         );
         console.log('Time entry updated successfully');
       } else {
         // Insert new entry
         await db.runAsync(
-          `INSERT INTO time_entries (date, clock_in, clock_out, reason, regular_hours, overtime_hours, late_arrival_hours, overtime_used, late_arrival_used)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [entry.date, entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0]
+          `INSERT INTO time_entries (date, clock_in, clock_out, reason, regular_hours, overtime_hours, late_arrival_hours, early_leave_hours, overtime_used, late_arrival_used, early_leave_used)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [entry.date, entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.earlyLeaveHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.earlyLeaveUsed ? 1 : 0]
         );
         console.log('Time entry saved successfully');
       }
@@ -258,8 +268,10 @@ export const useDatabase = () => {
         regularHours: result.regular_hours,
         overtimeHours: result.overtime_hours,
         lateArrivalHours: result.late_arrival_hours || 0,
+        earlyLeaveHours: result.early_leave_hours || 0,
         overtimeUsed: result.overtime_used === 1,
         lateArrivalUsed: result.late_arrival_used === 1,
+        earlyLeaveUsed: result.early_leave_used === 1,
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }));
@@ -319,6 +331,10 @@ export const useDatabase = () => {
         updateFields.push('late_arrival_hours = ?');
         values.push(entry.lateArrivalHours);
       }
+      if (entry.earlyLeaveHours !== undefined) {
+        updateFields.push('early_leave_hours = ?');
+        values.push(entry.earlyLeaveHours);
+      }
       if (entry.overtimeUsed !== undefined) {
         updateFields.push('overtime_used = ?');
         values.push(entry.overtimeUsed ? 1 : 0);
@@ -326,6 +342,10 @@ export const useDatabase = () => {
       if (entry.lateArrivalUsed !== undefined) {
         updateFields.push('late_arrival_used = ?');
         values.push(entry.lateArrivalUsed ? 1 : 0);
+      }
+      if (entry.earlyLeaveUsed !== undefined) {
+        updateFields.push('early_leave_used = ?');
+        values.push(entry.earlyLeaveUsed ? 1 : 0);
       }
       
       if (updateFields.length === 0) {

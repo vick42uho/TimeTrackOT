@@ -137,11 +137,26 @@ export const useTimeCalculation = () => {
     return lateHours;
   };
 
+  const calculateEarlyLeave = (
+    clockOut: string,
+    workSchedule: WorkSchedule
+  ): number => {
+    if (!clockOut || !workSchedule) return 0;
+    
+    const actualClockOut = parseTime(clockOut);
+    const scheduledEnd = parseTime(workSchedule.endTime);
+    
+    // Calculate early leave in hours (only if left before scheduled end time)
+    const earlyHours = Math.max(0, scheduledEnd - actualClockOut);
+    return earlyHours;
+  };
+
   return {
     parseTime,
     formatHours,
     calculateWorkHours,
     calculateLateArrival,
+    calculateEarlyLeave,
     getMonthPeriods,
     formatDate,
     formatDateThai,

@@ -16,7 +16,7 @@ const TimeEntryContent: React.FC = () => {
   const { colors } = useThemeContext();
   const router = useRouter();
   const { isReady, getWorkSchedule, getTimeEntry, saveTimeEntry, deleteTimeEntry, updateTimeEntry } = useDatabase();
-  const { calculateWorkHours, formatDate, formatDateThai, getThaiDayName } = useTimeCalculation();
+  const { calculateWorkHours, calculateLateArrival, calculateEarlyLeave, formatDate, formatDateThai, getThaiDayName } = useTimeCalculation();
 
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [clockIn, setClockIn] = useState('');
@@ -79,11 +79,15 @@ const TimeEntryContent: React.FC = () => {
       
       let regularHours = 0;
       let overtimeHours = 0;
+      let lateArrivalHours = 0;
+      let earlyLeaveHours = 0;
 
       if (clockIn && clockOut && workSchedule) {
         const calculated = calculateWorkHours(clockIn, clockOut, workSchedule);
         regularHours = calculated.regularHours;
         overtimeHours = calculated.overtimeHours;
+        lateArrivalHours = calculateLateArrival(clockIn, workSchedule);
+        earlyLeaveHours = calculateEarlyLeave(clockOut, workSchedule);
       }
 
       await saveTimeEntry({
@@ -93,6 +97,8 @@ const TimeEntryContent: React.FC = () => {
         reason: reason || undefined,
         regularHours,
         overtimeHours,
+        lateArrivalHours,
+        earlyLeaveHours,
       });
 
       Alert.alert('สำเร็จ', 'บันทึกเวลาทำงานเรียบร้อยแล้ว');
@@ -163,11 +169,15 @@ const TimeEntryContent: React.FC = () => {
       
       let regularHours = 0;
       let overtimeHours = 0;
+      let lateArrivalHours = 0;
+      let earlyLeaveHours = 0;
 
       if (clockIn && clockOut && workSchedule) {
         const calculated = calculateWorkHours(clockIn, clockOut, workSchedule);
         regularHours = calculated.regularHours;
         overtimeHours = calculated.overtimeHours;
+        lateArrivalHours = calculateLateArrival(clockIn, workSchedule);
+        earlyLeaveHours = calculateEarlyLeave(clockOut, workSchedule);
       }
 
       const success = await updateTimeEntry(selectedDate, {
@@ -176,6 +186,8 @@ const TimeEntryContent: React.FC = () => {
         reason: reason || undefined,
         regularHours,
         overtimeHours,
+        lateArrivalHours,
+        earlyLeaveHours,
       });
 
       if (success) {

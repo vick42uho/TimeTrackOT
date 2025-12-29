@@ -15,7 +15,7 @@ const ReportsContent: React.FC = () => {
   const { colors } = useThemeContext();
   const router = useRouter();
   const { getTimeEntriesForPeriod, getWorkSchedule, updateTimeEntry, isReady } = useDatabase();
-  const { getMonthPeriods, formatHours, formatDateThai, calculateWorkHours, calculateLateArrival } = useTimeCalculation();
+  const { getMonthPeriods, formatHours, formatDateThai, calculateWorkHours, calculateLateArrival, calculateEarlyLeave } = useTimeCalculation();
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -61,43 +61,52 @@ const ReportsContent: React.FC = () => {
         // Recalculate hours for entries that don't have calculated values or have zero values
         const processedEntries = entries.map(entry => {
           let lateArrivalHours = 0;
+          let earlyLeaveHours = 0;
           
           if ((!entry.regularHours && !entry.overtimeHours) || (entry.regularHours === 0 && entry.overtimeHours === 0)) {
             // Only recalculate if we have clock in/out times and work schedule
             if (entry.clockIn && entry.clockOut && workSchedule) {
               const calculated = calculateWorkHours(entry.clockIn, entry.clockOut, workSchedule);
               lateArrivalHours = calculateLateArrival(entry.clockIn, workSchedule);
-              console.log(`Recalculating for ${entry.date}: Regular: ${calculated.regularHours}, OT: ${calculated.overtimeHours}, Late: ${lateArrivalHours}`);
+              earlyLeaveHours = calculateEarlyLeave(entry.clockOut, workSchedule);
+              console.log(`Recalculating for ${entry.date}: Regular: ${calculated.regularHours}, OT: ${calculated.overtimeHours}, Late: ${lateArrivalHours}, Early Leave: ${earlyLeaveHours}`);
               return {
                 ...entry,
                 regularHours: calculated.regularHours,
                 overtimeHours: calculated.overtimeHours,
                 lateArrivalHours,
+                earlyLeaveHours,
               };
             } else {
               console.log(`Cannot recalculate for ${entry.date}: clockIn=${entry.clockIn}, clockOut=${entry.clockOut}, workSchedule=${!!workSchedule}`);
             }
           } else {
-            // Calculate late arrival for existing entries
+            // Calculate late arrival and early leave for existing entries
             if (entry.clockIn && workSchedule) {
               lateArrivalHours = calculateLateArrival(entry.clockIn, workSchedule);
+            }
+            if (entry.clockOut && workSchedule) {
+              earlyLeaveHours = calculateEarlyLeave(entry.clockOut, workSchedule);
             }
           }
           
           return {
             ...entry,
             lateArrivalHours,
+            earlyLeaveHours,
           };
         });
 
         const totalRegularHours = processedEntries.reduce((sum, entry) => sum + (entry.regularHours || 0), 0);
         const totalOvertimeHours = processedEntries.reduce((sum, entry) => sum + (entry.overtimeHours || 0), 0);
         const totalLateHours = processedEntries.reduce((sum, entry) => sum + (entry.lateArrivalHours || 0), 0);
+        const totalEarlyLeaveHours = processedEntries.reduce((sum, entry) => sum + (entry.earlyLeaveHours || 0), 0);
         
         const totalOvertimeUsed = processedEntries.reduce((sum, entry) => sum + (entry.overtimeUsed && entry.overtimeHours ? entry.overtimeHours : 0), 0);
         const totalLateUsed = processedEntries.reduce((sum, entry) => sum + (entry.lateArrivalUsed && entry.lateArrivalHours ? entry.lateArrivalHours : 0), 0);
+        const totalEarlyLeaveUsed = processedEntries.reduce((sum, entry) => sum + (entry.earlyLeaveUsed && entry.earlyLeaveHours ? entry.earlyLeaveHours : 0), 0);
         
-        console.log(`Period ${period.name} - Regular: ${totalRegularHours}, OT: ${totalOvertimeHours}, Late: ${totalLateHours}`);
+        console.log(`Period ${period.name} - Regular: ${totalRegularHours}, OT: ${totalOvertimeHours}, Late: ${totalLateHours}, Early Leave: ${totalEarlyLeaveHours}`);
 
         reports.push({
           period: period.name,
@@ -106,8 +115,10 @@ const ReportsContent: React.FC = () => {
           totalRegularHours,
           totalOvertimeHours,
           totalLateHours,
+          totalEarlyLeaveHours,
           totalOvertimeUsed,
           totalLateUsed,
+          totalEarlyLeaveUsed,
           entries: processedEntries,
         });
       }
@@ -129,8 +140,10 @@ const ReportsContent: React.FC = () => {
   const totalRegularHours = periodReports.reduce((sum, report) => sum + (report.totalRegularHours || 0), 0);
   const totalOvertimeHours = periodReports.reduce((sum, report) => sum + (report.totalOvertimeHours || 0), 0);
   const totalLateHours = periodReports.reduce((sum, report) => sum + (report.totalLateHours || 0), 0);
+  const totalEarlyLeaveHours = periodReports.reduce((sum, report) => sum + (report.totalEarlyLeaveHours || 0), 0);
   const totalOvertimeUsed = periodReports.reduce((sum, report) => sum + (report.totalOvertimeUsed || 0), 0);
   const totalLateUsed = periodReports.reduce((sum, report) => sum + (report.totalLateUsed || 0), 0);
+  const totalEarlyLeaveUsed = periodReports.reduce((sum, report) => sum + (report.totalEarlyLeaveUsed || 0), 0);
 
   // Toggle handlers
   const handleToggleOvertimeUsed = async (entry: TimeEntry) => {
@@ -152,6 +165,17 @@ const ReportsContent: React.FC = () => {
       Alert.alert('ข้อผิดพลาด', 'ไม่สามารถบันทึกสถานะได้');
     }
   };
+
+  const handleToggleEarlyLeaveUsed = async (entry: TimeEntry) => {
+    try {
+      await updateTimeEntry(entry.date, { earlyLeaveUsed: !entry.earlyLeaveUsed });
+      loadReports(); // Reload to reflect changes
+    } catch (error) {
+      console.error('Error toggling early leave used:', error);
+      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถบันทึกสถานะได้');
+    }
+  };
+
 
   const styles = StyleSheet.create({
     container: {
@@ -514,6 +538,13 @@ const ReportsContent: React.FC = () => {
             </Text>
           </View>
           <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>กลับก่อนเวลา:</Text>
+            <Text style={styles.summaryValue}>
+              {formatHours(totalEarlyLeaveHours)}
+              {totalEarlyLeaveUsed > 0 && <Text style={{fontSize: 14, opacity: 0.8}}> (ชดเชยแล้ว: {formatHours(totalEarlyLeaveUsed)})</Text>}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>รวมทั้งหมด:</Text>
             <Text style={styles.summaryValue}>{formatHours(totalRegularHours + totalOvertimeHours)}</Text>
           </View>
@@ -575,6 +606,7 @@ const ReportsContent: React.FC = () => {
                         <Text style={{color: '#0563e8'}}>ปกติ: {formatHours(entry.regularHours || 0)}</Text>
                         <Text style={{color: entry.overtimeUsed ? '#666666' : '#28a745'}}> OT: {formatHours(entry.overtimeHours || 0)}{entry.overtimeUsed ? ' ✓' : ''}</Text>
                         <Text style={{color: entry.lateArrivalUsed ? '#666666' : '#dc3545'}}> สาย: {formatHours(entry.lateArrivalHours || 0)}{entry.lateArrivalUsed ? ' ✓' : ''}</Text>
+                        {(entry.earlyLeaveHours || 0) > 0 && <Text style={{color: entry.earlyLeaveUsed ? '#666666' : '#ff9800'}}> กลับก่อน: {formatHours(entry.earlyLeaveHours || 0)}{entry.earlyLeaveUsed ? ' ✓' : ''}</Text>}
                       </Text>
                     </View>
                     <View style={styles.entryArrow}>
@@ -600,6 +632,15 @@ const ReportsContent: React.FC = () => {
                       >
                         <Icon name={entry.lateArrivalUsed ? "checkbox" : "square-outline"} size={18} color={entry.lateArrivalUsed ? '#dc3545' : colors.textSecondary} />
                         <Text style={[styles.toggleText, entry.lateArrivalUsed && styles.toggleTextActive]}>ใช้สายแล้ว</Text>
+                      </TouchableOpacity>
+                    )}
+                    {(entry.earlyLeaveHours || 0) > 0 && (
+                      <TouchableOpacity 
+                        style={[styles.toggleButton, entry.earlyLeaveUsed && styles.toggleButtonActive]}
+                        onPress={() => handleToggleEarlyLeaveUsed(entry)}
+                      >
+                        <Icon name={entry.earlyLeaveUsed ? "checkbox" : "square-outline"} size={18} color={entry.earlyLeaveUsed ? '#ff9800' : colors.textSecondary} />
+                        <Text style={[styles.toggleText, entry.earlyLeaveUsed && styles.toggleTextActive]}>ชดเชยแล้ว</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -657,6 +698,13 @@ const ReportsContent: React.FC = () => {
                   <Text style={styles.modalLabel}>ชั่วโมงมาสาย:</Text>
                   <Text style={styles.modalValue}>{formatHours(selectedEntry.lateArrivalHours || 0)}</Text>
                 </View>
+                
+                {(selectedEntry.earlyLeaveHours || 0) > 0 && (
+                  <View style={styles.modalRow}>
+                    <Text style={styles.modalLabel}>กลับก่อนเวลา:</Text>
+                    <Text style={styles.modalValue}>{formatHours(selectedEntry.earlyLeaveHours || 0)}</Text>
+                  </View>
+                )}
                 
                 <View style={styles.modalRow}>
                   <Text style={styles.modalLabel}>เหตุผล:</Text>

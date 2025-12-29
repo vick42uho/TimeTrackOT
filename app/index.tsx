@@ -23,7 +23,7 @@ const HomeContent: React.FC = () => {
   const { colors } = useThemeContext();
   const router = useRouter();
   const { getWorkSchedule, getTimeEntry, isReady, getTimeEntriesForPeriod } = useDatabase();
-  const { formatDateThai, getThaiDayName, formatHours, calculateLateArrival, calculateWorkHours } = useTimeCalculation();
+  const { formatDateThai, getThaiDayName, formatHours, calculateLateArrival, calculateEarlyLeave, calculateWorkHours } = useTimeCalculation();
   
   const [currentSchedule, setCurrentSchedule] = useState<any>(undefined);
   const [todayEntry, setTodayEntry] = useState<any>(undefined);
@@ -34,7 +34,9 @@ const HomeContent: React.FC = () => {
     totalOTUsed: number;
     lateCount: number;
     lateUsedCount: number;
-  }>({ totalOT: 0, totalOTUsed: 0, lateCount: 0, lateUsedCount: 0 });
+    totalEarlyLeave: number;
+    totalEarlyLeaveUsed: number;
+  }>({ totalOT: 0, totalOTUsed: 0, lateCount: 0, lateUsedCount: 0, totalEarlyLeave: 0, totalEarlyLeaveUsed: 0 });
 
   // Define loadTodayData function first
   const loadTodayData = useCallback(async () => {
@@ -128,7 +130,7 @@ const HomeContent: React.FC = () => {
 
   const loadYearlyStats = async (year: number, schedule: any) => {
     if (!schedule) {
-      setMonthlyStats({ totalOT: 0, totalOTUsed: 0, lateCount: 0, lateUsedCount: 0 });
+      setMonthlyStats({ totalOT: 0, totalOTUsed: 0, lateCount: 0, lateUsedCount: 0, totalEarlyLeave: 0, totalEarlyLeaveUsed: 0 });
       return;
     }
 
@@ -151,7 +153,10 @@ const HomeContent: React.FC = () => {
       let totalOTUsed = 0;
       let lateCount = 0;
       let lateUsedCount = 0;
+      let totalEarlyLeave = 0;
+      let totalEarlyLeaveUsed = 0;
       
+      // Calculate total OT for the year - recalculate using current logic
       // Calculate total OT for the year - recalculate using current logic
       yearEntries.forEach(entry => {
         if (entry.clockIn && entry.clockOut && schedule) {
@@ -166,6 +171,15 @@ const HomeContent: React.FC = () => {
           totalOT += entry.overtimeHours;
           if (entry.overtimeUsed) {
             totalOTUsed += entry.overtimeHours;
+          }
+        }
+
+        // ACCUMULATE EARLY LEAVE FROM STORED VALUES
+        // This ensures consistent data with Reports page and Time Entry
+        if (entry.earlyLeaveHours) {
+          totalEarlyLeave += entry.earlyLeaveHours;
+          if (entry.earlyLeaveUsed) {
+            totalEarlyLeaveUsed += entry.earlyLeaveHours;
           }
         }
       });
@@ -183,10 +197,10 @@ const HomeContent: React.FC = () => {
         }
       });
       
-      setMonthlyStats({ totalOT, totalOTUsed, lateCount, lateUsedCount });
+      setMonthlyStats({ totalOT, totalOTUsed, lateCount, lateUsedCount, totalEarlyLeave, totalEarlyLeaveUsed });
     } catch (error) {
       console.error('Error loading yearly stats:', error);
-      setMonthlyStats({ totalOT: 0, totalOTUsed: 0, lateCount: 0, lateUsedCount: 0 });
+      setMonthlyStats({ totalOT: 0, totalOTUsed: 0, lateCount: 0, lateUsedCount: 0, totalEarlyLeave: 0, totalEarlyLeaveUsed: 0 });
     }
   };
 
@@ -251,6 +265,11 @@ const HomeContent: React.FC = () => {
       borderColor: '#F44336',
       shadowColor: '#F44336',
     },
+    earlyLeaveStatCard: {
+      backgroundColor: '#FFF8E1',
+      borderColor: '#FF9800',
+      shadowColor: '#FF9800',
+    },
     regularHoursStatCard: {
       backgroundColor: '#E3F2FD',
       borderColor: '#2196F3',
@@ -274,6 +293,9 @@ const HomeContent: React.FC = () => {
     lateStatValue: {
       color: '#C62828',
     },
+    earlyLeaveStatValue: {
+      color: '#E65100',
+    },
     regularHoursStatValue: {
       color: '#1565C0',
     },
@@ -292,6 +314,9 @@ const HomeContent: React.FC = () => {
     },
     lateStatLabel: {
       color: '#D32F2F',
+    },
+    earlyLeaveStatLabel: {
+      color: '#F57C00',
     },
     regularHoursStatLabel: {
       color: '#1976D2',
@@ -487,6 +512,16 @@ const HomeContent: React.FC = () => {
             <Text style={[styles.statLabel, styles.lateStatLabel]}>
               มาสายคงเหลือ{'\n'}เดือนนี้
               {monthlyStats.lateUsedCount > 0 && `\n(รวม: ${monthlyStats.lateCount})`}
+            </Text>
+          </View>
+
+          <View style={[styles.statCard, styles.earlyLeaveStatCard]}>
+            <Text style={[styles.statValue, styles.earlyLeaveStatValue]}>
+              {formatHours(monthlyStats.totalEarlyLeave - monthlyStats.totalEarlyLeaveUsed)}
+            </Text>
+            <Text style={[styles.statLabel, styles.earlyLeaveStatLabel]}>
+              กลับก่อนคงเหลือ{'\n'}ทั้งปี
+              {monthlyStats.totalEarlyLeaveUsed > 0 && `\n(รวม: ${formatHours(monthlyStats.totalEarlyLeave)})`}
             </Text>
           </View>
 
