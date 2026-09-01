@@ -3,7 +3,8 @@ name: timetrack-ot-app
 description: >-
   Master reference and technical blueprint for TimeTrack OT: a high-performance React Native / Expo
   work time tracking and overtime (OT) management mobile app with Thai Buddhist Era localization,
-  SQLite database with WAL mode, morning/evening OT engine, BNA UI components, and leave management.
+  SQLite database with WAL mode, morning/evening OT engine, BNA UI components, local background notifications,
+  and leave & activity management.
 ---
 
 # TimeTrack OT — Architecture, Business Logic & Engineering Guide
@@ -12,18 +13,20 @@ A comprehensive architectural and engineering reference for the **TimeTrack OT**
 
 ---
 
-## 🏛️ 1. Tech Stack & Architecture
+## 1. Tech Stack & Architecture
 
 - **Core Framework**: React Native 0.81 + Expo SDK 54 (New Architecture / Hermes Bytecode).
-- **Navigation & Routing**: Expo Router v6 (File-based routing with native tab bar and stacks).
-- **Local Database**: Expo SQLite v16 (WAL journal mode, target indexes, singleton pattern).
-- **UI & Design System**: BNA UI (`@/components/ui/*`), `@/theme/*`, Lucide React Native icons.
-- **Animation & Motion**: `react-native-reanimated`, `expo-haptics`.
+- **Navigation & Routing**: Expo Router v6 (File-based routing with tab bar using `router.replace` to prevent memory leaks and screen stack accumulation).
+- **Local Database**: Expo SQLite v16 (WAL journal mode, target composite indexes, singleton pattern, bulk transaction safety).
+- **UI & Design System**: BNA UI (`@/components/ui/*`), `@/theme/*`, Lucide React Native vector icons. (Strict policy: Zero emojis in app code).
+- **Local Notification Engine**: Modular `expo-notifications`, Android Notification Channel (`activity-reminders`) with `AndroidImportance.MAX` and public lockscreen visibility for background alerts when the app is closed.
+- **Haptic Engine**: Configurable `useHaptics` hook with persistent storage, defaulted to OFF to eliminate unwanted touch vibrations, toggleable in Settings.
 - **Localization**: Thai Buddhist Era (พ.ศ. = ค.ศ. + 543), Thai day/month localization, Sarabun Google Font.
+- **Data Privacy**: 100% Offline, local-only SQLite storage with JSON Export/Import capabilities.
 
 ---
 
-## ⏱️ 2. Core Time Calculation & OT Engine (`hooks/useTimeCalculation.ts`)
+## 2. Core Time Calculation & OT Engine (`hooks/useTimeCalculation.ts`)
 
 ### Overtime & Working Hours Formulas
 The calculation engine strictly differentiates between **Morning Overtime (OT เช้า)**, **Shift Regular Hours (เวลาทำงานปกติ)**, and **Evening Overtime (OT เย็น)**:
@@ -54,17 +57,21 @@ const overtimeHours = Number((morningOT + eveningOT).toFixed(2));
 
 ---
 
-## 🗄️ 3. Database Architecture & SQLite Performance (`hooks/useDatabase.ts`)
+## 3. Database Architecture & SQLite Performance (`hooks/useDatabase.ts`)
 
 ### Singleton Connection & WAL Mode
 ```ts
 const database = await SQLite.openDatabaseAsync('timetracker.db');
-await database.execAsync('PRAGMA journal_mode = WAL;');
+await database.execAsync(`
+  PRAGMA journal_mode = WAL;
+  PRAGMA synchronous = NORMAL;
+  PRAGMA cache_size = -2000;
+`);
 ```
 
 ### Table Schemas & Target Indexes
 ```sql
--- Work Schedules
+-- Work Schedules (Monthly & Annual Shifts)
 CREATE TABLE IF NOT EXISTS work_schedules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   month INTEGER NOT NULL,
@@ -77,7 +84,7 @@ CREATE TABLE IF NOT EXISTS work_schedules (
   UNIQUE(month, year)
 );
 
--- Time Entries
+-- Time Entries (Daily Clock In/Out)
 CREATE TABLE IF NOT EXISTS time_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   date TEXT NOT NULL UNIQUE,
@@ -95,7 +102,7 @@ CREATE TABLE IF NOT EXISTS time_entries (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Holidays
+-- Holidays & WFH Days
 CREATE TABLE IF NOT EXISTS holidays (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -127,92 +134,125 @@ CREATE TABLE IF NOT EXISTS leave_quotas (
   UNIQUE(year, leave_type)
 );
 
+-- Daily Activities & Appointments
+CREATE TABLE IF NOT EXISTS activities (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  date TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'general',
+  is_all_day INTEGER DEFAULT 1,
+  start_time TEXT,
+  end_time TEXT,
+  reminder_minutes INTEGER,
+  location TEXT,
+  note TEXT,
+  notification_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_time_entries_date ON time_entries(date);
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_leaves_dates ON leaves(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_work_schedules_month_year ON work_schedules(month, year);
+CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
 ```
 
-### High-Performance Batch Queries
-Never execute waterfall sequential queries in loops (e.g. `for (let month = 1; month <= 12; month++)`).
-Always use parallel batch queries:
+### Annual Schedule Bulk Save Engine
+When the user configures standard hours across an entire year, it executes in an atomic transaction:
 ```ts
-const [yearSchedules, allYearEntries] = await Promise.all([
-  getWorkSchedulesForYear(currentYear),
-  getTimeEntriesForPeriod(`${currentYear}-01-01`, `${currentYear}-12-31`),
-]);
+export const saveYearlyWorkSchedule = async (
+  year: number,
+  startTime: string,
+  endTime: string,
+  workDays: number = 22
+): Promise<void> => {
+  const db = await getDatabase();
+  await db.withTransactionAsync(async () => {
+    for (let month = 1; month <= 12; month++) {
+      await db.runAsync(
+        `INSERT INTO work_schedules (month, year, start_time, end_time, work_days, updated_at)
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(month, year) DO UPDATE SET
+           start_time = excluded.start_time,
+           end_time = excluded.end_time,
+           work_days = excluded.work_days,
+           updated_at = CURRENT_TIMESTAMP`,
+        [month, year, startTime, endTime, workDays]
+      );
+    }
+  });
+};
 ```
 
 ---
 
-## 🎨 4. UI/UX Guidelines & BNA UI Integration
+## 4. Background Notification Engine (`services/notificationService.ts`)
 
-### BNA UI Components Used
-- `Card`: Container surface for metrics, period groups, and accordions.
-- `Button`: Primary, outline, destructive, and icon buttons.
-- `Input`: Single-line inputs and textareas (`type="textarea"`).
-- `Accordion`: AccordionItem, AccordionTrigger, AccordionContent for hierarchical lists.
-- `AlertDialog`: Destructive confirmation modals (with symmetrical 50%/50% width and `confirmVariant="destructive"`).
-- `BottomSheet`: Modal bottom sheets for quick actions, holiday editing, and quota edits.
-- `Toast`: Global feedback notification (`success`, `warning`, `error`).
-
-### Screen Layout Patterns
-
-#### 1. Dashboard (`app/index.tsx`)
-- **2x2 Balanced Stats Grid**:
-  - `OT คงเหลือทั้งปี`: Net OT for the year (`totalOT - totalOTUsed`).
-  - `มาสายเดือนนี้`: Net uncompensated late count (`lateCount - lateUsedCount`).
-  - `ทำงานรวมเดือนนี้`: Month regular hours (`monthWorkHours`).
-  - `OT รวมเดือนนี้`: Net OT remaining for the month (`monthOTHours - monthOTUsed`).
-- **Today's Status Card**: Displays clock in, clock out, regular hours, late time, and OT hours.
-- **Schedule Card**: Shows current month's standard schedule (`08:00 - 17:00`).
-
-#### 2. Reports (`app/reports.tsx`)
-- **3-Tier Monthly Summary Card (Blue)**:
-  - `ชั่วโมงปกติ`: Regular hours.
-  - `ชั่วโมง OT สะสม`: Gross earned OT.
-    - `└ ใช้แล้ว`: Compensated/used OT.
-    - `└ คงเหลือสุทธิ`: Net available OT (highlighted in `#86efac`).
-  - `ชั่วโมงมาสาย`: Gross late time.
-    - `└ ชดเชย/ใช้แล้ว`: Compensated late.
-    - `└ สายคงค้าง`: Outstanding late time.
-  - `รวมเวลาทำงานจริง`: Gross actual hours (`regularHours + overtimeHours`).
-- **Quick Filter Pills**: `ทั้งหมด (N)` | `⚡ มี OT (N)` | `⚠️ มาสาย (N)` | `🏃 กลับก่อน (N)`
-- **Monthly Summary Image Sharing (`react-native-view-shot` + `expo-sharing`)**:
-  - Captures the 3-Tier summary card into a crisp high-res PNG image with title, breakdown, and TimeTrack OT branding.
-  - Centered compact pill button: `แชร์สรุปเวลาเดือน[ชื่อเดือน]`.
-- **Compact Monthly Timeline List**:
-  - Shows chronologically sorted daily cards (`date`, `dayOfWeek in Thai`, `total hours badge`, `clock in/out`).
-  - Mini badges: `ปกติ X ชม.`, `⚡ OT Y ชม.`, `⚠️ สาย Z ชม.`, `🏃 ก่อน W ชม.`.
-  - Quick action toggles: `[ ✓ ใช้ OT แล้ว ]`, `[ ✓ ชดเชยสายแล้ว ]`, `[ ✓ ชดเชยกลับก่อนแล้ว ]` with optimistic UI updates.
-  - Tap card to open Detail Modal with full breakdown and edit shortcut.
-
-#### 3. Holidays & Leaves (`app/leaves.tsx`)
-- **Interactive Calendar**: Custom date selector with Thai Buddhist Year banner.
-- **Visual Calendar Image Sharing (`react-native-view-shot` + `expo-sharing`)**:
-  - Captures the exact interactive calendar grid into a crisp high-res PNG image.
-  - Includes Month/Year title, day status tags (WFH, Day Off, Leaves, Holidays), color legend, and `TimeTrack OT` branding footer.
-  - Native share sheet integration to send directly to LINE / Facebook / Files / Photos.
-- **2-Accordion Split**:
-  - `📅 รายการในเดือนนี้` (Default Open): Shows WFH, Day Off, Leaves, and Month Holidays with tap-to-edit ✏️ and delete 🗑️.
-  - `🏛️ วันหยุดประจำปี พ.ศ. 2569` (Collapsible): Preload Thai holidays button + add holiday button + annual list with tap-to-edit.
-- **Destructive Confirmation**: Deleting or clearing day status is protected by `AlertDialog`.
+For local reminders to alert the user even when the app is completely closed/killed:
+1. **`app.json` Configuration**:
+   - Plugin: `["expo-notifications", { "icon": "./assets/images/timetrack-icon.png", "color": "#2563EB", "defaultChannel": "activity-reminders" }]`
+   - Permissions: `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`, `POST_NOTIFICATIONS`, `VIBRATE`.
+2. **Android Channel**:
+   - Channel ID: `activity-reminders`
+   - Importance: `AndroidImportance.MAX`
+   - Visibility: `AndroidNotificationVisibility.PUBLIC`
+   - Initialized at startup in `app/_layout.tsx`.
+3. **Modular Imports**: Import from `expo-notifications/build/...` to bypass Remote Push auto-token registration, avoiding Expo Go SDK 53 warning errors.
 
 ---
 
-## 🚀 5. Performance Best Practices
+## 5. UI Architecture & Pinned Footer BottomSheet (`components/ui/bottom-sheet.tsx`)
 
-1. **Database-First Hydration**: Prefer persisted values from database over recalculating on every render, but recalculate dynamically if missing.
-2. **In-Memory Filtering**: Fetch month data in one query, filter period slices in memory.
-3. **Optimistic State Updates**: Update local React state immediately on user action before background DB write finishes.
-4. **Haptic Feedback**: Trigger `Haptics.impactAsync` on button presses, toggles, and modals for tactile response.
+### BottomSheet Structure
+- **Positioning**: Fixed to `position: 'absolute', bottom: 0` with `height: maxSheetHeight`. This guarantees that the bottom of the sheet aligns with the bottom of the device screen.
+- **Pinned Footer (`footer` prop)**: Action buttons (`[ยกเลิก]` and `[บันทึก]`) sit in a dedicated bottom bar above `insets.bottom`. They remain 100% visible on screen without requiring the user to scroll.
+- **Isolated Drag Gesture**: `GestureDetector` is attached exclusively to the top drag handle/header area. The internal `ScrollView` scrolls freely without pan gesture conflicts or double-scroll traps.
+- **Single ScrollView Rule**: Never nest a `<ScrollView>` inside `BottomSheet` content. Pass a `<View style={{ gap: 14 }}>` as children.
 
 ---
 
-## 💾 6. Backup & Restore Architecture (`hooks/useDatabase.ts` & `app/settings.tsx`)
+## 6. Navigation & Performance Architecture
 
-- **JSON Payload Format (`BackupPayload`)**: Contains `metadata` (appName, appVersion, schemaVersion, exportedAt, totalRecords) and `data` (timeEntries, workSchedules, holidays, leaves, leaveQuotas).
-- **Export Flow**: `exportBackupData()` $\rightarrow$ `FileSystem.writeAsStringAsync` to cache $\rightarrow$ `Sharing.shareAsync` to Google Drive / iCloud / LINE / Email.
-- **Restore Flow**: `DocumentPicker.getDocumentAsync` $\rightarrow$ `FileSystem.readAsStringAsync` $\rightarrow$ JSON validation $\rightarrow$ `AlertDialog` prompt (Clean Replace vs Merge) $\rightarrow$ `importBackupData()` inside `db.withTransactionAsync`.
+### Tab Navigation (`components/BottomNavigation.tsx`)
+- **Use `router.replace`**: Top-level tabs must navigate via `router.replace(tab.route)`. Never use `router.push()` for tab switching, as `push()` accumulates unmounted screens in memory, resulting in memory ballooning and device sluggishness.
+- **Current Tab Guard**: Check `if (pathname === route) return;` to avoid redundant renders.
 
+### Configurable Haptics (`hooks/useHaptics.ts`)
+- Stored in AsyncStorage (`@timetrack_haptics_enabled`).
+- Default: **OFF** (false). Eliminates harsh Android buzzer vibrations and micro-stutters during rapid tapping.
+- User can toggle on/off anytime in `app/settings.tsx`.
+
+---
+
+## 7. Screen Specifications
+
+### 1. Dashboard (`app/index.tsx`)
+- **Dynamic Greeting with Live Clock**: Shows greeting (Morning/Afternoon/Evening) paired with real-time digital clock badge `[Clock Icon] HH:mm น.` updated every 10 seconds.
+- **2x2 Balanced Stats Grid**: Net Annual OT, Monthly Late Count, Monthly Regular Hours, Monthly Net Remaining OT.
+- **Today's Status Card**: Shift progress bar, clock-in/out times, OT breakdown.
+- **Leave Quota Quick Dock**: Displays remaining quotas for Vacation, Sick, Personal, and Other leaves.
+
+### 2. Time Entry (`app/time-entry.tsx`)
+- Date picker, Time pickers for Clock In and Clock Out with quick presets (Now, Shift Start, Shift End).
+- Detailed Live Preview: Real-time calculation of regular hours, morning OT, evening OT, and late minutes before saving.
+- Textarea note input.
+
+### 3. Calendar, Leaves & Activities (`app/leaves.tsx`)
+- Interactive Thai Buddhist calendar grid with status dots (Holiday, Leave, WFH, Activity).
+- Tap any date to open `dayActionSheet` (1-tap quick actions for WFH, Holiday, Leave, or Activity).
+- `activitySheet` with Pinned Footer: Add/edit appointments, category chips, time range or all-day toggle, alert reminder picker, location, note, and save button.
+- Shareable Calendar Image Export via `react-native-view-shot` and `expo-sharing`.
+
+### 4. Reports (`app/reports.tsx`)
+- 3-Tier Monthly Summary Card with detailed audit hours.
+- Pay period split (1st-10th, 11th-20th, 21st-End of month).
+- Quick filter pills: All, Has OT, Late, Early Leave.
+- Detail Modal with toggles for OT used and late compensated.
+- Shareable Monthly Summary Card image generator.
+
+### 5. Settings (`app/settings.tsx`)
+- **Work Schedule**: Monthly vs. Entire Year configuration with start/end time.
+- **App Settings**: Dark / Light mode toggle, Haptic feedback vibration switch.
+- **Database Management (Danger Zone)**: Solid opaque dark card (prevents Android elevation artifact), backup export to JSON, restore import from file, and reset database.
+- **About App**: Version badge (v1.2.0), 100% Offline Local Storage chip, Developer name "Wick", Copyright, and interactive Google Form feedback button (`forms.gle/BKx4Pz6VB65kdaka8`).
