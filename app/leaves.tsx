@@ -1870,7 +1870,7 @@ const LeavesContent: React.FC = () => {
         snapPoints={[0.88, 0.96]}
         title="จัดการวันที่ & กิจกรรม"
       >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 28 }}>
+        <View style={{ paddingBottom: 20 }}>
           {/* Selected Date Header */}
           <View style={[styles.dayActionHeader, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
             <CalendarIcon size={18} color={colors.primary} />
@@ -2103,7 +2103,7 @@ const LeavesContent: React.FC = () => {
               </Button>
             )}
           </View>
-        </ScrollView>
+        </View>
       </BottomSheet>
 
       {/* ========================================================= */}
@@ -2387,10 +2387,20 @@ const LeavesContent: React.FC = () => {
       <BottomSheet
         isVisible={activitySheet.isVisible}
         onClose={activitySheet.close}
-        snapPoints={[0.88, 0.95]}
+        snapPoints={[0.92, 0.98]}
         title={editingActivity ? 'แก้ไขกิจกรรม / นัดหมาย' : `เพิ่มกิจกรรม (${formatDateThai(selectedCalendarDate)})`}
+        footer={
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={activitySheet.close}>
+              ยกเลิก
+            </Button>
+            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveActivity}>
+              {editingActivity ? 'บันทึกการแก้ไข' : 'บันทึกนัดหมาย'}
+            </Button>
+          </View>
+        }
       >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: 30 }}>
+        <View style={{ gap: 14, paddingBottom: 16 }}>
           {/* Activity Title */}
           <View>
             <Text variant="caption" style={{ marginBottom: 6, color: colors.textSecondary, fontWeight: '600', fontSize: 13 }}>
@@ -2569,16 +2579,7 @@ const LeavesContent: React.FC = () => {
             />
           </View>
 
-          {/* Action Buttons */}
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
-            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={activitySheet.close}>
-              ยกเลิก
-            </Button>
-            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveActivity}>
-              {editingActivity ? 'บันทึกการแก้ไข' : 'บันทึกนัดหมาย'}
-            </Button>
-          </View>
-        </ScrollView>
+        </View>
       </BottomSheet>
 
       {/* Delete Activity Dialog */}

@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '@/hooks/useHaptics';
 import { useThemeContext } from './ThemeProvider';
 import { Icon } from '@/components/ui/icon';
 import { Home, Clock, Calendar, BarChart3, Settings } from 'lucide-react-native';
@@ -21,12 +21,9 @@ export const BottomNavigation: React.FC = () => {
   ];
 
   const handleTabPress = (route: string) => {
-    try {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    } catch (e) {}
-    router.push(route as any);
+    if (pathname === route) return;
+    triggerHaptic('selection');
+    router.replace(route as any);
   };
 
   const styles = StyleSheet.create({

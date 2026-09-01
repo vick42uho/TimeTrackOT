@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Linking, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
+import { getGlobalHapticsEnabled, setGlobalHapticsEnabled, triggerHaptic } from '@/hooks/useHaptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -72,6 +73,19 @@ const SettingsContent: React.FC = () => {
   const [pendingRestore, setPendingRestore] = useState<BackupPayload | null>(null);
   const [restoreDialogVisible, setRestoreDialogVisible] = useState(false);
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
+  const [hapticsEnabled, setHapticsEnabledState] = useState(getGlobalHapticsEnabled());
+
+  useEffect(() => {
+    setHapticsEnabledState(getGlobalHapticsEnabled());
+  }, []);
+
+  const handleToggleHaptics = async (val: boolean) => {
+    setHapticsEnabledState(val);
+    await setGlobalHapticsEnabled(val);
+    if (val) {
+      triggerHaptic('impact-light');
+    }
+  };
 
   useEffect(() => {
     loadWorkSchedule();
@@ -803,6 +817,23 @@ const SettingsContent: React.FC = () => {
                 {themeMode === 'light' ? 'โหมดสว่าง (Light)' : 'โหมดมืด (Dark)'}
               </Text>
             </TouchableOpacity>
+          </View>
+
+          <Separator style={{ marginVertical: 8 }} />
+
+          <View style={styles.settingItem}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.settingLabel}>การสั่นตอบสนอง (Haptic)</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular' }}>
+                สั่นเบาๆ เมื่อแตะปุ่มหรือสลับแท็บ
+              </Text>
+            </View>
+            <Switch
+              value={hapticsEnabled}
+              onValueChange={handleToggleHaptics}
+              trackColor={{ false: isDark ? '#334155' : '#cbd5e1', true: '#3b82f6' }}
+              thumbColor="#ffffff"
+            />
           </View>
         </Card>
 

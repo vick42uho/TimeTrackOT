@@ -13,6 +13,7 @@ import {
   Sarabun_600SemiBold,
   Sarabun_700Bold,
 } from '@expo-google-fonts/sarabun';
+import { initNotificationService } from '../services/notificationService';
 
 const STORAGE_KEY = 'emulated_device';
 
@@ -79,6 +80,9 @@ export default function RootLayout() {
         console.error('Error loading fonts:', error);
         setFontsLoaded(true); // Continue even if fonts fail to load
       }
+
+      // Initialize background notification channel for Android (API 26+)
+      initNotificationService().catch((e) => console.warn('Failed to init notifications:', e));
     };
 
     loadFonts();

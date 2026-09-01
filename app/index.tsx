@@ -285,11 +285,20 @@ const HomeContent: React.FC = () => {
     year: 'numeric' 
   });
 
+  const [liveTime, setLiveTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveTime(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleActionPress = (route: string) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    router.push(route as any);
+    router.replace(route as any);
   };
 
   const isDark = themeMode === 'dark';
@@ -648,10 +657,36 @@ const HomeContent: React.FC = () => {
               {(() => {
                 const greeting = getGreeting();
                 const GreetingIcon = greeting.icon;
+                const hh = String(liveTime.getHours()).padStart(2, '0');
+                const mm = String(liveTime.getMinutes()).padStart(2, '0');
                 return (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <GreetingIcon size={14} color={greeting.color} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <GreetingIcon size={15} color={greeting.color} />
                     <Text style={styles.greetingText}>{greeting.text}</Text>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 3,
+                        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+                        paddingHorizontal: 7,
+                        paddingVertical: 2,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : '#bfdbfe',
+                      }}
+                    >
+                      <Clock size={11} color={isDark ? '#60a5fa' : '#2563eb'} />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontFamily: 'Sarabun_700Bold',
+                          color: isDark ? '#60a5fa' : '#2563eb',
+                        }}
+                      >
+                        {hh}:{mm} น.
+                      </Text>
+                    </View>
                   </View>
                 );
               })()}

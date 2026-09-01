@@ -1388,7 +1388,7 @@ const ReportsContent: React.FC = () => {
                   style={{ marginTop: 14 }}
                   onPress={() => {
                     closeModal();
-                    router.push('/time-entry');
+                    router.replace('/time-entry');
                   }}
                 >
                   แก้ไขรายการนี้

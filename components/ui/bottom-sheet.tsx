@@ -28,27 +28,68 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type BottomSheetContentProps = {
   children: React.ReactNode;
   title?: string;
+  footer?: React.ReactNode;
   style?: ViewStyle;
   rBottomSheetStyle: any;
   cardColor: string;
   mutedColor: string;
   screenHeight: number;
   onHandlePress?: () => void;
+  gesture?: any;
 };
 
 // Component for the bottom sheet content
-// It now includes a ScrollView by default for better form handling.
 const BottomSheetContent = ({
   children,
   title,
+  footer,
   style,
   rBottomSheetStyle,
   cardColor,
   mutedColor,
   screenHeight,
   onHandlePress,
+  gesture,
 }: BottomSheetContentProps) => {
   const insets = useSafeAreaInsets();
+
+  const headerContent = (
+    <View style={{ width: '100%' }}>
+      {/* Handle */}
+      <TouchableWithoutFeedback onPress={onHandlePress}>
+        <View
+          style={{
+            width: '100%',
+            paddingVertical: 12,
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{
+              width: 56,
+              height: 5,
+              backgroundColor: mutedColor,
+              borderRadius: 999,
+            }}
+          />
+        </View>
+      </TouchableWithoutFeedback>
+
+      {/* Title */}
+      {title && (
+        <View
+          style={{
+            marginHorizontal: 16,
+            paddingBottom: 8,
+          }}
+        >
+          <Text variant='title' style={{ textAlign: 'center', fontSize: 16, fontWeight: '700' }}>
+            {title}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <Animated.View
@@ -66,53 +107,45 @@ const BottomSheetContent = ({
         style,
       ]}
     >
-      {/* Handle */}
-      <TouchableWithoutFeedback onPress={onHandlePress}>
-        <View
-          style={{
-            width: '100%',
-            paddingVertical: 12,
-            alignItems: 'center',
-          }}
-        >
-          <View
-            style={{
-              width: 64,
-              height: 6,
-              backgroundColor: mutedColor,
-              borderRadius: 999,
-            }}
-          />
-        </View>
-      </TouchableWithoutFeedback>
-
-      {/* Title */}
-      {title && (
-        <View
-          style={{
-            marginHorizontal: 16,
-            marginTop: 16,
-            paddingBottom: 8,
-          }}
-        >
-          <Text variant='title' style={{ textAlign: 'center' }}>
-            {title}
-          </Text>
-        </View>
+      {/* Drag Handle & Header - GestureDetector is attached here so inner form can scroll freely */}
+      {gesture ? (
+        <GestureDetector gesture={gesture}>
+          {headerContent}
+        </GestureDetector>
+      ) : (
+        headerContent
       )}
 
-      {/* Content now wrapped in a ScrollView */}
+      {/* Content wrapped in a clean, unobstructed ScrollView */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          padding: 16,
-          paddingBottom: Math.max(insets.bottom + 48, 64),
+          paddingHorizontal: 16,
+          paddingTop: 4,
+          paddingBottom: footer ? 16 : Math.max(insets.bottom + 48, 64),
         }}
         keyboardShouldPersistTaps='handled'
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
       >
         {children}
       </ScrollView>
+
+      {/* Pinned Bottom Footer (e.g. Save/Cancel action buttons) */}
+      {footer && (
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 10,
+            paddingBottom: Math.max(insets.bottom + 8, 16),
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(150, 150, 150, 0.15)',
+            backgroundColor: cardColor,
+          }}
+        >
+          {footer}
+        </View>
+      )}
     </Animated.View>
   );
 };
@@ -124,6 +157,7 @@ type BottomSheetProps = {
   snapPoints?: number[];
   enableBackdropDismiss?: boolean;
   title?: string;
+  footer?: React.ReactNode;
   style?: ViewStyle;
   disablePanGesture?: boolean;
 };
@@ -135,6 +169,7 @@ export function BottomSheet({
   snapPoints = [0.88, 0.96],
   enableBackdropDismiss = true,
   title,
+  footer,
   style,
   disablePanGesture = false,
 }: BottomSheetProps) {
@@ -306,31 +341,18 @@ export function BottomSheet({
             <Animated.View style={{ flex: 1 }} />
           </TouchableWithoutFeedback>
 
-          {disablePanGesture ? (
-            <BottomSheetContent
-              children={children}
-              title={title}
-              style={style}
-              rBottomSheetStyle={rBottomSheetStyle}
-              cardColor={cardColor}
-              mutedColor={mutedColor}
-              screenHeight={screenHeight}
-              onHandlePress={() => runOnJS(handlePress)()}
-            />
-          ) : (
-            <GestureDetector gesture={gesture}>
-              <BottomSheetContent
-                children={children}
-                title={title}
-                style={style}
-                rBottomSheetStyle={rBottomSheetStyle}
-                cardColor={cardColor}
-                mutedColor={mutedColor}
-                screenHeight={screenHeight}
-                onHandlePress={() => runOnJS(handlePress)()}
-              />
-            </GestureDetector>
-          )}
+          <BottomSheetContent
+            children={children}
+            title={title}
+            footer={footer}
+            style={style}
+            rBottomSheetStyle={rBottomSheetStyle}
+            cardColor={cardColor}
+            mutedColor={mutedColor}
+            screenHeight={screenHeight}
+            onHandlePress={() => runOnJS(handlePress)()}
+            gesture={disablePanGesture ? undefined : gesture}
+          />
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
