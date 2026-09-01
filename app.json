@@ -26,7 +26,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.timetrackot",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/images/timetrack-icon.png",
@@ -46,9 +46,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b4276fcd-2b17-4843-9226-33ecc1f641e6"
+        "projectId": "cd47e41a-1110-4b9e-bd6e-1aca4e029017"
       }
     },
-    "owner": "sitp017"
+    "owner": "wick.22"
   }
 }
