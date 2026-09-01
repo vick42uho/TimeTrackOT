@@ -1,12 +1,28 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import scheduleNotificationAsync from 'expo-notifications/build/scheduleNotificationAsync';
+import cancelScheduledNotificationAsync from 'expo-notifications/build/cancelScheduledNotificationAsync';
+import { setNotificationHandler } from 'expo-notifications/build/NotificationsHandler';
+import setNotificationChannelAsync from 'expo-notifications/build/setNotificationChannelAsync';
+import {
+  AndroidImportance,
+  AndroidNotificationVisibility,
+} from 'expo-notifications/build/NotificationChannelManager.types';
+import {
+  getPermissionsAsync,
+  requestPermissionsAsync,
+} from 'expo-notifications/build/NotificationPermissions';
+import {
+  SchedulableTriggerInputTypes,
+  AndroidNotificationPriority,
+} from 'expo-notifications/build/Notifications.types';
+import { IosAuthorizationStatus } from 'expo-notifications/build/NotificationPermissions.types';
 import { Activity } from '../types';
 
 export const ACTIVITY_CHANNEL_ID = 'activity-reminders';
 
 // Set default foreground notification behavior
 if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
+  setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
@@ -27,13 +43,13 @@ export async function initNotificationService(): Promise<void> {
   try {
     // 1. Configure Android Notification Channel with High/Max Importance
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(ACTIVITY_CHANNEL_ID, {
+      await setNotificationChannelAsync(ACTIVITY_CHANNEL_ID, {
         name: 'แจ้งเตือนกิจกรรมและนัดหมาย',
         description: 'การแจ้งเตือนกิจกรรมและนัดหมายตามเวลาที่กำหนดไว้',
-        importance: Notifications.AndroidImportance.MAX,
+        importance: AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#2563EB',
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        lockscreenVisibility: AndroidNotificationVisibility.PUBLIC,
         bypassDnd: false,
         sound: 'default',
         enableLights: true,
@@ -57,15 +73,15 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
 
   try {
-    const settings = await Notifications.getPermissionsAsync();
+    const settings = await getPermissionsAsync();
     if (
       settings.granted ||
-      settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+      settings.ios?.status === IosAuthorizationStatus.PROVISIONAL
     ) {
       return true;
     }
 
-    const requested = await Notifications.requestPermissionsAsync({
+    const requested = await requestPermissionsAsync({
       ios: {
         allowAlert: true,
         allowBadge: true,
@@ -76,7 +92,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
     return !!(
       requested.granted ||
-      requested.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+      requested.ios?.status === IosAuthorizationStatus.PROVISIONAL
     );
   } catch (error) {
     console.warn('Error requesting notification permissions:', error);
@@ -150,17 +166,17 @@ export async function scheduleActivityReminder(activity: Activity): Promise<stri
         ? 'วันพรุ่งนี้'
         : `อีก ${activity.reminderMinutes} นาที`;
 
-    const notificationId = await Notifications.scheduleNotificationAsync({
+    const notificationId = await scheduleNotificationAsync({
       content: {
         title: `⏰ แจ้งเตือน (${reminderLeadText}): ${activity.title}`,
         body: bodyText,
         sound: 'default',
-        priority: Notifications.AndroidNotificationPriority.MAX,
+        priority: AndroidNotificationPriority.MAX,
         color: '#2563EB',
         data: { activityId: activity.id, date: activity.date },
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        type: SchedulableTriggerInputTypes.DATE,
         date: new Date(triggerTimestamp),
         channelId: ACTIVITY_CHANNEL_ID,
       },
@@ -185,7 +201,7 @@ export async function cancelActivityReminder(notificationId?: string): Promise<v
   if (Platform.OS === 'web' || !notificationId) return;
 
   try {
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await cancelScheduledNotificationAsync(notificationId);
     console.log(`Cancelled notification ${notificationId}`);
   } catch (error) {
     console.warn(`Failed to cancel notification ${notificationId}:`, error);
