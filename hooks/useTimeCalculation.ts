@@ -1,4 +1,4 @@
-
+import { useMemo } from 'react';
 import { WorkSchedule, TimeEntry } from '../types';
 
 export const useTimeCalculation = () => {
@@ -13,19 +13,31 @@ export const useTimeCalculation = () => {
   };
 
   const formatHours = (hours: number): string => {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    
-    // Convert to decimal format (e.g., 0:30 becomes 0:5)
-    if (m === 30) {
-      return `${h}:5`;
-    } else if (m === 15) {
-      return `${h}:25`;
-    } else if (m === 45) {
-      return `${h}:75`;
-    } else {
-      return `${h}:${Math.round(m / 6)}`;
+    if (hours === undefined || hours === null || isNaN(hours)) {
+      return '0.00';
     }
+    return Math.max(0, hours).toFixed(2);
+  };
+
+  const formatHoursToReadable = (hours: number): string => {
+    if (hours === undefined || hours === null || isNaN(hours) || hours <= 0) {
+      return '0 นาที';
+    }
+    const totalMinutes = Math.round(hours * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if (h === 0) return `${m} นาที`;
+    if (m === 0) return `${h} ชม.`;
+    return `${h} ชม. ${m} นาที`;
+  };
+
+  const formatHoursWithDecimal = (hours: number): string => {
+    if (hours === undefined || hours === null || isNaN(hours) || hours <= 0) {
+      return '0 นาที (0.00 ชม.)';
+    }
+    const readable = formatHoursToReadable(hours);
+    const decimal = Math.max(0, hours).toFixed(2);
+    return `${readable} (${decimal} ชม.)`;
   };
 
   const calculateWorkHours = (
@@ -33,66 +45,61 @@ export const useTimeCalculation = () => {
     clockOut: string,
     workSchedule: WorkSchedule
   ): { regularHours: number; overtimeHours: number } => {
+    if (!clockIn || !clockOut || !workSchedule) {
+      return { regularHours: 0, overtimeHours: 0 };
+    }
+
     const actualClockIn = parseTime(clockIn);
-    const actualClockOut = parseTime(clockOut);
+    let actualClockOut = parseTime(clockOut);
     const scheduledStart = parseTime(workSchedule.startTime);
-    const scheduledEnd = parseTime(workSchedule.endTime);
+    let scheduledEnd = parseTime(workSchedule.endTime);
     
-    // Calculate total worked hours
-    let totalWorked = actualClockOut - actualClockIn;
-    if (totalWorked < 0) {
-      totalWorked += 24; // Handle overnight shifts
+    // Normalize overnight shifts
+    if (scheduledEnd < scheduledStart) {
+      scheduledEnd += 24;
     }
-    
-    // Calculate standard work hours for the day
-    let standardHours = scheduledEnd - scheduledStart;
-    if (standardHours < 0) {
-      standardHours += 24; // Handle overnight standard shifts
+    if (actualClockOut < actualClockIn) {
+      actualClockOut += 24;
     }
-    
-    // Calculate late arrival penalty
-    const lateArrival = Math.max(0, actualClockIn - scheduledStart);
-    
-    // Fixed OT calculation logic
-    let regularHours = 0;
-    let overtimeHours = 0;
-    
-    // Calculate overtime: any time worked beyond scheduled hours
-    // 1. Early arrival overtime (before scheduled start time)
-    const earlyArrival = Math.max(0, scheduledStart - actualClockIn);
-    
-    // 2. Late departure overtime (after scheduled end time)  
-    const lateOvertimeHours = Math.max(0, actualClockOut - scheduledEnd);
-    
-    // Total overtime = early arrival + late departure
-    overtimeHours = earlyArrival + lateOvertimeHours;
-    
-    // Calculate regular hours: total worked minus overtime, minus late arrival, capped at standard hours
-    const workedWithinSchedule = totalWorked - overtimeHours;
-    regularHours = Math.max(0, Math.min(workedWithinSchedule - lateArrival, standardHours));
-    
+
+    // 1. Morning Overtime: Hours worked BEFORE scheduled start time
+    const morningOT = Math.max(0, Math.min(actualClockOut, scheduledStart) - actualClockIn);
+
+    // 2. Regular hours: Hours worked WITHIN scheduled shift window
+    const effectiveStart = Math.max(actualClockIn, scheduledStart);
+    const effectiveEnd = Math.min(actualClockOut, scheduledEnd);
+    const regularHours = Math.max(0, effectiveEnd - effectiveStart);
+
+    // 3. Evening/Night Overtime: Hours worked AFTER scheduled end time
+    const eveningOT = Math.max(0, actualClockOut - Math.max(actualClockIn, scheduledEnd));
+
+    // Total Overtime = Morning OT + Evening OT
+    const overtimeHours = morningOT + eveningOT;
+
     return {
-      regularHours: Math.max(0, regularHours),
-      overtimeHours: Math.max(0, overtimeHours),
+      regularHours: Number(regularHours.toFixed(2)),
+      overtimeHours: Number(overtimeHours.toFixed(2)),
     };
   };
 
   const getMonthPeriods = (month: number, year: number) => {
     const daysInMonth = new Date(year, month, 0).getDate();
-    
     return [
       {
         name: '1-10',
+        period: '1-10',
         startDate: `${year}-${month.toString().padStart(2, '0')}-01`,
         endDate: `${year}-${month.toString().padStart(2, '0')}-10`,
       },
       {
         name: '11-20',
+        period: '11-20',
         startDate: `${year}-${month.toString().padStart(2, '0')}-11`,
         endDate: `${year}-${month.toString().padStart(2, '0')}-20`,
       },
       {
         name: `21-${daysInMonth}`,
+        period: `21-${daysInMonth}`,
         startDate: `${year}-${month.toString().padStart(2, '0')}-21`,
         endDate: `${year}-${month.toString().padStart(2, '0')}-${daysInMonth.toString().padStart(2, '0')}`,
       },
@@ -100,27 +107,45 @@ export const useTimeCalculation = () => {
   };
 
   const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const formatDateThai = (dateString: string): string => {
-    const date = new Date(dateString);
-    const thaiMonths = [
-      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-    ];
-    
-    const day = date.getDate();
-    const month = thaiMonths[date.getMonth()];
-    const year = date.getFullYear() + 543; // Convert to Buddhist Era
-    
-    return `${day} ${month} ${year}`;
+    if (!dateString) return '';
+    try {
+      const parts = dateString.split('-');
+      if (parts.length !== 3) return dateString;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      return d.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
   };
 
   const getThaiDayName = (dateString: string): string => {
-    const date = new Date(dateString);
-    const thaiDays = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-    return thaiDays[date.getDay()];
+    if (!dateString) return '';
+    try {
+      const parts = dateString.split('-');
+      if (parts.length !== 3) return '';
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+      return days[d.getDay()];
+    } catch {
+      return '';
+    }
   };
 
   const calculateLateArrival = (
@@ -134,7 +159,7 @@ export const useTimeCalculation = () => {
     
     // Calculate late arrival in hours
     const lateHours = Math.max(0, actualClockIn - scheduledStart);
-    return lateHours;
+    return Number(lateHours.toFixed(2));
   };
 
   const calculateEarlyLeave = (
@@ -148,18 +173,23 @@ export const useTimeCalculation = () => {
     
     // Calculate early leave in hours (only if left before scheduled end time)
     const earlyHours = Math.max(0, scheduledEnd - actualClockOut);
-    return earlyHours;
+    return Number(earlyHours.toFixed(2));
   };
 
-  return {
-    parseTime,
-    formatHours,
-    calculateWorkHours,
-    calculateLateArrival,
-    calculateEarlyLeave,
-    getMonthPeriods,
-    formatDate,
-    formatDateThai,
-    getThaiDayName,
-  };
+  return useMemo(
+    () => ({
+      parseTime,
+      formatHours,
+      formatHoursToReadable,
+      formatHoursWithDecimal,
+      calculateWorkHours,
+      calculateLateArrival,
+      calculateEarlyLeave,
+      getMonthPeriods,
+      formatDate,
+      formatDateThai,
+      getThaiDayName,
+    }),
+    []
+  );
 };

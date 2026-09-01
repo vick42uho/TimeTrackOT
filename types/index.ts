@@ -55,3 +55,101 @@ export type ThemeMode = 'light' | 'dark';
 export interface AppSettings {
   themeMode: ThemeMode;
 }
+
+export type HolidayType = 'public' | 'company' | 'special' | 'regular_off' | 'wfh';
+
+export interface Holiday {
+  id?: number;
+  name: string;
+  date: string; // YYYY-MM-DD format
+  type: HolidayType;
+  isRecurring?: boolean;
+  createdAt?: string;
+}
+
+export type LeaveType = 'vacation' | 'sick' | 'personal' | 'other';
+export type LeaveDurationType = 'full_day' | 'half_day_morning' | 'half_day_afternoon';
+export type LeaveStatus = 'approved' | 'pending' | 'cancelled';
+
+export interface LeaveRequest {
+  id?: number;
+  leaveType: LeaveType;
+  startDate: string; // YYYY-MM-DD format
+  endDate: string;   // YYYY-MM-DD format
+  durationDays: number;
+  durationType: LeaveDurationType;
+  reason?: string;
+  status: LeaveStatus;
+  createdAt?: string;
+}
+
+export interface LeaveQuota {
+  id?: number;
+  year: number;
+  leaveType: LeaveType;
+  quotaDays: number;
+}
+
+export interface LeaveSummary {
+  leaveType: LeaveType;
+  label: string;
+  usedDays: number;
+  quotaDays: number;
+  remainingDays: number;
+}
+
+export type ActivityCategory = 'work' | 'exercise' | 'personal' | 'dining' | 'travel' | 'general';
+
+export interface Activity {
+  id?: number;
+  title: string;
+  date: string; // YYYY-MM-DD format
+  startTime?: string; // HH:MM format
+  endTime?: string; // HH:MM format
+  isAllDay?: boolean;
+  category: ActivityCategory;
+  location?: string;
+  note?: string;
+  reminderMinutes?: number | null; // null = no reminder, 0 = at time, 15 = 15 mins before, 30 = 30 mins before, 60 = 1 hour before, 1440 = 1 day before
+  notificationId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BackupMetadata {
+  appName: string;
+  appVersion: string;
+  schemaVersion: number;
+  exportedAt: string;
+  totalRecords: {
+    timeEntries: number;
+    workSchedules: number;
+    holidays: number;
+    leaves: number;
+    leaveQuotas: number;
+    activities?: number;
+  };
+}
+
+export interface BackupPayload {
+  metadata: BackupMetadata;
+  data: {
+    timeEntries: TimeEntry[];
+    workSchedules: WorkSchedule[];
+    holidays: Holiday[];
+    leaves: LeaveRequest[];
+    leaveQuotas: LeaveQuota[];
+    activities?: Activity[];
+  };
+}
+
+export interface RestoreResult {
+  success: boolean;
+  timeEntriesCount: number;
+  workSchedulesCount: number;
+  holidaysCount: number;
+  leavesCount: number;
+  leaveQuotasCount: number;
+  activitiesCount?: number;
+}
+

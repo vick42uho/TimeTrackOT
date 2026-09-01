@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { setupErrorLogging } from '../utils/errorLogger';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '../components/ThemeProvider';
+import { ToastProvider } from '@/components/ui/toast';
 import * as Font from 'expo-font';
 import {
   Sarabun_400Regular,
@@ -91,7 +92,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeProvider>
-          <RootLayoutContent />
+          <ToastProvider>
+            <RootLayoutContent />
+          </ToastProvider>
         </ThemeProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

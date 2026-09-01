@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useThemeContext } from './ThemeProvider';
-import Icon from './Icon';
+import { Icon } from '@/components/ui/icon';
+import { Home, Clock, Calendar, BarChart3, Settings } from 'lucide-react-native';
 
 export const BottomNavigation: React.FC = () => {
   const router = useRouter();
@@ -11,11 +13,21 @@ export const BottomNavigation: React.FC = () => {
   const { colors } = useThemeContext();
 
   const tabs = [
-    { name: 'home', icon: 'home-outline', activeIcon: 'home', route: '/' },
-    { name: 'time-entry', icon: 'time-outline', activeIcon: 'time', route: '/time-entry' },
-    { name: 'reports', icon: 'bar-chart-outline', activeIcon: 'bar-chart', route: '/reports' },
-    { name: 'settings', icon: 'settings-outline', activeIcon: 'settings', route: '/settings' },
+    { name: 'home', label: 'หน้าหลัก', icon: Home, route: '/' },
+    { name: 'time-entry', label: 'บันทึกเวลา', icon: Clock, route: '/time-entry' },
+    { name: 'leaves', label: 'วันหยุด/ลา', icon: Calendar, route: '/leaves' },
+    { name: 'reports', label: 'รายงาน', icon: BarChart3, route: '/reports' },
+    { name: 'settings', label: 'ตั้งค่า', icon: Settings, route: '/settings' },
   ];
+
+  const handleTabPress = (route: string) => {
+    try {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    } catch (e) {}
+    router.push(route as any);
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -24,13 +36,38 @@ export const BottomNavigation: React.FC = () => {
       borderTopWidth: 1,
       borderTopColor: colors.border,
       paddingVertical: 8,
-      paddingHorizontal: 16,
+      paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+      paddingHorizontal: 8,
+      elevation: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
     },
     tab: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 8,
+      paddingVertical: 4,
+    },
+    activePill: {
+      backgroundColor: colors.backgroundAlt,
+      borderRadius: 16,
+      paddingVertical: 4,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tabLabel: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontFamily: 'Sarabun_400Regular',
+      marginTop: 3,
+    },
+    activeTabLabel: {
+      color: colors.primary,
+      fontWeight: '700',
+      fontFamily: 'Sarabun_700Bold',
     },
   });
 
@@ -42,13 +79,20 @@ export const BottomNavigation: React.FC = () => {
           <TouchableOpacity
             key={tab.name}
             style={styles.tab}
-            onPress={() => router.push(tab.route as any)}
+            onPress={() => handleTabPress(tab.route)}
+            activeOpacity={0.7}
           >
-            <Icon
-              name={isActive ? tab.activeIcon as any : tab.icon as any}
-              size={24}
-              color={isActive ? colors.primary : colors.textSecondary}
-            />
+            <View style={isActive ? styles.activePill : undefined}>
+              <Icon
+                name={tab.icon}
+                size={22}
+                strokeWidth={isActive ? 2.2 : 1.8}
+                color={isActive ? colors.primary : colors.textSecondary}
+              />
+            </View>
+            <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>
+              {tab.label}
+            </Text>
           </TouchableOpacity>
         );
       })}

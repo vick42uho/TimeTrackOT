@@ -186,7 +186,7 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
             <View style={styles.contentContainer}>
               {children || (
                 <View style={styles.defaultContent}>
-                  <Text style={styles.title}>Bottom Sheet 🎉</Text>
+                  <Text style={styles.title}>Bottom Sheet</Text>
                   <Text style={styles.description}>
                     This is a custom bottom sheet implementation.
                     Try dragging it up and down!
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: colors.grey || '#cccccc',
+    backgroundColor: colors.border || '#cccccc',
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,

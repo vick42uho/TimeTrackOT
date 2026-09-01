@@ -1,24 +1,49 @@
 
 import React, { createContext, useContext } from 'react';
-import { useTheme } from '../hooks/useTheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ModeProvider, useModeContext } from '@/providers/mode-provider';
 import { ThemeMode } from '../types';
+import { lightColors, darkColors } from '../styles/commonStyles';
 
 interface ThemeContextType {
   themeMode: ThemeMode;
-  colors: any;
+  colors: typeof lightColors;
   toggleTheme: () => void;
   isLoading: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const theme = useTheme();
+const ThemeConsumer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const modeContext = useModeContext();
+  const themeMode: ThemeMode = modeContext?.scheme === 'dark' ? 'dark' : 'light';
+  
+  const toggleTheme = () => {
+    const next = themeMode === 'light' ? 'dark' : 'light';
+    modeContext?.setMode(next);
+  };
+
+  const colors = themeMode === 'dark' ? darkColors : lightColors;
 
   return (
-    <ThemeContext.Provider value={theme}>
+    <ThemeContext.Provider
+      value={{
+        themeMode,
+        colors,
+        toggleTheme,
+        isLoading: false,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
+  );
+};
+
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <ModeProvider storage={AsyncStorage} storageKey="app_theme_mode" defaultMode="system">
+      <ThemeConsumer>{children}</ThemeConsumer>
+    </ModeProvider>
   );
 };
 
@@ -29,3 +54,4 @@ export const useThemeContext = () => {
   }
   return context;
 };
+

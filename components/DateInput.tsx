@@ -1,9 +1,11 @@
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 import { useThemeContext } from './ThemeProvider';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
+import Icon from './Icon';
 
 interface DateInputProps {
   label: string;
@@ -22,6 +24,13 @@ export const DateInput: React.FC<DateInputProps> = ({
   const { formatDateThai } = useTimeCalculation();
   const [showPicker, setShowPicker] = useState(false);
 
+  const handleOpenPicker = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowPicker(true);
+  };
+
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowPicker(false);
     if (selectedDate) {
@@ -33,34 +42,45 @@ export const DateInput: React.FC<DateInputProps> = ({
   };
 
   const getDateFromString = (dateString: string): Date => {
+    if (!dateString) return new Date();
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      return new Date(year, month, day);
+    }
     return new Date(dateString);
   };
 
   const styles = StyleSheet.create({
     container: {
-      marginVertical: 8,
+      marginVertical: 6,
     },
     label: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: 6,
       fontFamily: 'Sarabun_600SemiBold',
     },
     input: {
       backgroundColor: colors.backgroundAlt,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
-      paddingHorizontal: 16,
+      borderRadius: 14,
+      paddingHorizontal: 14,
       paddingVertical: 12,
       minHeight: 48,
-      justifyContent: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     inputText: {
-      fontSize: 16,
+      fontSize: 15,
       color: value ? colors.text : colors.textSecondary,
-      fontFamily: 'Sarabun_400Regular',
+      fontFamily: 'Sarabun_600SemiBold',
+      fontWeight: '600',
     },
   });
 
@@ -69,11 +89,13 @@ export const DateInput: React.FC<DateInputProps> = ({
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         style={styles.input}
-        onPress={() => setShowPicker(true)}
+        onPress={handleOpenPicker}
+        activeOpacity={0.7}
       >
         <Text style={styles.inputText}>
           {value ? formatDateThai(value) : placeholder}
         </Text>
+        <Icon name="calendar-outline" size={20} color={colors.primary} />
       </TouchableOpacity>
 
       {showPicker && (

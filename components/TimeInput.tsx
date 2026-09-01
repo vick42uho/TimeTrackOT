@@ -1,8 +1,10 @@
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
 import { useThemeContext } from './ThemeProvider';
+import Icon from './Icon';
 
 interface TimeInputProps {
   label: string;
@@ -19,6 +21,13 @@ export const TimeInput: React.FC<TimeInputProps> = ({
 }) => {
   const { colors } = useThemeContext();
   const [showPicker, setShowPicker] = useState(false);
+
+  const handleOpenPicker = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowPicker(true);
+  };
 
   const handleTimeChange = (event: any, selectedTime?: Date) => {
     setShowPicker(false);
@@ -38,29 +47,32 @@ export const TimeInput: React.FC<TimeInputProps> = ({
 
   const styles = StyleSheet.create({
     container: {
-      marginVertical: 8,
+      marginVertical: 6,
     },
     label: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '600',
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: 6,
       fontFamily: 'Sarabun_600SemiBold',
     },
     input: {
       backgroundColor: colors.backgroundAlt,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
-      paddingHorizontal: 16,
+      borderRadius: 14,
+      paddingHorizontal: 14,
       paddingVertical: 12,
       minHeight: 48,
-      justifyContent: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     inputText: {
-      fontSize: 16,
+      fontSize: 15,
       color: value ? colors.text : colors.textSecondary,
-      fontFamily: 'Sarabun_400Regular',
+      fontFamily: 'Sarabun_600SemiBold',
+      fontWeight: '600',
     },
   });
 
@@ -69,11 +81,13 @@ export const TimeInput: React.FC<TimeInputProps> = ({
       <Text style={styles.label}>{label}</Text>
       <TouchableOpacity
         style={styles.input}
-        onPress={() => setShowPicker(true)}
+        onPress={handleOpenPicker}
+        activeOpacity={0.7}
       >
         <Text style={styles.inputText}>
-          {value || placeholder}
+          {value ? `${value} น.` : placeholder}
         </Text>
+        <Icon name="time-outline" size={20} color={colors.primary} />
       </TouchableOpacity>
 
       {showPicker && (

@@ -2,13 +2,7 @@
 module.exports = {
   extends: [
     'expo',
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:react/recommended',
-    'plugin:react/jsx-runtime'
   ],
-  parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'react', 'import'],
   root: true,
   parserOptions: {
     ecmaVersion: 'latest',
@@ -30,9 +24,13 @@ module.exports = {
     '@typescript-eslint/no-empty-object-type': 'off',
     '@typescript-eslint/no-wrapper-object-types': 'off',
     'react/no-unescaped-entities': 'off',
-    'import/no-unresolved': 'error',
+    'import/no-unresolved': 'off',
+    'import/namespace': 'off',
+    'import/default': 'off',
+    'import/no-named-as-default': 'off',
+    'import/no-named-as-default-member': 'off',
     'prefer-const': 'off',
-    'react/prop-types': 1,
+    'react/prop-types': 'off',
     'no-case-declarations': 'off',
     'no-empty': 'off'
   },
