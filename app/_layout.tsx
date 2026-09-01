@@ -13,12 +13,16 @@ import {
   Sarabun_600SemiBold,
   Sarabun_700Bold,
 } from '@expo-google-fonts/sarabun';
+import { StatusBar } from 'expo-status-bar';
+import { useThemeContext } from '../components/ThemeProvider';
 import { initNotificationService } from '../services/notificationService';
 
 const STORAGE_KEY = 'emulated_device';
 
 function RootLayoutContent() {
   const actualInsets = useSafeAreaInsets();
+  const { themeMode, colors } = useThemeContext();
+  const isDark = themeMode === 'dark';
   const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
 
@@ -55,12 +59,20 @@ function RootLayoutContent() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'default',
-      }}
-    />
+    <>
+      <StatusBar
+        style={isDark ? 'light' : 'dark'}
+        translucent
+        backgroundColor="transparent"
+      />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'default',
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+    </>
   );
 }
 

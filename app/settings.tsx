@@ -1158,12 +1158,19 @@ const SettingsContent: React.FC = () => {
   );
 };
 
+function SettingsScreenContent() {
+  const { colors } = useThemeContext();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <SettingsContent />
+    </SafeAreaView>
+  );
+}
+
 export default function SettingsScreen() {
   return (
     <ThemeProvider>
-      <SafeAreaView style={{ flex: 1 }}>
-        <SettingsContent />
-      </SafeAreaView>
+      <SettingsScreenContent />
     </ThemeProvider>
   );
 }

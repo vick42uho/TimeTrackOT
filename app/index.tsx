@@ -1453,12 +1453,19 @@ const HomeContent: React.FC = () => {
   );
 };
 
+function MainScreenContent() {
+  const { colors } = useThemeContext();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <HomeContent />
+    </SafeAreaView>
+  );
+}
+
 export default function MainScreen() {
   return (
     <ThemeProvider>
-      <SafeAreaView style={{ flex: 1 }}>
-        <HomeContent />
-      </SafeAreaView>
+      <MainScreenContent />
     </ThemeProvider>
   );
 }

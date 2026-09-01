@@ -1010,12 +1010,19 @@ const TimeEntryContent: React.FC = () => {
   );
 };
 
+function TimeEntryScreenContent() {
+  const { colors } = useThemeContext();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <TimeEntryContent />
+    </SafeAreaView>
+  );
+}
+
 export default function TimeEntryScreen() {
   return (
     <ThemeProvider>
-      <SafeAreaView style={{ flex: 1 }}>
-        <TimeEntryContent />
-      </SafeAreaView>
+      <TimeEntryScreenContent />
     </ThemeProvider>
   );
 }

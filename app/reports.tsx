@@ -1404,12 +1404,19 @@ const ReportsContent: React.FC = () => {
   );
 };
 
+function ReportsScreenContent() {
+  const { colors } = useThemeContext();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <ReportsContent />
+    </SafeAreaView>
+  );
+}
+
 export default function ReportsScreen() {
   return (
     <ThemeProvider>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ReportsContent />
-      </SafeAreaView>
+      <ReportsScreenContent />
     </ThemeProvider>
   );
 }
