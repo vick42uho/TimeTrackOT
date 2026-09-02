@@ -17,7 +17,6 @@ import { useToast } from '@/components/ui/toast';
 import { Icon } from '@/components/ui/icon';
 import {
   Save,
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Sun,
@@ -519,13 +518,6 @@ const SettingsContent: React.FC = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Icon name={ArrowLeft} size={22} color={colors.text} />
-        </TouchableOpacity>
         <Text style={styles.title}>ตั้งค่า</Text>
       </View>
 
@@ -729,18 +721,6 @@ const SettingsContent: React.FC = () => {
                 ? `บันทึกเวลาทำงานตลอดทั้งปี ${selectedYear + 543}`
                 : `บันทึกเฉพาะเดือน${thaiMonths[selectedMonth - 1]}`}
             </Button>
-
-            {scheduleScope === 'monthly' && (
-              <Button
-                variant="outline"
-                size="sm"
-                icon={Calendar}
-                disabled={isLoading}
-                onPress={() => setYearlyConfirmVisible(true)}
-              >
-                นำเวลานี้ไปใช้กับทุกเดือนในปี {selectedYear + 543} (12 เดือน)
-              </Button>
-            )}
           </View>
         </Card>
 

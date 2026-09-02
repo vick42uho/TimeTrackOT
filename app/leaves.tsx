@@ -1867,7 +1867,7 @@ const LeavesContent: React.FC = () => {
       <BottomSheet
         isVisible={dayActionSheet.isVisible}
         onClose={dayActionSheet.close}
-        snapPoints={[0.88, 0.96]}
+        snapPoints={[0.95]}
         title="จัดการวันที่ & กิจกรรม"
       >
         <View style={{ paddingBottom: 20 }}>
@@ -2112,10 +2112,20 @@ const LeavesContent: React.FC = () => {
       <BottomSheet
         isVisible={holidaySheet.isVisible}
         onClose={holidaySheet.close}
-        snapPoints={[0.8, 0.95]}
+        snapPoints={[0.96]}
         title={editingHoliday ? 'แก้ไขวันหยุด / สถานะ' : 'เพิ่มวันหยุด / WFH'}
+        footer={
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={holidaySheet.close}>
+              ยกเลิก
+            </Button>
+            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveCustomHoliday}>
+              {editingHoliday ? 'บันทึกการแก้ไข' : 'บันทึกวันหยุด'}
+            </Button>
+          </View>
+        }
       >
-        <View style={{ gap: 16, paddingBottom: 24 }}>
+        <View style={{ gap: 16, paddingBottom: 16 }}>
           {/* Holiday Name */}
           <Input
             label="ชื่อวันหยุด / หมายเหตุ"
@@ -2169,16 +2179,6 @@ const LeavesContent: React.FC = () => {
               })}
             </View>
           </View>
-
-          {/* Action Buttons */}
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={holidaySheet.close}>
-              ยกเลิก
-            </Button>
-            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveCustomHoliday}>
-              {editingHoliday ? 'บันทึกการแก้ไข' : 'บันทึกวันหยุด'}
-            </Button>
-          </View>
         </View>
       </BottomSheet>
 
@@ -2188,10 +2188,20 @@ const LeavesContent: React.FC = () => {
       <BottomSheet
         isVisible={leaveSheet.isVisible}
         onClose={leaveSheet.close}
-        snapPoints={[0.8, 0.95]}
+        snapPoints={[0.96]}
         title="บันทึกการลา / ยื่นขอลา"
+        footer={
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={leaveSheet.close}>
+              ยกเลิก
+            </Button>
+            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveLeave}>
+              บันทึกการลา
+            </Button>
+          </View>
+        }
       >
-        <View style={{ gap: 16, paddingBottom: 24 }}>
+        <View style={{ gap: 16, paddingBottom: 16 }}>
           {/* Leave Type Selector */}
           <View>
             <Text variant="caption" style={{ marginBottom: 8, color: colors.textSecondary, fontWeight: '600' }}>
@@ -2282,16 +2292,6 @@ const LeavesContent: React.FC = () => {
             value={leaveReason}
             onChangeText={setLeaveReason}
           />
-
-          {/* Action Buttons */}
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={leaveSheet.close}>
-              ยกเลิก
-            </Button>
-            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveLeave}>
-              บันทึกการลา
-            </Button>
-          </View>
         </View>
       </BottomSheet>
 
@@ -2301,10 +2301,20 @@ const LeavesContent: React.FC = () => {
       <BottomSheet
         isVisible={quotaSheet.isVisible}
         onClose={quotaSheet.close}
-        snapPoints={[0.68, 0.9]}
+        snapPoints={[0.92]}
         title={`แก้ไขโควตาวันลาประจำปี ${selectedYear + 543}`}
+        footer={
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={quotaSheet.close}>
+              ยกเลิก
+            </Button>
+            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveQuotas}>
+              บันทึกโควตา
+            </Button>
+          </View>
+        }
       >
-        <View style={{ gap: 14, paddingBottom: 24 }}>
+        <View style={{ gap: 14, paddingBottom: 16 }}>
           <Text variant="caption" style={{ color: colors.textSecondary }}>
             กำหนดจำนวนวันลาที่ได้รับสิทธิ์ในแต่ละประเภทประจำปี:
           </Text>
@@ -2333,15 +2343,6 @@ const LeavesContent: React.FC = () => {
             value={editingQuotas.other}
             onChangeText={(v) => setEditingQuotas((prev) => ({ ...prev, other: v }))}
           />
-
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-            <Button variant="outline" style={{ flex: 1 }} onPress={quotaSheet.close}>
-              ยกเลิก
-            </Button>
-            <Button variant="default" style={{ flex: 1 }} onPress={handleSaveQuotas}>
-              บันทึกโควตา
-            </Button>
-          </View>
         </View>
       </BottomSheet>
 
@@ -2387,7 +2388,7 @@ const LeavesContent: React.FC = () => {
       <BottomSheet
         isVisible={activitySheet.isVisible}
         onClose={activitySheet.close}
-        snapPoints={[0.92, 0.98]}
+        snapPoints={[0.96]}
         title={editingActivity ? 'แก้ไขกิจกรรม / นัดหมาย' : `เพิ่มกิจกรรม (${formatDateThai(selectedCalendarDate)})`}
         footer={
           <View style={{ flexDirection: 'row', gap: 12 }}>

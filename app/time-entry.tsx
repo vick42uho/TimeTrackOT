@@ -14,7 +14,6 @@ import { useAlertDialog, AlertDialog } from '@/components/ui/alert-dialog';
 import {
   Save,
   Trash2,
-  ArrowLeft,
   FileText,
   ChevronLeft,
   ChevronRight,
@@ -523,15 +522,6 @@ const TimeEntryContent: React.FC = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Screen Header */}
         <View style={styles.header}>
-          {router.canGoBack() && (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <ArrowLeft size={22} color={colors.text} />
-            </TouchableOpacity>
-          )}
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>บันทึกเวลาทำงาน</Text>
           </View>

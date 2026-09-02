@@ -19,7 +19,6 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/toast';
 import { Icon } from '@/components/ui/icon';
 import {
-  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   CheckSquare,
@@ -676,9 +675,6 @@ const ReportsContent: React.FC = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Icon name={ArrowLeft} size={22} color={colors.text} />
-          </TouchableOpacity>
           <Text style={styles.title}>รายงานเวลาทำงาน</Text>
         </View>
 

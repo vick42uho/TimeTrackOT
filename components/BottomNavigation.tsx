@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -7,18 +7,18 @@ import { useThemeContext } from './ThemeProvider';
 import { Icon } from '@/components/ui/icon';
 import { Home, Clock, Calendar, BarChart3, Settings } from 'lucide-react-native';
 
-export const BottomNavigation: React.FC = () => {
+const NAV_TABS = [
+  { name: 'home', label: 'หน้าหลัก', icon: Home, route: '/' },
+  { name: 'time-entry', label: 'บันทึกเวลา', icon: Clock, route: '/time-entry' },
+  { name: 'leaves', label: 'วันหยุด/ลา', icon: Calendar, route: '/leaves' },
+  { name: 'reports', label: 'รายงาน', icon: BarChart3, route: '/reports' },
+  { name: 'settings', label: 'ตั้งค่า', icon: Settings, route: '/settings' },
+];
+
+export const BottomNavigation: React.FC = React.memo(() => {
   const router = useRouter();
   const pathname = usePathname();
   const { colors } = useThemeContext();
-
-  const tabs = [
-    { name: 'home', label: 'หน้าหลัก', icon: Home, route: '/' },
-    { name: 'time-entry', label: 'บันทึกเวลา', icon: Clock, route: '/time-entry' },
-    { name: 'leaves', label: 'วันหยุด/ลา', icon: Calendar, route: '/leaves' },
-    { name: 'reports', label: 'รายงาน', icon: BarChart3, route: '/reports' },
-    { name: 'settings', label: 'ตั้งค่า', icon: Settings, route: '/settings' },
-  ];
 
   const handleTabPress = (route: string) => {
     if (pathname === route) return;
@@ -26,51 +26,55 @@ export const BottomNavigation: React.FC = () => {
     router.replace(route as any);
   };
 
-  const styles = StyleSheet.create({
-    container: {
-      flexDirection: 'row',
-      backgroundColor: colors.card,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingVertical: 8,
-      paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-      paddingHorizontal: 8,
-      elevation: 8,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-    },
-    tab: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 4,
-    },
-    activePill: {
-      backgroundColor: colors.backgroundAlt,
-      borderRadius: 16,
-      paddingVertical: 4,
-      paddingHorizontal: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tabLabel: {
-      fontSize: 11,
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_400Regular',
-      marginTop: 3,
-    },
-    activeTabLabel: {
-      color: colors.primary,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-    },
-  });
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: {
+          flexDirection: 'row',
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          paddingVertical: 8,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+          paddingHorizontal: 8,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+        },
+        tab: {
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 4,
+        },
+        activePill: {
+          backgroundColor: colors.backgroundAlt,
+          borderRadius: 16,
+          paddingVertical: 4,
+          paddingHorizontal: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        tabLabel: {
+          fontSize: 11,
+          color: colors.textSecondary,
+          fontFamily: 'Sarabun_400Regular',
+          marginTop: 3,
+        },
+        activeTabLabel: {
+          color: colors.primary,
+          fontWeight: '700',
+          fontFamily: 'Sarabun_700Bold',
+        },
+      }),
+    [colors]
+  );
 
   return (
     <View style={styles.container}>
-      {tabs.map((tab) => {
+      {NAV_TABS.map((tab) => {
         const isActive = pathname === tab.route;
         return (
           <TouchableOpacity
@@ -95,4 +99,4 @@ export const BottomNavigation: React.FC = () => {
       })}
     </View>
   );
-};
+});

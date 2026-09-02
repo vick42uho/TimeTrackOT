@@ -33,11 +33,9 @@ export const useTimeCalculation = () => {
 
   const formatHoursWithDecimal = (hours: number): string => {
     if (hours === undefined || hours === null || isNaN(hours) || hours <= 0) {
-      return '0 นาที (0.00 ชม.)';
+      return '0.00 ชม.';
     }
-    const readable = formatHoursToReadable(hours);
-    const decimal = Math.max(0, hours).toFixed(2);
-    return `${readable} (${decimal} ชม.)`;
+    return `${Math.max(0, hours).toFixed(2)} ชม.`;
   };
 
   const calculateWorkHours = (
@@ -113,6 +111,11 @@ export const useTimeCalculation = () => {
     return `${year}-${month}-${day}`;
   };
 
+  const THAI_MONTHS_SHORT = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+  ];
+
   const formatDateThai = (dateString: string): string => {
     if (!dateString) return '';
     try {
@@ -121,12 +124,9 @@ export const useTimeCalculation = () => {
       const year = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
       const day = parseInt(parts[2], 10);
-      const d = new Date(year, month, day);
-      return d.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
+      const thaiYear = year > 2400 ? year : year + 543;
+      const monthName = THAI_MONTHS_SHORT[month] || '';
+      return `${day} ${monthName} ${thaiYear}`;
     } catch {
       return dateString;
     }

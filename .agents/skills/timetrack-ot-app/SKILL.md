@@ -202,11 +202,11 @@ For local reminders to alert the user even when the app is completely closed/kil
 
 ---
 
-## 5. UI Architecture & Pinned Footer BottomSheet (`components/ui/bottom-sheet.tsx`)
+## 5. UI Architecture & Full-Height Pinned Footer BottomSheet (`components/ui/bottom-sheet.tsx`)
 
 ### BottomSheet Structure
-- **Positioning**: Fixed to `position: 'absolute', bottom: 0` with `height: maxSheetHeight`. This guarantees that the bottom of the sheet aligns with the bottom of the device screen.
-- **Pinned Footer (`footer` prop)**: Action buttons (`[ยกเลิก]` and `[บันทึก]`) sit in a dedicated bottom bar above `insets.bottom`. They remain 100% visible on screen without requiring the user to scroll.
+- **Positioning & Full Height**: Fixed to `position: 'absolute', bottom: 0` with `height: maxSheetHeight` and default offset `0`. All modal forms (Activities, Leaves, Holidays, Quotas) spring up to full height (`snapPoints={[0.96]}`) right below the status bar.
+- **Pinned Footer (`footer` prop)**: Action buttons (`[X ยกเลิก]` and `[Save บันทึก...]`) sit in a dedicated bottom bar above `insets.bottom`. They remain 100% visible on screen without requiring the user to scroll or losing sight when the keyboard appears.
 - **Isolated Drag Gesture**: `GestureDetector` is attached exclusively to the top drag handle/header area. The internal `ScrollView` scrolls freely without pan gesture conflicts or double-scroll traps.
 - **Single ScrollView Rule**: Never nest a `<ScrollView>` inside `BottomSheet` content. Pass a `<View style={{ gap: 14 }}>` as children.
 
@@ -217,6 +217,13 @@ For local reminders to alert the user even when the app is completely closed/kil
 ### Tab Navigation (`components/BottomNavigation.tsx`)
 - **Use `router.replace`**: Top-level tabs must navigate via `router.replace(tab.route)`. Never use `router.push()` for tab switching, as `push()` accumulates unmounted screens in memory, resulting in memory ballooning and device sluggishness.
 - **Current Tab Guard**: Check `if (pathname === route) return;` to avoid redundant renders.
+- **Static Tab Registry & Memoization**: `NAV_TABS` is declared at module scope, styles are cached with `useMemo([colors])`, and the component is wrapped in `React.memo`.
+
+### App-Wide Re-render Prevention (`components/ThemeProvider.tsx`)
+- Context value `{ themeMode, colors, toggleTheme, isLoading: false }` is strictly wrapped in `useMemo` with `toggleTheme` wrapped in `useCallback`. This guarantees context consumers across the app only re-render when the user actually changes theme mode.
+
+### Isolated Live Clock (`LiveGreetingRow` in `app/index.tsx`)
+- The 10-second timer (`setInterval`) is isolated inside `<LiveGreetingRow />` with `React.memo`. The main dashboard (Bento Grid cards, SQLite stats, agenda items, and quota docks) remains static and does not re-render every 10 seconds, eliminating CPU overhead and battery drain.
 
 ### Configurable Haptics (`hooks/useHaptics.ts`)
 - Stored in AsyncStorage (`@timetrack_haptics_enabled`).
@@ -228,31 +235,38 @@ For local reminders to alert the user even when the app is completely closed/kil
 ## 7. Screen Specifications
 
 ### 1. Dashboard (`app/index.tsx`)
-- **Dynamic Greeting with Live Clock**: Shows greeting (Morning/Afternoon/Evening) paired with real-time digital clock badge `[Clock Icon] HH:mm น.` updated every 10 seconds.
+- **Dynamic Greeting with Live Clock**: Shows greeting (Morning/Afternoon/Evening) paired with real-time digital clock badge `[Clock Icon] HH:mm น.` updated every 10 seconds via isolated `LiveGreetingRow`.
+- **Hero Quick Action (1-Tap Clock In/Out)**:
+  - When not clocked in: prominent `[ 🟢 บันทึกเวลาเข้างาน ]` button navigating directly to time entry pre-filled.
+  - When clocked in: live elapsed progress bar and clear `[ 🔴 บันทึกเวลาเลิกงาน ]` button.
+  - When shift complete: clean summary and edit link.
 - **2x2 Balanced Stats Grid**: Net Annual OT, Monthly Late Count, Monthly Regular Hours, Monthly Net Remaining OT.
 - **Today's Status Card**: Shift progress bar, clock-in/out times, OT breakdown.
 - **Leave Quota Quick Dock**: Displays remaining quotas for Vacation, Sick, Personal, and Other leaves.
 
 ### 2. Time Entry (`app/time-entry.tsx`)
+- Clean root header without back button.
 - Date picker, Time pickers for Clock In and Clock Out with quick presets (Now, Shift Start, Shift End).
 - Detailed Live Preview: Real-time calculation of regular hours, morning OT, evening OT, and late minutes before saving.
 - Textarea note input.
 
 ### 3. Calendar, Leaves & Activities (`app/leaves.tsx`)
-- Interactive Thai Buddhist calendar grid with status dots (Holiday, Leave, WFH, Activity).
+- Interactive Thai Buddhist calendar grid (พ.ศ. 2569) with status dots (Holiday, Leave, WFH, Activity).
 - Tap any date to open `dayActionSheet` (1-tap quick actions for WFH, Holiday, Leave, or Activity).
-- `activitySheet` with Pinned Footer: Add/edit appointments, category chips, time range or all-day toggle, alert reminder picker, location, note, and save button.
+- Full-height BottomSheets (0.96) with Pinned Footer for Activities, Leaves, Holidays, and Quotas.
 - Shareable Calendar Image Export via `react-native-view-shot` and `expo-sharing`.
 
 ### 4. Reports (`app/reports.tsx`)
-- 3-Tier Monthly Summary Card with detailed audit hours.
+- Clean root header without back button.
+- 3-Tier Monthly Summary Card with clean decimal hours (e.g. `9.00 ชม.` without redundant duplicate text).
 - Pay period split (1st-10th, 11th-20th, 21st-End of month).
 - Quick filter pills: All, Has OT, Late, Early Leave.
 - Detail Modal with toggles for OT used and late compensated.
 - Shareable Monthly Summary Card image generator.
 
 ### 5. Settings (`app/settings.tsx`)
-- **Work Schedule**: Monthly vs. Entire Year configuration with start/end time.
+- Clean root header without back button.
+- **Work Schedule**: Monthly vs. Entire Year configuration with Single Smart Action button dynamically adapting to the selected scope.
 - **App Settings**: Dark / Light mode toggle, Haptic feedback vibration switch.
 - **Database Management (Danger Zone)**: Solid opaque dark card (prevents Android elevation artifact), backup export to JSON, restore import from file, and reset database.
-- **About App**: Version badge (v1.2.0), 100% Offline Local Storage chip, Developer name "Wick", Copyright, and interactive Google Form feedback button (`forms.gle/BKx4Pz6VB65kdaka8`).
+- **About App**: Version badge (v1.3.0), 100% Offline Local Storage chip, Developer name "Wick", Copyright, and interactive Google Form feedback button (`forms.gle/BKx4Pz6VB65kdaka8`).

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ModeProvider, useModeContext } from '@/providers/mode-provider';
 import { ThemeMode } from '../types';
@@ -18,22 +18,25 @@ const ThemeConsumer: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const modeContext = useModeContext();
   const themeMode: ThemeMode = modeContext?.scheme === 'dark' ? 'dark' : 'light';
   
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const next = themeMode === 'light' ? 'dark' : 'light';
     modeContext?.setMode(next);
-  };
+  }, [themeMode, modeContext]);
 
-  const colors = themeMode === 'dark' ? darkColors : lightColors;
+  const colors = useMemo(() => (themeMode === 'dark' ? darkColors : lightColors), [themeMode]);
+
+  const value = useMemo(
+    () => ({
+      themeMode,
+      colors,
+      toggleTheme,
+      isLoading: false,
+    }),
+    [themeMode, colors, toggleTheme]
+  );
 
   return (
-    <ThemeContext.Provider
-      value={{
-        themeMode,
-        colors,
-        toggleTheme,
-        isLoading: false,
-      }}
-    >
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

@@ -187,7 +187,8 @@ export function BottomSheet({
 
   // Snap offsets from bottom (0 means fully open at maxSheetHeight)
   const snapOffsets = points.map((p) => Math.round(maxSheetHeight - screenHeight * p));
-  const defaultOffset = snapOffsets[0];
+  // Default to 0 (fully expanded to max height) so the sheet springs all the way up
+  const defaultOffset = 0;
 
   const translateY = useSharedValue(maxSheetHeight + 50);
   const context = useSharedValue({ y: 0 });

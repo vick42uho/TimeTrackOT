@@ -47,6 +47,57 @@ import { Activity, LeaveSummary } from '../types';
 
 const { width } = Dimensions.get('window');
 
+const LiveGreetingRow = React.memo(({ isDark, textStyle }: { isDark: boolean; textStyle: any }) => {
+  const [liveTime, setLiveTime] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveTime(new Date());
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const hour = liveTime.getHours();
+  let greeting = { text: 'สวัสดีตอนเย็น', icon: Moon, color: '#6366f1' };
+  if (hour < 12) greeting = { text: 'สวัสดีตอนเช้า', icon: Sun, color: '#f59e0b' };
+  else if (hour < 17) greeting = { text: 'สวัสดีตอนบ่าย', icon: CloudSun, color: '#f59e0b' };
+
+  const GreetingIcon = greeting.icon;
+  const hh = String(liveTime.getHours()).padStart(2, '0');
+  const mm = String(liveTime.getMinutes()).padStart(2, '0');
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <GreetingIcon size={15} color={greeting.color} />
+      <Text style={textStyle}>{greeting.text}</Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 3,
+          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+          paddingHorizontal: 7,
+          paddingVertical: 2,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : '#bfdbfe',
+        }}
+      >
+        <Clock size={11} color={isDark ? '#60a5fa' : '#2563eb'} />
+        <Text
+          style={{
+            fontSize: 11,
+            fontFamily: 'Sarabun_700Bold',
+            color: isDark ? '#60a5fa' : '#2563eb',
+          }}
+        >
+          {hh}:{mm} น.
+        </Text>
+      </View>
+    </View>
+  );
+});
+
 const HomeContent: React.FC = () => {
   const { colors, themeMode } = useThemeContext();
   const router = useRouter();
@@ -285,15 +336,6 @@ const HomeContent: React.FC = () => {
     year: 'numeric' 
   });
 
-  const [liveTime, setLiveTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setLiveTime(new Date());
-    }, 10000);
-    return () => clearInterval(timer);
-  }, []);
-
   const handleActionPress = (route: string) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -302,13 +344,6 @@ const HomeContent: React.FC = () => {
   };
 
   const isDark = themeMode === 'dark';
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return { text: 'สวัสดีตอนเช้า', icon: Sun, color: '#f59e0b' };
-    if (hour < 17) return { text: 'สวัสดีตอนบ่าย', icon: CloudSun, color: '#f59e0b' };
-    return { text: 'สวัสดีตอนเย็น', icon: Moon, color: '#6366f1' };
-  };
 
   const getCategoryMeta = (category: string) => {
     switch (category) {
@@ -654,42 +689,7 @@ const HomeContent: React.FC = () => {
         <View style={styles.header}>
           <View style={styles.greetingRow}>
             <View>
-              {(() => {
-                const greeting = getGreeting();
-                const GreetingIcon = greeting.icon;
-                const hh = String(liveTime.getHours()).padStart(2, '0');
-                const mm = String(liveTime.getMinutes()).padStart(2, '0');
-                return (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <GreetingIcon size={15} color={greeting.color} />
-                    <Text style={styles.greetingText}>{greeting.text}</Text>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 3,
-                        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
-                        paddingHorizontal: 7,
-                        paddingVertical: 2,
-                        borderRadius: 10,
-                        borderWidth: 1,
-                        borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : '#bfdbfe',
-                      }}
-                    >
-                      <Clock size={11} color={isDark ? '#60a5fa' : '#2563eb'} />
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontFamily: 'Sarabun_700Bold',
-                          color: isDark ? '#60a5fa' : '#2563eb',
-                        }}
-                      >
-                        {hh}:{mm} น.
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })()}
+              <LiveGreetingRow isDark={isDark} textStyle={styles.greetingText} />
               <Text style={styles.dateTitle}>
                 วัน{getThaiDayName(currentDate.toISOString().split('T')[0])}ที่ {formatDateThai(currentDate.toISOString().split('T')[0])}
               </Text>
@@ -1106,40 +1106,97 @@ const HomeContent: React.FC = () => {
                   </View>
                 )}
               </View>
-            </>
-          ) : (
-            <TouchableOpacity
-              onPress={() => handleActionPress('/time-entry')}
-              activeOpacity={0.7}
-              style={[
-                styles.emptyAgendaBox,
-                { borderColor: colors.border, backgroundColor: colors.backgroundAlt, marginVertical: 4 },
-              ]}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Clock size={15} color={colors.textSecondary} />
-                <Text
+
+              {/* Action Button depending on shift completion */}
+              {todayEntry.clockIn && !todayEntry.clockOut ? (
+                <View style={{ marginTop: 10 }}>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    icon={LogOut}
+                    style={{
+                      width: '100%',
+                      borderColor: isDark ? '#ef4444' : '#dc2626',
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#fef2f2',
+                    }}
+                    textStyle={{ color: isDark ? '#f87171' : '#dc2626', fontWeight: '700' }}
+                    onPress={() => handleActionPress('/time-entry')}
+                  >
+                    บันทึกเวลาเลิกงาน
+                  </Button>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => handleActionPress('/time-entry')}
+                  activeOpacity={0.7}
                   style={{
-                    fontSize: 13,
-                    fontWeight: '600',
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_600SemiBold',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    marginTop: 8,
+                    paddingVertical: 4,
                   }}
                 >
-                  ยังไม่ได้บันทึกเวลาทำงานวันนี้
-                </Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_600SemiBold',
-                  marginTop: 3,
-                }}
+                  <Text style={{ fontSize: 12, color: colors.primary, fontFamily: 'Sarabun_600SemiBold' }}>
+                    ดูหรือแก้ไขเวลาทำงานวันนี้
+                  </Text>
+                  <ChevronRight size={13} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <View style={{ gap: 8, marginTop: 4 }}>
+              <View
+                style={[
+                  styles.emptyAgendaBox,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.backgroundAlt,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                  },
+                ]}
               >
-                แตะที่นี่เพื่อลงเวลาเข้างาน
-              </Text>
-            </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Clock size={15} color={colors.textSecondary} />
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '600',
+                      color: colors.textSecondary,
+                      fontFamily: 'Sarabun_600SemiBold',
+                    }}
+                  >
+                    ยังไม่ได้ลงเวลาทำงานวันนี้
+                  </Text>
+                </View>
+                <Badge
+                  variant="outline"
+                  style={{
+                    borderColor: isDark ? '#334155' : '#cbd5e1',
+                    backgroundColor: isDark ? 'rgba(51, 65, 85, 0.3)' : '#f8fafc',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_600SemiBold' }}>
+                    เริ่ม {currentSchedule?.startTime || '09:00'} น.
+                  </Text>
+                </Badge>
+              </View>
+
+              <Button
+                variant="default"
+                size="default"
+                icon={LogIn}
+                style={{ width: '100%' }}
+                onPress={() => handleActionPress('/time-entry')}
+              >
+                บันทึกเวลาเข้างาน
+              </Button>
+            </View>
           )}
         </Card>
 
