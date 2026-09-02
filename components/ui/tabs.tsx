@@ -149,6 +149,7 @@ export function Tabs({
 export function TabsList({ children, style, scrollable = false }: TabsListProps) {
   const { orientation } = useTabsContext();
   const backgroundColor = useColor('muted');
+  const borderColor = useColor('border');
 
   if (scrollable && orientation === 'horizontal') {
     return (
@@ -158,7 +159,9 @@ export function TabsList({ children, style, scrollable = false }: TabsListProps)
           {
             padding: 4,
             backgroundColor,
-            borderRadius: CORNERS,
+            borderRadius: 999,
+            borderWidth: 1.3,
+            borderColor,
           },
           style,
         ]}
@@ -185,10 +188,12 @@ export function TabsList({ children, style, scrollable = false }: TabsListProps)
         {
           padding: 4,
           backgroundColor,
-          borderRadius: orientation === 'horizontal' ? CORNERS : BORDER_RADIUS,
+          borderRadius: orientation === 'horizontal' ? 999 : 20,
           flexDirection: orientation === 'horizontal' ? 'row' : 'column',
           alignItems: 'center',
           justifyContent: 'space-between',
+          borderWidth: 1.3,
+          borderColor,
         },
         style,
       ]}
@@ -222,9 +227,10 @@ export function TabsTrigger({
     return () => unregisterTab(value);
   }, [value, registerTab, unregisterTab]);
 
-  const primaryColor = useColor('primary');
+  const textColor = useColor('text');
   const mutedForegroundColor = useColor('mutedForeground');
   const backgroundColor = useColor('card');
+  const borderColor = useColor('border');
 
   const handlePress = () => {
     if (!disabled) {
@@ -234,28 +240,26 @@ export function TabsTrigger({
   };
 
   const triggerStyle: ViewStyle = {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    borderRadius: CORNERS,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: HEIGHT - 10,
     backgroundColor: isActive ? backgroundColor : 'transparent',
+    borderWidth: isActive ? 1.2 : 0,
+    borderColor: isActive ? borderColor : 'transparent',
     opacity: disabled ? 0.5 : 1,
     flex: orientation === 'horizontal' ? 1 : undefined,
     marginBottom: orientation === 'vertical' ? 4 : 0,
-    shadowColor: isActive ? '#000' : 'transparent',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: isActive ? 0.08 : 0,
-    shadowRadius: 2,
-    elevation: isActive ? 1 : 0,
     ...style,
   };
 
   const triggerTextStyle: TextStyle = {
     fontSize: 12,
-    fontWeight: isActive ? '600' : '500',
-    color: isActive ? primaryColor : mutedForegroundColor,
+    fontWeight: isActive ? '700' : '500',
+    color: isActive ? textColor : mutedForegroundColor,
+    fontFamily: isActive ? 'Sarabun_700Bold' : 'Sarabun_500Medium',
     textAlign: 'center',
     ...textStyle,
   };

@@ -19,6 +19,7 @@ A comprehensive architectural and engineering reference for the **TimeTrack OT**
 - **Navigation & Routing**: Expo Router v6 (File-based routing with tab bar using `router.replace` to prevent memory leaks and screen stack accumulation).
 - **Local Database**: Expo SQLite v16 (WAL journal mode, target composite indexes, singleton pattern, bulk transaction safety).
 - **UI & Design System**: BNA UI (`@/components/ui/*`), `@/theme/*`, Lucide React Native vector icons. (Strict policy: Zero emojis in app code).
+- **Aesthetic Architecture**: Soft Pillow Cloud (`borderRadius: 28`), Zero Elevation on Android (`elevation: 0` to prevent dark penumbra contour rims), CSS `boxShadow` with wide ambient diffusion ("ขอบฟุ้งๆ"), Frosted Sky Glassmorphism with `expo-linear-gradient`, and Full Capsule Buttons (`borderRadius: 999`).
 - **Local Notification Engine**: Modular `expo-notifications`, Android Notification Channel (`activity-reminders`) with `AndroidImportance.MAX` and public lockscreen visibility for background alerts when the app is closed.
 - **Haptic Engine**: Configurable `useHaptics` hook with persistent storage, defaulted to OFF to eliminate unwanted touch vibrations, toggleable in Settings.
 - **Localization**: Thai Buddhist Era (พ.ศ. = ค.ศ. + 543), Thai day/month localization, Sarabun Google Font.
@@ -259,6 +260,7 @@ For local reminders to alert the user even when the app is completely closed/kil
 ### 4. Reports (`app/reports.tsx`)
 - Clean root header without back button.
 - 3-Tier Monthly Summary Card with clean decimal hours (e.g. `9.00 ชม.` without redundant duplicate text).
+- **Translucent Soft Sky Glass Summary**: Frosted sky gradient with `LinearGradient` (`['rgba(219, 234, 254, 0.75)', 'rgba(239, 246, 255, 0.5)']`), borderless (`borderWidth: 0`), and feathery ambient glow with 40px diffusion (`boxShadow: '0 14px 40px rgba(37, 99, 235, 0.20)'`).
 - Pay period split (1st-10th, 11th-20th, 21st-End of month).
 - Quick filter pills: All, Has OT, Late, Early Leave.
 - Detail Modal with toggles for OT used and late compensated.
@@ -270,3 +272,79 @@ For local reminders to alert the user even when the app is completely closed/kil
 - **App Settings**: Dark / Light mode toggle, Haptic feedback vibration switch.
 - **Database Management (Danger Zone)**: Solid opaque dark card (prevents Android elevation artifact), backup export to JSON, restore import from file, and reset database.
 - **About App**: Version badge (v1.3.0), 100% Offline Local Storage chip, Developer name "Wick", Copyright, and interactive Google Form feedback button (`forms.gle/BKx4Pz6VB65kdaka8`).
+
+---
+
+## 8. UI Architecture & Design Standards (Soft Pillow Cloud & Zero Elevation)
+
+### 1. Zero Android Elevation (`elevation: 0`)
+- **Strict Rule**: On Android, **NEVER** use `elevation > 0` on cards, buttons, segmented controls, or pills. Android hardware creates a harsh dark penumbra contour ring around rounded corners when elevation is applied.
+- Rely on natural surface contrast (`#FFFFFF` card vs `#EEF2F6` cloud background) and CSS `boxShadow`.
+
+### 2. Pillow Cloud Radiuses (`borderRadius: 28`)
+- Main container cards: `borderRadius: 28`
+- Sub-cards and metric blocks: `borderRadius: 18 - 20`
+- Buttons, chips, pills, and badges: `borderRadius: 999` (Full capsule)
+
+### 3. Diffused Glow & Ambient Diffusion ("ขอบฟุ้งๆ")
+- Cards and floating elements must **never** use rigid 1px hairline wireframe borders (`borderWidth: 0`).
+- Use CSS `boxShadow` with large blur radius (28px - 40px) to produce an ambient diffused aura that melts into the background.
+- Combine with `expo-linear-gradient` for luminous, frosted glass visual depth.
+- Never place `overflow: 'hidden'` on parent containers that wrap glowing cards (unless specifically required for image capture), as it clips the ambient shadow.
+
+### 4. Mandatory BNA UI Icon Component Standard (`components/ui/icon.tsx`)
+- **Strict Rule**: Always use `<Icon name={LucideIcon} size={...} color={...} />` imported from `@/components/ui/icon`.
+- **Never render raw `<LucideIcon />` JSX directly** in screens, sheets, or modals without the BNA UI wrapper.
+- The BNA UI Icon component enforces consistent `strokeWidth: 1.8`, `strokeLinecap: 'round'`, accessibility props, and seamless dark/light mode token integration.
+- **Zero-Emoji Directive**: Strictly zero Unicode emojis in app code or UI strings. Use Lucide vector icons exclusively via the BNA UI `<Icon />` wrapper.
+
+### 5. BNA UI Color Picker Component (`components/ui/color-picker.tsx`)
+- Official BNA UI component supporting HSV color space selection, 2D Saturation/Brightness Pan gesture picker, Rainbow SVG Hue slider bar, live worklet-driven color preview box, accessible manual hex code input, and standalone circular swatches (`ColorSwatch`).
+- Integrated into `TaskNoteModal.tsx` for custom card coloring alongside preset pastel swatches.
+
+---
+
+## 9. Implemented Feature Architecture: To-Do List & Quick Notes Engine (Google Keep Hybrid)
+
+### Schema Design (`tasks_notes` table)
+```sql
+CREATE TABLE IF NOT EXISTS tasks_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  content TEXT,                                                     -- Multiline text for note memos
+  type TEXT DEFAULT 'checklist' CHECK(type IN ('checklist', 'note')),
+  items_json TEXT,                                                  -- JSON array of TaskNoteItem objects
+  is_completed INTEGER DEFAULT 0,                                   -- 0: pending, 1: done
+  color TEXT DEFAULT 'default',                                     -- 'default' | 'blue' | 'green' | 'yellow' | 'rose' | 'purple' | '#hex'
+  is_pinned INTEGER DEFAULT 0,                                      -- 0: normal, 1: pinned to top
+  date TEXT,                                                        -- ISO Date string YYYY-MM-DD
+  reminder_time TEXT,                                               -- Optional HH:mm
+  notification_id TEXT,                                             -- Linked local notification ID
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, is_completed);
+```
+
+### Integration Points
+1. **Home Dashboard Integration (`app/index.tsx`)**:
+   - 1x2 Bento Pair layout dividing the row 50/50 between "กิจกรรม & นัดหมาย" (Left) and "โน้ต & งาน" (Right).
+   - Direct 1-tap interactive checkbox `[✓]` toggling tasks immediately with subtle Haptic feedback.
+2. **Components**:
+   - `components/TaskNoteModal.tsx`: Pinned footer BottomSheet for creating and editing To-Do checklists or Text Notes with 6 Google Keep pastel tones.
+   - `components/TaskNoteManagerSheet.tsx`: Full Google Keep card viewer with real-time search bar and filter tabs.
+3. **Smart URL Auto-Detection & 1-Tap Web Launcher (`utils/urlHelper.ts`)**:
+   - Automatically detects URLs (`http://`, `https://`, `www.`) in note content and checklist items.
+   - Renders interactive quick-open chip buttons (`[ExternalLink] เปิดลิงก์: ...`) both inside `TaskNoteModal` while editing and on card bodies in `TaskNoteManagerSheet`.
+   - Uses `Linking.canOpenURL` and `Linking.openURL` with automatic protocol normalization (`https://`) and tactile haptic feedback.
+4. **Single-Row Color Palette & BNA UI ColorPicker**:
+   - Clean `สีการ์ด:` header with optional active HEX pill.
+   - 6 Google Keep pastel tones + 7th circular BNA UI `ColorPicker` swatch all sit on a single neat horizontal row with zero unwanted line-wrapping.
+5. **Dual Layout Switcher (List vs Masonry Grid View)**:
+   - Toggle button beside the search bar with `LayoutGrid` and `List` vector icons from Lucide / BNA UI.
+   - **List Mode**: Full-width single-column layout for focused reading.
+   - **Grid Mode**: Authentic 2-column Masonry grid (Google Keep style) splitting even/odd items into dynamic height columns so cards pack tightly without vertical gaps.
+6. **Full Backup & Restore Support**:
+   - Exported and imported seamlessly in database backup JSON files.
+

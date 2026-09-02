@@ -23,6 +23,8 @@ import {
   ChevronRight,
   Plus,
   FileText,
+  CheckSquare,
+  Check,
   Settings,
   Sparkles,
   MapPin,
@@ -43,7 +45,10 @@ import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
-import { Activity, LeaveSummary } from '../types';
+import { Activity, LeaveSummary, TaskNote } from '../types';
+import { TaskNoteModal } from '@/components/TaskNoteModal';
+import { TaskNoteManagerSheet } from '@/components/TaskNoteManagerSheet';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 const { width } = Dimensions.get('window');
 
@@ -111,6 +116,12 @@ const HomeContent: React.FC = () => {
     getActivitiesForDate,
     getHolidays,
     getLeaveSummary,
+    getTasksNotes,
+    saveTaskNote,
+    updateTaskNote,
+    toggleTaskNoteCompleted,
+    toggleChecklistItem,
+    deleteTaskNote,
   } = useDatabase();
   const { formatDateThai, getThaiDayName, formatHours, formatHoursWithDecimal, calculateLateArrival, calculateEarlyLeave, calculateWorkHours } = useTimeCalculation();
   
@@ -126,6 +137,15 @@ const HomeContent: React.FC = () => {
     isRegularOff?: boolean;
   }>({ isHoliday: false, isLeave: false, isWFH: false, isRegularOff: false });
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [tasksNotes, setTasksNotes] = useState<TaskNote[]>([]);
+  const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
+  const [isManagerSheetVisible, setIsManagerSheetVisible] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<TaskNote | null>(null);
+
+  const pendingTasksCount = useMemo(
+    () => tasksNotes.filter((i) => !i.isCompleted).length,
+    [tasksNotes]
+  );
   const [leaveSummaries, setLeaveSummaries] = useState<LeaveSummary[]>([]);
   const [nextHoliday, setNextHoliday] = useState<{ name: string; date: string; daysLeft: number } | null>(null);
   const [currentDate] = useState(new Date());
@@ -261,8 +281,8 @@ const HomeContent: React.FC = () => {
     // Format date string properly
     const dateString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 
-    // High Performance: Fetch today data and yearly stats concurrently in parallel
-    const [schedule, entry, dayStatus, todayActs, yearHolidays, leaveSum] = await Promise.all([
+    // High Performance: Fetch today data, yearly stats, and tasks concurrently in parallel
+    const [schedule, entry, dayStatus, todayActs, yearHolidays, leaveSum, _yearlyStats, todayTasks] = await Promise.all([
       getWorkSchedule(month, year),
       getTimeEntry(dateString),
       checkDateStatus(dateString),
@@ -270,10 +290,12 @@ const HomeContent: React.FC = () => {
       getHolidays(year),
       getLeaveSummary(year),
       loadYearlyStats(year),
+      getTasksNotes(),
     ]);
 
     setActivities(todayActs || []);
     setLeaveSummaries(leaveSum || []);
+    setTasksNotes(todayTasks || []);
 
     // Find next upcoming holiday
     if (yearHolidays && yearHolidays.length > 0) {
@@ -320,7 +342,37 @@ const HomeContent: React.FC = () => {
     setCurrentSchedule(schedule);
     setTodayEntry(todayEntryWithLate);
     setTodayStatus(dayStatus);
-  }, [isReady, getWorkSchedule, getTimeEntry, calculateWorkHours, calculateLateArrival, calculateEarlyLeave, checkDateStatus, getActivitiesForDate, getHolidays, getLeaveSummary, loadYearlyStats]);
+  }, [isReady, getWorkSchedule, getTimeEntry, calculateWorkHours, calculateLateArrival, calculateEarlyLeave, checkDateStatus, getActivitiesForDate, getHolidays, getLeaveSummary, loadYearlyStats, getTasksNotes]);
+
+  const handleSaveTaskNote = async (data: Omit<TaskNote, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (selectedNote?.id) {
+      await updateTaskNote(selectedNote.id, data);
+    } else {
+      await saveTaskNote(data);
+    }
+    const updated = await getTasksNotes();
+    setTasksNotes(updated || []);
+  };
+
+  const handleToggleTaskNote = async (id: number, isCompleted: boolean) => {
+    triggerHaptic('selection');
+    await toggleTaskNoteCompleted(id, isCompleted);
+    const updated = await getTasksNotes();
+    setTasksNotes(updated || []);
+  };
+
+  const handleToggleTaskSubItem = async (noteId: number, itemId: string) => {
+    triggerHaptic('selection');
+    await toggleChecklistItem(noteId, itemId);
+    const updated = await getTasksNotes();
+    setTasksNotes(updated || []);
+  };
+
+  const handleDeleteTaskNote = async (id: number) => {
+    await deleteTaskNote(id);
+    const updated = await getTasksNotes();
+    setTasksNotes(updated || []);
+  };
 
   // Refresh data when screen comes into focus or database becomes ready
   useFocusEffect(
@@ -367,30 +419,30 @@ const HomeContent: React.FC = () => {
           icon: Palmtree,
           label: 'พักร้อน',
           color: '#10b981',
-          lightBg: '#ecfdf5',
-          lightBorder: '#a7f3d0',
-          darkBg: 'rgba(5, 150, 105, 0.12)',
-          darkBorder: 'rgba(16, 185, 129, 0.25)',
+          lightBg: '#dcfce7',
+          lightBorder: colors.border,
+          darkBg: 'rgba(34, 197, 94, 0.15)',
+          darkBorder: colors.border,
         };
       case 'sick':
         return {
           icon: HeartPulse,
           label: 'ลาป่วย',
           color: '#ef4444',
-          lightBg: '#fef2f2',
-          lightBorder: '#fecaca',
-          darkBg: 'rgba(220, 38, 38, 0.12)',
-          darkBorder: 'rgba(239, 68, 68, 0.25)',
+          lightBg: '#ffe4e6',
+          lightBorder: colors.border,
+          darkBg: 'rgba(239, 68, 68, 0.15)',
+          darkBorder: colors.border,
         };
       case 'personal':
         return {
           icon: UserCheck,
           label: 'ลากิจ',
           color: '#f59e0b',
-          lightBg: '#fffbeb',
-          lightBorder: '#fde68a',
-          darkBg: 'rgba(217, 119, 6, 0.12)',
-          darkBorder: 'rgba(245, 158, 11, 0.25)',
+          lightBg: '#fef3c7',
+          lightBorder: colors.border,
+          darkBg: 'rgba(245, 158, 11, 0.15)',
+          darkBorder: colors.border,
         };
       case 'other':
       default:
@@ -398,10 +450,10 @@ const HomeContent: React.FC = () => {
           icon: FileText,
           label: 'อื่นๆ',
           color: '#8b5cf6',
-          lightBg: '#f5f3ff',
-          lightBorder: '#ddd6fe',
-          darkBg: 'rgba(139, 92, 246, 0.12)',
-          darkBorder: 'rgba(139, 92, 246, 0.25)',
+          lightBg: '#f3e8ff',
+          lightBorder: colors.border,
+          darkBg: 'rgba(168, 85, 247, 0.15)',
+          darkBorder: colors.border,
         };
     }
   };
@@ -478,27 +530,34 @@ const HomeContent: React.FC = () => {
       width: (width - 36) / 2,
     },
     statCard: {
-      borderRadius: 16,
-      padding: 10,
-      minHeight: 74,
+      borderRadius: 24,
+      padding: 12,
+      minHeight: 78,
       justifyContent: 'space-between',
-      borderWidth: 1,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     otCard: {
-      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.12)' : '#ecfdf5',
-      borderColor: isDark ? 'rgba(16, 185, 129, 0.25)' : '#a7f3d0',
+      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7',
     },
     lateCard: {
-      backgroundColor: isDark ? 'rgba(220, 38, 38, 0.12)' : '#fef2f2',
-      borderColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#fecaca',
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#ffe4e6',
     },
     regularCard: {
-      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : '#eff6ff',
-      borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : '#bfdbfe',
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe',
     },
     overtimeCard: {
-      backgroundColor: isDark ? 'rgba(217, 119, 6, 0.12)' : '#fffbeb',
-      borderColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#fde68a',
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
     },
     statHeaderRow: {
       flexDirection: 'row',
@@ -539,19 +598,40 @@ const HomeContent: React.FC = () => {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      borderRadius: 14,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      borderRadius: 22,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
       marginBottom: 10,
-      borderWidth: 1,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.04,
+          shadowRadius: 10,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     // Integrated Shift Card
     bnaCard: {
-      marginBottom: 10,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: 13,
+      marginBottom: 12,
+      borderRadius: 28,
+      borderWidth: 0,
+      padding: 18,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.05,
+          shadowRadius: 20,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     cardHeader: {
       flexDirection: 'row',
@@ -610,14 +690,15 @@ const HomeContent: React.FC = () => {
     metricMiniChip: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 4,
-      borderRadius: 8,
-      borderWidth: 1,
+      paddingVertical: 7,
+      paddingHorizontal: 6,
+      borderRadius: 999,
+      borderWidth: 0,
     },
     metricMiniText: {
       fontSize: 11,
-      fontWeight: '600',
-      fontFamily: 'Sarabun_600SemiBold',
+      fontWeight: '700',
+      fontFamily: 'Sarabun_700Bold',
     },
     // Today's Agenda
     agendaItemRow: {
@@ -637,37 +718,60 @@ const HomeContent: React.FC = () => {
     emptyAgendaBox: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderStyle: 'dashed',
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      borderRadius: 22,
+      backgroundColor: colors.backgroundAlt,
+      borderWidth: 0,
     },
     // Upcoming Holiday Pill
     nextHolidayCard: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      borderRadius: 14,
-      borderWidth: 1,
-      marginBottom: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 24,
+      borderWidth: 0,
+      backgroundColor: colors.card,
+      marginBottom: 12,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     // Quota Cards (4 slots)
     quotaCard: {
       flex: 1,
-      borderRadius: 14,
-      paddingVertical: 8,
-      paddingHorizontal: 3,
+      borderRadius: 22,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
       alignItems: 'center',
-      borderWidth: 1,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     quotaLabel: {
       fontSize: 11,
       fontWeight: '600',
       color: colors.textSecondary,
       fontFamily: 'Sarabun_600SemiBold',
-      marginBottom: 2,
     },
     quotaVal: {
       fontSize: 15,
@@ -1052,16 +1156,15 @@ const HomeContent: React.FC = () => {
                   style={[
                     styles.metricMiniChip,
                     {
-                      backgroundColor: colors.backgroundAlt,
-                      borderColor: colors.border,
+                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
                       flexDirection: 'row',
                       justifyContent: 'center',
                       gap: 4,
                     },
                   ]}
                 >
-                  <Briefcase size={12} color={colors.text} />
-                  <Text style={[styles.metricMiniText, { color: colors.text }]}>
+                  <Briefcase size={12} color={colors.primary} />
+                  <Text style={[styles.metricMiniText, { color: colors.primary }]}>
                     ทำงาน {todayEntry.regularHours ? formatHours(todayEntry.regularHours) : '0'} ชม.
                   </Text>
                 </View>
@@ -1072,7 +1175,6 @@ const HomeContent: React.FC = () => {
                       styles.metricMiniChip,
                       {
                         backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#ecfdf5',
-                        borderColor: '#10b981',
                         flexDirection: 'row',
                         justifyContent: 'center',
                         gap: 4,
@@ -1080,7 +1182,7 @@ const HomeContent: React.FC = () => {
                     ]}
                   >
                     <Zap size={12} color="#10b981" />
-                    <Text style={[styles.metricMiniText, { color: '#10b981' }]}>
+                    <Text style={[styles.metricMiniText, { color: '#059669' }]}>
                       OT +{formatHours(todayEntry.overtimeHours)} ชม.
                     </Text>
                   </View>
@@ -1092,7 +1194,6 @@ const HomeContent: React.FC = () => {
                       styles.metricMiniChip,
                       {
                         backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2',
-                        borderColor: '#ef4444',
                         flexDirection: 'row',
                         justifyContent: 'center',
                         gap: 4,
@@ -1112,12 +1213,11 @@ const HomeContent: React.FC = () => {
                 <View style={{ marginTop: 10 }}>
                   <Button
                     variant="outline"
-                    size="default"
+                    size="lg"
                     icon={LogOut}
                     style={{
                       width: '100%',
-                      borderColor: isDark ? '#ef4444' : '#dc2626',
-                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.08)' : '#fef2f2',
+                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#ffe4e6',
                     }}
                     textStyle={{ color: isDark ? '#f87171' : '#dc2626', fontWeight: '700' }}
                     onPress={() => handleActionPress('/time-entry')}
@@ -1135,10 +1235,14 @@ const HomeContent: React.FC = () => {
                     justifyContent: 'center',
                     gap: 4,
                     marginTop: 8,
-                    paddingVertical: 4,
+                    paddingVertical: 7,
+                    paddingHorizontal: 18,
+                    borderRadius: 999,
+                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+                    alignSelf: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 12, color: colors.primary, fontFamily: 'Sarabun_600SemiBold' }}>
+                  <Text style={{ fontSize: 12, color: colors.primary, fontFamily: 'Sarabun_700Bold', fontWeight: '700' }}>
                     ดูหรือแก้ไขเวลาทำงานวันนี้
                   </Text>
                   <ChevronRight size={13} color={colors.primary} />
@@ -1151,13 +1255,12 @@ const HomeContent: React.FC = () => {
                 style={[
                   styles.emptyAgendaBox,
                   {
-                    borderColor: colors.border,
                     backgroundColor: colors.backgroundAlt,
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
                   },
                 ]}
               >
@@ -1177,11 +1280,11 @@ const HomeContent: React.FC = () => {
                 <Badge
                   variant="outline"
                   style={{
-                    borderColor: isDark ? '#334155' : '#cbd5e1',
-                    backgroundColor: isDark ? 'rgba(51, 65, 85, 0.3)' : '#f8fafc',
+                    borderWidth: 0,
+                    backgroundColor: colors.card,
                   }}
                 >
-                  <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_600SemiBold' }}>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_600SemiBold' }}>
                     เริ่ม {currentSchedule?.startTime || '09:00'} น.
                   </Text>
                 </Badge>
@@ -1189,7 +1292,7 @@ const HomeContent: React.FC = () => {
 
               <Button
                 variant="default"
-                size="default"
+                size="lg"
                 icon={LogIn}
                 style={{ width: '100%' }}
                 onPress={() => handleActionPress('/time-entry')}
@@ -1200,126 +1303,316 @@ const HomeContent: React.FC = () => {
           )}
         </Card>
 
-        {/* Today's Agenda (Activities & Appointments) */}
-        <Card style={styles.bnaCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleContainer}>
-              <Calendar size={16} color={colors.primary} />
-              <Text style={styles.cardTitle}>กิจกรรม & นัดหมายวันนี้</Text>
-              {activities.length > 0 && (
-                <Badge variant="secondary">{activities.length}</Badge>
-              )}
-            </View>
-            <TouchableOpacity
-              onPress={() => handleActionPress('/leaves')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-            >
-              <Plus size={14} color={colors.primary} />
-              <Text
+        {/* Row: 1x2 Bento Pair (Left: Activities 50% | Right: Notes & Tasks 50%) */}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+          {/* Left: Activities & Appointments */}
+          <Card style={{ flex: 1, ...styles.bnaCard, marginBottom: 0, padding: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+                <Icon name={Calendar} size={15} color={colors.primary} />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                  numberOfLines={1}
+                >
+                  กิจกรรม
+                </Text>
+                {activities.length > 0 && (
+                  <Badge variant="secondary" style={{ paddingHorizontal: 5, paddingVertical: 1 }}>
+                    {activities.length}
+                  </Badge>
+                )}
+              </View>
+              <TouchableOpacity
+                onPress={() => handleActionPress('/leaves')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{
-                  fontSize: 12,
-                  fontWeight: '700',
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_700Bold',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 2,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 999,
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
                 }}
               >
-                เพิ่ม
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {activities.length > 0 ? (
-            activities.map((item, idx) => {
-              const meta = getCategoryMeta(item.category);
-              const CatIcon = meta.icon;
-              const isLast = idx === activities.length - 1;
-              return (
-                <View
-                  key={item.id || idx}
-                  style={[
-                    styles.agendaItemRow,
-                    { borderColor: colors.border, borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth },
-                  ]}
+                <Icon name={Plus} size={11} color={colors.primary} />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: colors.primary,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
                 >
-                  <View style={[styles.agendaIconBadge, { backgroundColor: meta.bg }]}>
-                    <CatIcon size={16} color={meta.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
+                  เพิ่ม
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {activities.length > 0 ? (
+              <View style={{ gap: 8 }}>
+                {activities.slice(0, 2).map((item, idx) => {
+                  const meta = getCategoryMeta(item.category);
+                  const CatIcon = meta.icon;
+                  return (
+                    <TouchableOpacity
+                      key={item.id || idx}
+                      activeOpacity={0.7}
+                      onPress={() => handleActionPress('/leaves')}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        paddingVertical: 3,
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.agendaIconBadge,
+                          { width: 28, height: 28, borderRadius: 9, backgroundColor: meta.bg },
+                        ]}
+                      >
+                        <Icon name={CatIcon} size={14} color={meta.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: '700',
+                            color: colors.text,
+                            fontFamily: 'Sarabun_700Bold',
+                          }}
+                          numberOfLines={1}
+                        >
+                          {item.title}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            color: colors.primary,
+                            fontFamily: 'Sarabun_600SemiBold',
+                          }}
+                          numberOfLines={1}
+                        >
+                          {item.startTime} - {item.endTime} น.
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                {activities.length > 2 && (
+                  <TouchableOpacity onPress={() => handleActionPress('/leaves')}>
                     <Text
                       style={{
-                        fontSize: 13,
-                        fontWeight: '700',
-                        color: colors.text,
-                        fontFamily: 'Sarabun_700Bold',
+                        fontSize: 11,
+                        color: colors.primary,
+                        fontFamily: 'Sarabun_600SemiBold',
+                        textAlign: 'center',
+                        marginTop: 2,
                       }}
+                    >
+                      + ดูอีก {activities.length - 2} รายการ
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => handleActionPress('/leaves')}
+                activeOpacity={0.7}
+                style={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 18,
+                  gap: 2,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: colors.textSecondary,
+                    fontFamily: 'Sarabun_400Regular',
+                  }}
+                >
+                  ไม่มีนัดหมายวันนี้
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    color: colors.primary,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  แตะเพื่อเพิ่มนัด
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
+
+          {/* Right: Notes & Tasks (To-Do List) */}
+          <Card style={{ flex: 1, ...styles.bnaCard, marginBottom: 0, padding: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setIsManagerSheetVisible(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}
+              >
+                <Icon name={CheckSquare} size={15} color="#16a34a" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                  numberOfLines={1}
+                >
+                  โน้ต & งาน
+                </Text>
+                {pendingTasksCount > 0 && (
+                  <Badge variant="secondary" style={{ paddingHorizontal: 5, paddingVertical: 1 }}>
+                    {pendingTasksCount}
+                  </Badge>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setSelectedNote(null);
+                  setIsNoteModalVisible(true);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 2,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 999,
+                  backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#dcfce7',
+                }}
+              >
+                <Icon name={Plus} size={11} color="#16a34a" />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#16a34a',
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  เพิ่ม
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {tasksNotes.length > 0 ? (
+              <View style={{ gap: 8 }}>
+                {tasksNotes.slice(0, 2).map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSelectedNote(item);
+                      setIsNoteModalVisible(true);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => handleToggleTaskNote(item.id!, !item.isCompleted)}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 6,
+                        borderWidth: item.isCompleted ? 0 : 1.5,
+                        borderColor: colors.border,
+                        backgroundColor: item.isCompleted ? '#16a34a' : 'transparent',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {item.isCompleted && <Icon name={Check} size={12} color="#ffffff" />}
+                    </TouchableOpacity>
+
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 12,
+                        fontWeight: '600',
+                        color: item.isCompleted ? colors.textSecondary : colors.text,
+                        textDecorationLine: item.isCompleted ? 'line-through' : 'none',
+                        fontFamily: 'Sarabun_600SemiBold',
+                      }}
+                      numberOfLines={1}
                     >
                       {item.title}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          color: colors.primary,
-                          fontFamily: 'Sarabun_600SemiBold',
-                        }}
-                      >
-                        {item.startTime} - {item.endTime} น.
-                      </Text>
-                      {item.location && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                          <MapPin size={10} color={colors.textSecondary} />
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color: colors.textSecondary,
-                              fontFamily: 'Sarabun_400Regular',
-                            }}
-                            numberOfLines={1}
-                          >
-                            {item.location}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  {item.reminderMinutes !== null && item.reminderMinutes !== undefined && (
-                    <Bell size={13} color="#f59e0b" style={{ marginLeft: 6 }} />
-                  )}
-                </View>
-              );
-            })
-          ) : (
-            <TouchableOpacity
-              onPress={() => handleActionPress('/leaves')}
-              activeOpacity={0.7}
-              style={[
-                styles.emptyAgendaBox,
-                { borderColor: colors.border, backgroundColor: colors.backgroundAlt },
-              ]}
-            >
-              <Text
+                  </TouchableOpacity>
+                ))}
+                {tasksNotes.length > 2 && (
+                  <TouchableOpacity onPress={() => setIsManagerSheetVisible(true)}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: '#16a34a',
+                        fontFamily: 'Sarabun_600SemiBold',
+                        textAlign: 'center',
+                        marginTop: 2,
+                      }}
+                    >
+                      + ดูอีก {tasksNotes.length - 2} รายการ
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setSelectedNote(null);
+                  setIsNoteModalVisible(true);
+                }}
+                activeOpacity={0.7}
                 style={{
-                  fontSize: 12,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_400Regular',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 18,
+                  gap: 2,
                 }}
               >
-                ไม่มีนัดหมายวันนี้
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_600SemiBold',
-                  marginTop: 3,
-                }}
-              >
-                แตะเพื่อเพิ่มนัดหมายใหม่
-              </Text>
-            </TouchableOpacity>
-          )}
-        </Card>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: colors.textSecondary,
+                    fontFamily: 'Sarabun_400Regular',
+                  }}
+                >
+                  ไม่มีงานค้างวันนี้
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    color: '#16a34a',
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  แตะเพื่อสร้างงาน/โน้ต
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
+        </View>
 
         {/* Upcoming Holiday Countdown Pill */}
         {nextHoliday && (
@@ -1447,12 +1740,12 @@ const HomeContent: React.FC = () => {
                       },
                     ]}
                   >
-                    <View style={{ marginBottom: 4 }}>
-                      <LeaveIcon size={18} color={meta.color} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+                      <LeaveIcon size={14} color={meta.color} />
+                      <Text style={styles.quotaLabel} numberOfLines={1}>
+                        {meta.label}
+                      </Text>
                     </View>
-                    <Text style={styles.quotaLabel} numberOfLines={1}>
-                      {meta.label}
-                    </Text>
                     <Text style={[styles.quotaVal, { color: meta.color }]}>
                       {item.remainingDays}
                       <Text style={{ fontSize: 10, fontWeight: 'normal', color: colors.textSecondary }}>
@@ -1482,12 +1775,12 @@ const HomeContent: React.FC = () => {
                       },
                     ]}
                   >
-                    <View style={{ marginBottom: 4 }}>
-                      <LeaveIcon size={18} color={meta.color} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+                      <LeaveIcon size={14} color={meta.color} />
+                      <Text style={styles.quotaLabel} numberOfLines={1}>
+                        {meta.label}
+                      </Text>
                     </View>
-                    <Text style={styles.quotaLabel} numberOfLines={1}>
-                      {meta.label}
-                    </Text>
                     <Text style={[styles.quotaVal, { color: meta.color }]}>
                       -
                       <Text style={{ fontSize: 10, fontWeight: 'normal', color: colors.textSecondary }}>
@@ -1504,6 +1797,34 @@ const HomeContent: React.FC = () => {
           </View>
         </View>
       </ScrollView>
+
+      <TaskNoteModal
+        isVisible={isNoteModalVisible}
+        onClose={() => {
+          setIsNoteModalVisible(false);
+          setSelectedNote(null);
+        }}
+        onSave={handleSaveTaskNote}
+        initialData={selectedNote}
+        onDelete={handleDeleteTaskNote}
+      />
+
+      <TaskNoteManagerSheet
+        isVisible={isManagerSheetVisible}
+        onClose={() => setIsManagerSheetVisible(false)}
+        tasksNotes={tasksNotes}
+        onAddNew={() => {
+          setSelectedNote(null);
+          setIsNoteModalVisible(true);
+        }}
+        onEdit={(item) => {
+          setSelectedNote(item);
+          setIsNoteModalVisible(true);
+        }}
+        onToggleItem={handleToggleTaskSubItem}
+        onToggleNote={handleToggleTaskNote}
+        onDelete={handleDeleteTaskNote}
+      />
 
       <BottomNavigation />
     </View>

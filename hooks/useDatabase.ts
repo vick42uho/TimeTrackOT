@@ -14,6 +14,7 @@ import {
   BackupPayload,
   RestoreResult,
   Activity,
+  TaskNote,
 } from '../types';
 
 const DATABASE_NAME = 'timetracker.db';
@@ -121,6 +122,24 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
           );
         `);
 
+        await database.execAsync(`
+          CREATE TABLE IF NOT EXISTS tasks_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT,
+            type TEXT NOT NULL DEFAULT 'checklist',
+            items_json TEXT,
+            is_completed INTEGER DEFAULT 0,
+            color TEXT DEFAULT 'default',
+            is_pinned INTEGER DEFAULT 0,
+            date TEXT,
+            reminder_time TEXT,
+            notification_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+
         // High Performance Indexes
         await database.execAsync(`
           CREATE INDEX IF NOT EXISTS idx_time_entries_date ON time_entries(date);
@@ -132,6 +151,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
           CREATE INDEX IF NOT EXISTS idx_work_schedules_year ON work_schedules(year);
           CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
           CREATE INDEX IF NOT EXISTS idx_activities_date_order ON activities(date, is_all_day, start_time);
+          CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, is_completed);
         `);
 
         // Migration safety checks
@@ -1050,6 +1070,228 @@ export const useDatabase = () => {
   };
 
   // ----------------------------------------------------
+  // TASKS & NOTES (Google Keep Hybrid Engine)
+  // ----------------------------------------------------
+  const mapTaskNoteRow = (r: any): TaskNote => {
+    let items: any[] = [];
+    if (r.items_json) {
+      try {
+        items = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : r.items_json;
+      } catch (e) {
+        items = [];
+      }
+    }
+    return {
+      id: r.id,
+      title: r.title,
+      content: r.content || undefined,
+      type: r.type || 'checklist',
+      items: Array.isArray(items) ? items : [],
+      isCompleted: r.is_completed === 1,
+      color: r.color || 'default',
+      isPinned: r.is_pinned === 1,
+      date: r.date || undefined,
+      reminderTime: r.reminder_time || undefined,
+      notificationId: r.notification_id || undefined,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    };
+  };
+
+  const getTasksNotes = async (filter?: {
+    date?: string;
+    completed?: boolean;
+    search?: string;
+    pinnedOnly?: boolean;
+  }): Promise<TaskNote[]> => {
+    try {
+      const db = await getOrInitDb();
+      let query = 'SELECT * FROM tasks_notes WHERE 1=1';
+      const params: any[] = [];
+
+      if (filter?.date) {
+        query += ' AND (date = ? OR date IS NULL)';
+        params.push(filter.date);
+      }
+      if (filter?.completed !== undefined) {
+        query += ' AND is_completed = ?';
+        params.push(filter.completed ? 1 : 0);
+      }
+      if (filter?.pinnedOnly) {
+        query += ' AND is_pinned = 1';
+      }
+      if (filter?.search && filter.search.trim()) {
+        const s = `%${filter.search.trim()}%`;
+        query += ' AND (title LIKE ? OR content LIKE ? OR items_json LIKE ?)';
+        params.push(s, s, s);
+      }
+
+      query += ' ORDER BY is_pinned DESC, is_completed ASC, updated_at DESC, id DESC';
+
+      const rows = await db.getAllAsync<any>(query, params);
+      return rows.map(mapTaskNoteRow);
+    } catch (error) {
+      console.error('Error fetching tasks & notes:', error);
+      return [];
+    }
+  };
+
+  const getTodayTasksNotes = async (): Promise<TaskNote[]> => {
+    try {
+      const db = await getOrInitDb();
+      const rows = await db.getAllAsync<any>(
+        'SELECT * FROM tasks_notes ORDER BY is_pinned DESC, is_completed ASC, updated_at DESC, id DESC'
+      );
+      return rows.map(mapTaskNoteRow);
+    } catch (error) {
+      console.error('Error fetching today tasks & notes:', error);
+      return [];
+    }
+  };
+
+  const saveTaskNote = async (
+    taskNote: Omit<TaskNote, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<number> => {
+    try {
+      const db = await getOrInitDb();
+      const itemsJson = JSON.stringify(taskNote.items || []);
+      const result = await db.runAsync(
+        `INSERT INTO tasks_notes 
+         (title, content, type, items_json, is_completed, color, is_pinned, date, reminder_time, notification_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          taskNote.title,
+          taskNote.content || null,
+          taskNote.type || 'checklist',
+          itemsJson,
+          taskNote.isCompleted ? 1 : 0,
+          taskNote.color || 'default',
+          taskNote.isPinned ? 1 : 0,
+          taskNote.date || null,
+          taskNote.reminderTime || null,
+          taskNote.notificationId || null,
+        ]
+      );
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error('Error saving task & note:', error);
+      throw error;
+    }
+  };
+
+  const updateTaskNote = async (id: number, data: Partial<TaskNote>): Promise<void> => {
+    try {
+      const db = await getOrInitDb();
+      const fields: string[] = [];
+      const values: any[] = [];
+
+      if (data.title !== undefined) {
+        fields.push('title = ?');
+        values.push(data.title);
+      }
+      if (data.content !== undefined) {
+        fields.push('content = ?');
+        values.push(data.content || null);
+      }
+      if (data.type !== undefined) {
+        fields.push('type = ?');
+        values.push(data.type);
+      }
+      if (data.items !== undefined) {
+        fields.push('items_json = ?');
+        values.push(JSON.stringify(data.items));
+      }
+      if (data.isCompleted !== undefined) {
+        fields.push('is_completed = ?');
+        values.push(data.isCompleted ? 1 : 0);
+      }
+      if (data.color !== undefined) {
+        fields.push('color = ?');
+        values.push(data.color);
+      }
+      if (data.isPinned !== undefined) {
+        fields.push('is_pinned = ?');
+        values.push(data.isPinned ? 1 : 0);
+      }
+      if (data.date !== undefined) {
+        fields.push('date = ?');
+        values.push(data.date || null);
+      }
+      if (data.reminderTime !== undefined) {
+        fields.push('reminder_time = ?');
+        values.push(data.reminderTime || null);
+      }
+      if (data.notificationId !== undefined) {
+        fields.push('notification_id = ?');
+        values.push(data.notificationId || null);
+      }
+
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(id);
+
+      await db.runAsync(`UPDATE tasks_notes SET ${fields.join(', ')} WHERE id = ?`, values);
+    } catch (error) {
+      console.error('Error updating task & note:', error);
+      throw error;
+    }
+  };
+
+  const toggleTaskNoteCompleted = async (id: number, isCompleted: boolean): Promise<void> => {
+    try {
+      const db = await getOrInitDb();
+      const row = await db.getFirstAsync<any>('SELECT * FROM tasks_notes WHERE id = ?', [id]);
+      if (row) {
+        let itemsJson = row.items_json;
+        if (row.type === 'checklist' && row.items_json) {
+          try {
+            const items = JSON.parse(row.items_json);
+            const updatedItems = items.map((it: any) => ({ ...it, isDone: isCompleted }));
+            itemsJson = JSON.stringify(updatedItems);
+          } catch (e) {}
+        }
+        await db.runAsync(
+          'UPDATE tasks_notes SET is_completed = ?, items_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [isCompleted ? 1 : 0, itemsJson, id]
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling task & note completed:', error);
+      throw error;
+    }
+  };
+
+  const toggleChecklistItem = async (noteId: number, itemId: string): Promise<void> => {
+    try {
+      const db = await getOrInitDb();
+      const row = await db.getFirstAsync<any>('SELECT * FROM tasks_notes WHERE id = ?', [noteId]);
+      if (row && row.items_json) {
+        const items = JSON.parse(row.items_json);
+        const updatedItems = items.map((it: any) =>
+          it.id === itemId ? { ...it, isDone: !it.isDone } : it
+        );
+        const allDone = updatedItems.length > 0 && updatedItems.every((it: any) => it.isDone);
+        await db.runAsync(
+          'UPDATE tasks_notes SET items_json = ?, is_completed = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [JSON.stringify(updatedItems), allDone ? 1 : 0, noteId]
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling checklist item:', error);
+      throw error;
+    }
+  };
+
+  const deleteTaskNote = async (id: number): Promise<void> => {
+    try {
+      const db = await getOrInitDb();
+      await db.runAsync('DELETE FROM tasks_notes WHERE id = ?', [id]);
+    } catch (error) {
+      console.error('Error deleting task & note:', error);
+      throw error;
+    }
+  };
+
+  // ----------------------------------------------------
   // BACKUP & RESTORE
   // ----------------------------------------------------
   const exportBackupData = async (): Promise<BackupPayload> => {
@@ -1142,10 +1384,14 @@ export const useDatabase = () => {
       updatedAt: r.updated_at,
     }));
 
+    // 7. Tasks & Notes
+    const tasksNotesRaw = await db.getAllAsync<any>('SELECT * FROM tasks_notes ORDER BY created_at ASC');
+    const tasksNotes: TaskNote[] = tasksNotesRaw.map(mapTaskNoteRow);
+
     return {
       metadata: {
         appName: 'TimeTrackOT',
-        appVersion: '1.1.0',
+        appVersion: '1.4.0',
         schemaVersion: 1,
         exportedAt: new Date().toISOString(),
         totalRecords: {
@@ -1155,6 +1401,7 @@ export const useDatabase = () => {
           leaves: leaves.length,
           leaveQuotas: leaveQuotas.length,
           activities: activities.length,
+          tasksNotes: tasksNotes.length,
         },
       },
       data: {
@@ -1164,6 +1411,7 @@ export const useDatabase = () => {
         leaves,
         leaveQuotas,
         activities,
+        tasksNotes,
       },
     };
   };
@@ -1185,6 +1433,7 @@ export const useDatabase = () => {
       leaves = [],
       leaveQuotas = [],
       activities = [],
+      tasksNotes = [],
     } = payload.data;
 
     await db.withTransactionAsync(async () => {
@@ -1306,6 +1555,28 @@ export const useDatabase = () => {
           ]
         );
       }
+
+      // 7. Insert tasks_notes
+      for (const tn of tasksNotes) {
+        if (!tn.title) continue;
+        await db.runAsync(
+          `INSERT INTO tasks_notes
+           (title, content, type, items_json, is_completed, color, is_pinned, date, reminder_time, notification_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [
+            tn.title,
+            tn.content || null,
+            tn.type || 'checklist',
+            JSON.stringify(tn.items || []),
+            tn.isCompleted ? 1 : 0,
+            tn.color || 'default',
+            tn.isPinned ? 1 : 0,
+            tn.date || null,
+            tn.reminderTime || null,
+            tn.notificationId || null,
+          ]
+        );
+      }
     });
 
     return {
@@ -1316,6 +1587,7 @@ export const useDatabase = () => {
       leavesCount: leaves.length,
       leaveQuotasCount: leaveQuotas.length,
       activitiesCount: activities.length,
+      tasksNotesCount: tasksNotes.length,
     };
   };
 
@@ -1329,6 +1601,7 @@ export const useDatabase = () => {
         await db.runAsync('DELETE FROM leaves;');
         await db.runAsync('DELETE FROM leave_quotas;');
         await db.runAsync('DELETE FROM activities;');
+        await db.runAsync('DELETE FROM tasks_notes;');
       });
       return true;
     } catch (error) {
@@ -1375,6 +1648,14 @@ export const useDatabase = () => {
       saveActivity,
       updateActivity,
       deleteActivity,
+      // Tasks & Notes (Google Keep Hybrid)
+      getTasksNotes,
+      getTodayTasksNotes,
+      saveTaskNote,
+      updateTaskNote,
+      toggleTaskNoteCompleted,
+      toggleChecklistItem,
+      deleteTaskNote,
       // Backup & Restore
       exportBackupData,
       importBackupData,

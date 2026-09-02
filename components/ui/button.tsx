@@ -7,6 +7,7 @@ import { CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
 import { LucideProps } from 'lucide-react-native';
 import React, { forwardRef } from 'react';
 import {
+  Platform,
   Pressable,
   TextStyle,
   TouchableOpacity,
@@ -81,65 +82,135 @@ export const Button = forwardRef<View, ButtonProps>(
     const scale = useSharedValue(1);
     const brightness = useSharedValue(1);
 
+    const textColor = useColor('text');
+    const cardColor = useColor('card');
+
     const getButtonStyle = (): ViewStyle => {
       const baseStyle: ViewStyle = {
-        borderRadius: CORNERS,
+        borderRadius: 999,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 0,
       };
 
       // Size variants
       switch (size) {
         case 'sm':
-          Object.assign(baseStyle, { minHeight: 40, paddingVertical: 6, paddingHorizontal: 12 });
+          Object.assign(baseStyle, { minHeight: 38, paddingVertical: 6, paddingHorizontal: 16 });
           break;
         case 'lg':
-          Object.assign(baseStyle, { minHeight: 52, paddingVertical: 10, paddingHorizontal: 20 });
+          Object.assign(baseStyle, { minHeight: 52, paddingVertical: 12, paddingHorizontal: 24 });
           break;
         case 'icon':
           Object.assign(baseStyle, {
             height: HEIGHT,
             width: HEIGHT,
             paddingHorizontal: 0,
+            borderRadius: 999,
           });
           break;
         default:
-          Object.assign(baseStyle, { minHeight: HEIGHT, paddingVertical: 8, paddingHorizontal: 16 });
+          Object.assign(baseStyle, { minHeight: 46, paddingVertical: 10, paddingHorizontal: 20 });
       }
 
       // Variant styles
       switch (variant) {
         case 'destructive':
-          return { ...baseStyle, backgroundColor: destructiveColor };
+          return {
+            ...baseStyle,
+            backgroundColor: destructiveColor,
+            borderWidth: 0,
+            ...Platform.select({
+              ios: {
+                shadowColor: destructiveColor,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.28,
+                shadowRadius: 10,
+              },
+              android: {
+                elevation: 0,
+              },
+            }),
+          };
         case 'success':
-          return { ...baseStyle, backgroundColor: greenColor };
+          return {
+            ...baseStyle,
+            backgroundColor: greenColor,
+            borderWidth: 0,
+            ...Platform.select({
+              ios: {
+                shadowColor: greenColor,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 10,
+              },
+              android: {
+                elevation: 0,
+              },
+            }),
+          };
         case 'outline':
           return {
             ...baseStyle,
-            backgroundColor: 'transparent',
-            borderWidth: 1,
-            borderColor,
+            backgroundColor: cardColor,
+            borderWidth: 0,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#64748b',
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+              },
+              android: {
+                elevation: 0,
+              },
+            }),
           };
         case 'secondary':
-          return { ...baseStyle, backgroundColor: secondaryColor };
+          return {
+            ...baseStyle,
+            backgroundColor: secondaryColor,
+            borderWidth: 0,
+            ...Platform.select({
+              android: {
+                elevation: 0,
+              },
+            }),
+          };
         case 'ghost':
-          return { ...baseStyle, backgroundColor: 'transparent' };
+          return { ...baseStyle, backgroundColor: 'transparent', borderWidth: 0 };
         case 'link':
           return {
             ...baseStyle,
             backgroundColor: 'transparent',
+            borderWidth: 0,
             height: 'auto',
             paddingHorizontal: 0,
           };
         default:
-          return { ...baseStyle, backgroundColor: primaryColor };
+          return {
+            ...baseStyle,
+            backgroundColor: primaryColor,
+            borderWidth: 0,
+            ...Platform.select({
+              ios: {
+                shadowColor: primaryColor,
+                shadowOffset: { width: 0, height: 5 },
+                shadowOpacity: 0.28,
+                shadowRadius: 12,
+              },
+              android: {
+                elevation: 0,
+              },
+            }),
+          };
       }
     };
 
     const getButtonTextStyle = (): TextStyle => {
       const baseTextStyle: TextStyle = {
-        fontSize: 16,
+        fontSize: size === 'sm' ? 13 : 15,
         fontWeight: '700',
         fontFamily: 'Sarabun_700Bold',
       };
@@ -150,9 +221,9 @@ export const Button = forwardRef<View, ButtonProps>(
         case 'success':
           return { ...baseTextStyle, color: destructiveForegroundColor };
         case 'outline':
-          return { ...baseTextStyle, color: primaryColor };
+          return { ...baseTextStyle, color: textColor };
         case 'secondary':
-          return { ...baseTextStyle, color: secondaryForegroundColor };
+          return { ...baseTextStyle, color: textColor };
         case 'ghost':
           return { ...baseTextStyle, color: primaryColor };
         case 'link':
@@ -173,9 +244,9 @@ export const Button = forwardRef<View, ButtonProps>(
         case 'success':
           return destructiveForegroundColor;
         case 'outline':
-          return primaryColor;
+          return textColor;
         case 'secondary':
-          return secondaryForegroundColor;
+          return textColor;
         case 'ghost':
           return primaryColor;
         case 'link':

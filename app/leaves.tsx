@@ -1261,23 +1261,22 @@ const LeavesContent: React.FC = () => {
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 6,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe',
-                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#eff6ff',
+                  paddingHorizontal: 18,
+                  paddingVertical: 9,
+                  borderRadius: 999,
+                  borderWidth: 0,
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
                   marginVertical: 8,
                 }}
               >
-                <Share2 size={14} color={isDark ? '#60a5fa' : '#2563eb'} />
+                <Share2 size={14} color={colors.primary} />
                 <Text
                   variant="caption"
                   style={{
                     fontSize: 13,
-                    fontWeight: '600',
-                    color: isDark ? '#60a5fa' : '#2563eb',
-                    fontFamily: 'Sarabun_600SemiBold',
+                    fontWeight: '700',
+                    color: colors.primary,
+                    fontFamily: 'Sarabun_700Bold',
                   }}
                 >
                   {isSharingCalendar
@@ -1322,10 +1321,9 @@ const LeavesContent: React.FC = () => {
                         gap: 5,
                         paddingVertical: 4,
                         paddingHorizontal: 10,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: isDark ? '#334155' : '#cbd5e1',
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+                        borderRadius: 999,
+                        borderWidth: 0,
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9',
                       }}
                     >
                       <Briefcase size={12} color={colors.textSecondary} />
@@ -1351,13 +1349,12 @@ const LeavesContent: React.FC = () => {
                             flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            padding: 10,
-                            borderRadius: 12,
+                            padding: 12,
+                            borderRadius: 18,
                             borderLeftWidth: 4,
                             borderLeftColor: catCfg.color,
                             backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
-                            borderWidth: 1,
-                            borderColor: isDark ? '#27272a' : '#f1f5f9',
+                            borderWidth: 0,
                           }}
                         >
                           <View style={{ flex: 1, marginRight: 8 }}>
@@ -2435,14 +2432,13 @@ const LeavesContent: React.FC = () => {
                       gap: 6,
                       paddingHorizontal: 12,
                       paddingVertical: 7,
-                      borderRadius: 20,
-                      borderWidth: 1,
-                      borderColor: isSel ? cfg.color : colors.border,
+                      borderRadius: 999,
+                      borderWidth: 0,
                       backgroundColor: isSel
                         ? isDark
                           ? `${cfg.color}30`
                           : cfg.bgColor
-                        : colors.card,
+                        : colors.backgroundAlt,
                     }}
                   >
                     <IconComponent size={14} color={isSel ? cfg.color : colors.textSecondary} />
@@ -2524,14 +2520,13 @@ const LeavesContent: React.FC = () => {
                       gap: 4,
                       paddingHorizontal: 12,
                       paddingVertical: 6,
-                      borderRadius: 16,
-                      borderWidth: 1,
-                      borderColor: isSel ? '#f59e0b' : colors.border,
+                      borderRadius: 999,
+                      borderWidth: 0,
                       backgroundColor: isSel
                         ? isDark
                           ? 'rgba(245, 158, 11, 0.25)'
                           : '#fef3c7'
-                        : colors.card,
+                        : colors.backgroundAlt,
                     }}
                   >
                     {opt.value === null ? (
@@ -2629,10 +2624,10 @@ const styles = StyleSheet.create({
   yearBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   yearArrowBtn: {
     padding: 4,
@@ -2725,17 +2720,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 0,
   },
   iconEditBtn: {
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 999,
   },
   iconDeleteBtn: {
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 999,
   },
   leaveStatsRow: {
     flexDirection: 'row',
@@ -2744,9 +2739,9 @@ const styles = StyleSheet.create({
   },
   leaveStatBox: {
     flex: 1,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 0,
     alignItems: 'center',
   },
   quotaBarBg: {
@@ -2762,42 +2757,42 @@ const styles = StyleSheet.create({
   dayActionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 18,
     marginBottom: 8,
   },
   currentStatusBox: {
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 0,
     marginBottom: 8,
   },
   quickActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 0,
   },
   typeSelectorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 0,
   },
   leaveTypePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 999,
+    borderWidth: 0,
   },
   durationPill: {
     paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 999,
+    borderWidth: 0,
   },
 });

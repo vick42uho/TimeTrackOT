@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
@@ -34,6 +34,7 @@ const TimeEntryContent: React.FC = () => {
   const { colors, themeMode } = useThemeContext();
   const isDark = themeMode === 'dark';
   const router = useRouter();
+  const params = useLocalSearchParams<{ date?: string }>();
   const { isReady, getWorkSchedule, getTimeEntry, saveTimeEntry, deleteTimeEntry, updateTimeEntry } = useDatabase();
   const {
     calculateWorkHours,
@@ -46,7 +47,7 @@ const TimeEntryContent: React.FC = () => {
   const { success, error, warning } = useToast();
   const deleteDialog = useAlertDialog();
 
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => (params.date ? params.date : formatDate(new Date())));
   const [clockIn, setClockIn] = useState('');
   const [clockOut, setClockOut] = useState('');
   const [reason, setReason] = useState('');
@@ -98,15 +99,16 @@ const TimeEntryContent: React.FC = () => {
     }
   };
 
-  const loadTimeEntry = async () => {
+  const loadTimeEntry = async (targetDateStr?: string) => {
     if (!isReady) return;
     
-    const date = new Date(selectedDate);
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
+    const dateToLoad = targetDateStr || selectedDate;
+    const dateObj = getDateFromString(dateToLoad);
+    const month = dateObj.getMonth() + 1;
+    const year = dateObj.getFullYear();
 
     const [entry, schedule] = await Promise.all([
-      getTimeEntry(selectedDate),
+      getTimeEntry(dateToLoad),
       getWorkSchedule(month, year),
     ]);
 
@@ -164,19 +166,34 @@ const TimeEntryContent: React.FC = () => {
     }
   };
 
+  const lastConsumedDateRef = useRef<string | null>(null);
+
+  // Consume route params.date once on arrival and clear param so date navigation isn't locked
+  useEffect(() => {
+    if (params.date && params.date !== '' && params.date !== lastConsumedDateRef.current) {
+      lastConsumedDateRef.current = params.date;
+      setSelectedDate(params.date);
+      // Clear param so subsequent manual navigation (prev/next/today) is never locked
+      router.setParams({ date: '' });
+    }
+  }, [params.date]);
+
   useEffect(() => {
     if (isReady) {
-      loadTimeEntry();
+      loadTimeEntry(selectedDate);
     }
   }, [selectedDate, isReady]);
 
-  // Refresh data when screen comes into focus (only if data is stale)
+  // Refresh data when screen comes into focus without overriding manual date navigation
   useFocusEffect(
-    React.useCallback(() => {
-      if (isReady && !currentEntry) {
-        loadTimeEntry();
+    useCallback(() => {
+      if (isReady) {
+        loadTimeEntry(selectedDate);
       }
-    }, [isReady, selectedDate, currentEntry])
+      return () => {
+        lastConsumedDateRef.current = null;
+      };
+    }, [isReady, selectedDate])
   );
 
   const handleSave = async () => {
@@ -193,7 +210,7 @@ const TimeEntryContent: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const date = new Date(selectedDate);
+      const date = getDateFromString(selectedDate);
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
@@ -283,7 +300,7 @@ const TimeEntryContent: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const date = new Date(selectedDate);
+      const date = getDateFromString(selectedDate);
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
@@ -411,24 +428,37 @@ const TimeEntryContent: React.FC = () => {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 14,
-      borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 999,
+      borderWidth: 0,
     },
     dateNavigatorCard: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      borderRadius: 18,
-      borderWidth: 1,
-      paddingVertical: 8,
-      paddingHorizontal: 6,
-      marginBottom: 8,
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      borderWidth: 0,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      marginBottom: 10,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 14,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     dateNavArrow: {
       padding: 8,
-      borderRadius: 12,
+      borderRadius: 999,
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
     },
     dateCenterBtn: {
       flex: 1,
@@ -444,9 +474,10 @@ const TimeEntryContent: React.FC = () => {
     statusBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: 999,
+      borderWidth: 0,
     },
     statusBadgeText: {
       fontSize: 11,
@@ -454,11 +485,21 @@ const TimeEntryContent: React.FC = () => {
       fontFamily: 'Sarabun_600SemiBold',
     },
     bnaCard: {
-      borderRadius: 18,
-      padding: 14,
+      borderRadius: 28,
+      padding: 18,
       marginVertical: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.05,
+          shadowRadius: 20,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     cardTitle: {
       fontSize: 15,
@@ -467,9 +508,11 @@ const TimeEntryContent: React.FC = () => {
       fontFamily: 'Sarabun_700Bold',
     },
     schedulePill: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+      borderWidth: 0,
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
     },
     columnLabel: {
       fontSize: 13,
@@ -481,23 +524,25 @@ const TimeEntryContent: React.FC = () => {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 4,
-      borderRadius: 8,
-      borderWidth: 1,
+      paddingVertical: 7,
+      borderRadius: 999,
+      borderWidth: 0,
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
     },
     quickPresetText: {
       fontSize: 11,
-      fontWeight: '600',
+      fontWeight: '700',
       color: colors.primary,
-      fontFamily: 'Sarabun_600SemiBold',
+      fontFamily: 'Sarabun_700Bold',
     },
     metricBox: {
       flex: 1,
       alignItems: 'center',
-      paddingVertical: 8,
+      paddingVertical: 10,
       paddingHorizontal: 4,
-      borderRadius: 12,
-      borderWidth: 1,
+      borderRadius: 18,
+      borderWidth: 0,
+      backgroundColor: colors.backgroundAlt,
     },
     metricLabel: {
       fontSize: 11,
@@ -531,7 +576,6 @@ const TimeEntryContent: React.FC = () => {
               style={[
                 styles.todayChip,
                 {
-                  borderColor: colors.primary,
                   backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
                 },
               ]}
@@ -545,12 +589,7 @@ const TimeEntryContent: React.FC = () => {
         </View>
 
         {/* Compact Interactive Date Navigator Bar (Replaces 2 duplicate cards) */}
-        <View
-          style={[
-            styles.dateNavigatorCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
+        <View style={styles.dateNavigatorCard}>
           <TouchableOpacity
             style={styles.dateNavArrow}
             onPress={handlePrevDay}

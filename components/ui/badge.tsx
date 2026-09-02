@@ -36,9 +36,11 @@ export function Badge({
     const baseStyle: ViewStyle = {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 6,
+      paddingVertical: 4,
       paddingHorizontal: 12,
-      borderRadius: CORNERS,
+      borderRadius: 999,
+      borderWidth: 1.2,
+      borderColor,
     };
 
     switch (variant) {
@@ -52,8 +54,6 @@ export function Badge({
         return {
           ...baseStyle,
           backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor,
         };
       default:
         return { ...baseStyle, backgroundColor: primaryColor };

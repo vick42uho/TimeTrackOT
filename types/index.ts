@@ -128,6 +128,7 @@ export interface BackupMetadata {
     leaves: number;
     leaveQuotas: number;
     activities?: number;
+    tasksNotes?: number;
   };
 }
 
@@ -140,6 +141,7 @@ export interface BackupPayload {
     leaves: LeaveRequest[];
     leaveQuotas: LeaveQuota[];
     activities?: Activity[];
+    tasksNotes?: TaskNote[];
   };
 }
 
@@ -151,5 +153,31 @@ export interface RestoreResult {
   leavesCount: number;
   leaveQuotasCount: number;
   activitiesCount?: number;
+  tasksNotesCount?: number;
+}
+
+export type TaskNoteType = 'checklist' | 'note';
+export type TaskNoteColor = 'default' | 'blue' | 'green' | 'yellow' | 'rose' | 'purple' | (string & {});
+
+export interface TaskNoteItem {
+  id: string;
+  text: string;
+  isDone: boolean;
+}
+
+export interface TaskNote {
+  id?: number;
+  title: string;
+  content?: string;
+  type: TaskNoteType;
+  items: TaskNoteItem[];
+  isCompleted: boolean;
+  color: TaskNoteColor;
+  isPinned: boolean;
+  date?: string; // YYYY-MM-DD
+  reminderTime?: string; // YYYY-MM-DD HH:mm
+  notificationId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 

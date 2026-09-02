@@ -1,6 +1,6 @@
 const lightColors = {
   // Base colors
-  background: '#f8fafc',
+  background: '#eef2f6',
   foreground: '#0f172a',
 
   // Card colors
@@ -33,8 +33,16 @@ const lightColors = {
 
   // Border and input
   border: '#e2e8f0',
-  input: '#e4e4e7',
-  ring: '#a1a1aa',
+  borderSubtle: '#f1f5f9',
+  input: '#e2e8f0',
+  ring: '#2563eb',
+
+  // Soft Tint Tag Tokens
+  tagMint: '#dcfce7',
+  tagAmber: '#fef3c7',
+  tagBlue: '#dbeafe',
+  tagRose: '#ffe4e6',
+  tagPurple: '#f3e8ff',
 
   // Text colors
   text: '#0f172a',
@@ -117,10 +125,18 @@ const darkColors = {
   destructive: '#ef4444',
   destructiveForeground: '#FFFFFF',
 
-  // Border and input - using alpha values for better blending
-  border: '#1e293b',
+  // Border and input - crisp outline in dark mode
+  border: '#334155',
+  borderSubtle: '#1e293b',
   input: '#111827',
-  ring: '#3b82f6',
+  ring: '#60a5fa',
+
+  // Dribbble Musemind Tag Tokens (Dark)
+  tagMint: 'rgba(34, 197, 94, 0.15)',
+  tagAmber: 'rgba(245, 158, 11, 0.15)',
+  tagBlue: 'rgba(59, 130, 246, 0.15)',
+  tagRose: 'rgba(239, 68, 68, 0.15)',
+  tagPurple: 'rgba(168, 85, 247, 0.15)',
 
   // Text colors
   text: '#f8fafc',

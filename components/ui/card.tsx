@@ -4,6 +4,7 @@ import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS } from '@/theme/globals';
 import { memo } from 'react';
 import {
+  Platform,
   TextProps as RNTextProps,
   TextStyle,
   ViewProps as RNViewProps,
@@ -21,7 +22,6 @@ export const Card = memo(function Card({
   ...props
 }: CardProps) {
   const cardColor = useColor('card');
-  const foregroundColor = useColor('foreground');
 
   return (
     <View
@@ -29,13 +29,26 @@ export const Card = memo(function Card({
         {
           width: '100%',
           backgroundColor: cardColor,
-          borderRadius: BORDER_RADIUS,
+          borderRadius: 28,
           padding: 18,
-          shadowColor: foregroundColor,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 3,
-          elevation: 2,
+          borderWidth: 0,
+          ...Platform.select({
+            ios: {
+              shadowColor: '#64748b',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.05,
+              shadowRadius: 20,
+            },
+            android: {
+              elevation: 0,
+            },
+            default: {
+              shadowColor: '#64748b',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.05,
+              shadowRadius: 20,
+            },
+          }),
         },
         style,
       ]}

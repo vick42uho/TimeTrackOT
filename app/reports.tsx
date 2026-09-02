@@ -33,6 +33,7 @@ import {
   Share2,
 } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
+import { LinearGradient } from 'expo-linear-gradient';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -367,17 +368,27 @@ const ReportsContent: React.FC = () => {
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 24,
       paddingVertical: 12,
       paddingHorizontal: 16,
       marginBottom: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 14,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     monthButton: {
       padding: 8,
-      borderRadius: 12,
-      backgroundColor: colors.backgroundAlt,
+      borderRadius: 999,
+      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
     },
     monthText: {
       fontSize: 17,
@@ -386,10 +397,24 @@ const ReportsContent: React.FC = () => {
       fontFamily: 'Sarabun_700Bold',
     },
     summaryCard: {
-      backgroundColor: isDark ? '#1e3a8a' : '#1d4ed8',
-      borderRadius: 20,
-      padding: 18,
+      borderRadius: 28,
+      padding: 20,
       marginBottom: 0,
+      borderWidth: 0,
+      boxShadow: isDark
+        ? '0 14px 40px rgba(37, 99, 235, 0.35)'
+        : '0 14px 40px rgba(37, 99, 235, 0.2)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#2563eb',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: isDark ? 0.35 : 0.2,
+          shadowRadius: 28,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     summaryHeader: {
       flexDirection: 'row',
@@ -400,7 +425,7 @@ const ReportsContent: React.FC = () => {
     summaryTitle: {
       fontSize: 18,
       fontWeight: '700',
-      color: '#ffffff',
+      color: isDark ? '#93c5fd' : '#1e3a8a',
       fontFamily: 'Sarabun_700Bold',
     },
     summaryRow: {
@@ -411,13 +436,13 @@ const ReportsContent: React.FC = () => {
     },
     summaryLabel: {
       fontSize: 14,
-      color: 'rgba(255, 255, 255, 0.85)',
+      color: isDark ? 'rgba(255, 255, 255, 0.75)' : '#475569',
       fontFamily: 'Sarabun_500Medium',
     },
     summaryValue: {
       fontSize: 15,
       fontWeight: '700',
-      color: '#ffffff',
+      color: isDark ? '#ffffff' : '#0f172a',
       fontFamily: 'Sarabun_700Bold',
     },
     summarySectionBlock: {
@@ -428,51 +453,70 @@ const ReportsContent: React.FC = () => {
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingVertical: 2,
-      paddingLeft: 12,
     },
     summarySubLabel: {
-      fontSize: 13,
-      color: 'rgba(255, 255, 255, 0.75)',
+      fontSize: 12,
+      color: isDark ? 'rgba(255, 255, 255, 0.65)' : '#64748b',
       fontFamily: 'Sarabun_400Regular',
     },
     summarySubValueText: {
       fontSize: 13,
       fontWeight: '600',
-      color: '#ffffff',
+      color: isDark ? '#ffffff' : '#0f172a',
       fontFamily: 'Sarabun_600SemiBold',
     },
     summaryTotalLabel: {
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '700',
-      color: '#ffffff',
+      color: isDark ? '#93c5fd' : '#1e3a8a',
       fontFamily: 'Sarabun_700Bold',
     },
     summaryTotalValue: {
-      fontSize: 17,
+      fontSize: 18,
       fontWeight: '800',
-      color: '#fef08a',
+      color: isDark ? '#60a5fa' : '#2563eb',
       fontFamily: 'Sarabun_800ExtraBold',
     },
     // Filter Pills
     filterContainer: {
       flexDirection: 'row',
       gap: 8,
-      marginBottom: 14,
+      marginVertical: 14,
     },
     filterPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 20,
-      backgroundColor: colors.backgroundAlt,
-      borderWidth: 1,
-      borderColor: colors.border,
+      gap: 5,
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.card,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     filterPillActive: {
-      backgroundColor: isDark ? '#2563eb' : '#1d4ed8',
-      borderColor: isDark ? '#2563eb' : '#1d4ed8',
+      backgroundColor: colors.primary,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.28,
+          shadowRadius: 10,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     filterPillText: {
       fontSize: 13,
@@ -506,11 +550,21 @@ const ReportsContent: React.FC = () => {
     // Daily Timeline Card
     dailyCard: {
       backgroundColor: colors.card,
-      borderRadius: 16,
-      padding: 14,
-      marginBottom: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderRadius: 26,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.05,
+          shadowRadius: 16,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     dailyHeader: {
       flexDirection: 'row',
@@ -698,16 +752,42 @@ const ReportsContent: React.FC = () => {
           ref={summaryViewShotRef}
           options={{ format: 'png', quality: 1.0 }}
           style={{
-            borderRadius: 20,
-            overflow: 'hidden',
+            borderRadius: 28,
             marginBottom: 10,
           }}
         >
-          <Card style={styles.summaryCard}>
+          <LinearGradient
+            colors={
+              isDark
+                ? ['rgba(30, 58, 138, 0.45)', 'rgba(23, 37, 84, 0.25)']
+                : ['rgba(219, 234, 254, 0.75)', 'rgba(239, 246, 255, 0.5)']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.summaryCard}
+          >
             <View style={styles.summaryHeader}>
               <Text style={styles.summaryTitle}>สรุปรายเดือน</Text>
-              <Badge variant="secondary" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}>
-                {thaiMonths[selectedMonth - 1]}
+              <Badge
+                variant="secondary"
+                style={{
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(37, 99, 235, 0.12)',
+                  borderWidth: 0,
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  borderRadius: 999,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isDark ? '#bfdbfe' : '#2563eb',
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  {thaiMonths[selectedMonth - 1]}
+                </Text>
               </Badge>
             </View>
 
@@ -732,20 +812,20 @@ const ReportsContent: React.FC = () => {
                     </Text>
                   </View>
                   <View style={styles.summarySubRow}>
-                    <Text style={[styles.summarySubLabel, { color: '#86efac', fontWeight: '600' }]}>
+                    <Text style={[styles.summarySubLabel, { color: isDark ? '#4ade80' : '#16a34a', fontWeight: '600' }]}>
                       └ คงเหลือสุทธิ:
                     </Text>
-                    <Text style={[styles.summarySubValueText, { color: '#86efac', fontWeight: '700' }]}>
+                    <Text style={[styles.summarySubValueText, { color: isDark ? '#4ade80' : '#16a34a', fontWeight: '700' }]}>
                       {formatHoursWithDecimal(Math.max(0, totalOvertimeHours - totalOvertimeUsed))}
                     </Text>
                   </View>
                 </>
               ) : totalOvertimeHours > 0 ? (
                 <View style={styles.summarySubRow}>
-                  <Text style={[styles.summarySubLabel, { color: '#86efac', fontWeight: '600' }]}>
+                  <Text style={[styles.summarySubLabel, { color: isDark ? '#4ade80' : '#16a34a', fontWeight: '600' }]}>
                     └ คงเหลือสุทธิ:
                   </Text>
-                  <Text style={[styles.summarySubValueText, { color: '#86efac', fontWeight: '700' }]}>
+                  <Text style={[styles.summarySubValueText, { color: isDark ? '#4ade80' : '#16a34a', fontWeight: '700' }]}>
                     {formatHoursWithDecimal(totalOvertimeHours)}
                   </Text>
                 </View>
@@ -773,7 +853,14 @@ const ReportsContent: React.FC = () => {
                       style={[
                         styles.summarySubLabel,
                         {
-                          color: totalLateHours - totalLateUsed > 0 ? '#fca5a5' : '#86efac',
+                          color:
+                            totalLateHours - totalLateUsed > 0
+                              ? isDark
+                                ? '#f87171'
+                                : '#dc2626'
+                              : isDark
+                              ? '#4ade80'
+                              : '#16a34a',
                           fontWeight: '600',
                         },
                       ]}
@@ -784,7 +871,14 @@ const ReportsContent: React.FC = () => {
                       style={[
                         styles.summarySubValueText,
                         {
-                          color: totalLateHours - totalLateUsed > 0 ? '#fca5a5' : '#86efac',
+                          color:
+                            totalLateHours - totalLateUsed > 0
+                              ? isDark
+                                ? '#f87171'
+                                : '#dc2626'
+                              : isDark
+                              ? '#4ade80'
+                              : '#16a34a',
                           fontWeight: '700',
                         },
                       ]}
@@ -817,7 +911,13 @@ const ReportsContent: React.FC = () => {
                       styles.summarySubLabel,
                       {
                         color:
-                          totalEarlyLeaveHours - totalEarlyLeaveUsed > 0 ? '#fca5a5' : '#86efac',
+                          totalEarlyLeaveHours - totalEarlyLeaveUsed > 0
+                            ? isDark
+                              ? '#f87171'
+                              : '#dc2626'
+                            : isDark
+                            ? '#4ade80'
+                            : '#16a34a',
                         fontWeight: '600',
                       },
                     ]}
@@ -829,7 +929,13 @@ const ReportsContent: React.FC = () => {
                       styles.summarySubValueText,
                       {
                         color:
-                          totalEarlyLeaveHours - totalEarlyLeaveUsed > 0 ? '#fca5a5' : '#86efac',
+                          totalEarlyLeaveHours - totalEarlyLeaveUsed > 0
+                            ? isDark
+                              ? '#f87171'
+                              : '#dc2626'
+                            : isDark
+                            ? '#4ade80'
+                            : '#16a34a',
                         fontWeight: '700',
                       },
                     ]}
@@ -840,7 +946,12 @@ const ReportsContent: React.FC = () => {
               </View>
             )}
 
-            <Separator style={{ marginVertical: 10, backgroundColor: 'rgba(255, 255, 255, 0.25)' }} />
+            <Separator
+              style={{
+                marginVertical: 10,
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(37, 99, 235, 0.15)',
+              }}
+            />
 
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryLabel, styles.summaryTotalLabel]}>รวมเวลาทำงานจริง:</Text>
@@ -858,17 +969,30 @@ const ReportsContent: React.FC = () => {
                 marginTop: 10,
                 paddingTop: 8,
                 borderTopWidth: 1,
-                borderTopColor: 'rgba(255, 255, 255, 0.2)',
+                borderTopColor: isDark ? 'rgba(59, 130, 246, 0.25)' : 'rgba(37, 99, 235, 0.15)',
               }}
             >
-              <Text style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.75)', fontFamily: 'Sarabun_400Regular' }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#64748b',
+                  fontFamily: 'Sarabun_400Regular',
+                }}
+              >
                 รายงานสรุปเวลาทำงาน & OT
               </Text>
-              <Text style={{ fontSize: 11, color: '#ffffff', fontWeight: '700', fontFamily: 'Sarabun_700Bold' }}>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: isDark ? '#93c5fd' : '#2563eb',
+                  fontWeight: '700',
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
                 TimeTrack OT
               </Text>
             </View>
-          </Card>
+          </LinearGradient>
         </ViewShot>
 
         {/* Compact Share Summary Pill Button */}
@@ -881,22 +1005,22 @@ const ReportsContent: React.FC = () => {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 20,
-            borderWidth: 1,
-            borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe',
-            backgroundColor: isDark ? 'rgba(37, 99, 235, 0.1)' : '#eff6ff',
+            paddingHorizontal: 18,
+            paddingVertical: 9,
+            borderRadius: 999,
+            borderWidth: 1.3,
+            borderColor: colors.border,
+            backgroundColor: colors.card,
             marginBottom: 14,
           }}
         >
-          <Share2 size={14} color={isDark ? '#60a5fa' : '#2563eb'} />
+          <Share2 size={14} color={colors.text} />
           <Text
             style={{
               fontSize: 13,
-              fontWeight: '600',
-              color: isDark ? '#60a5fa' : '#2563eb',
-              fontFamily: 'Sarabun_600SemiBold',
+              fontWeight: '700',
+              color: colors.text,
+              fontFamily: 'Sarabun_700Bold',
             }}
           >
             {isSharingSummary
@@ -1383,8 +1507,12 @@ const ReportsContent: React.FC = () => {
                   icon={Edit3}
                   style={{ marginTop: 14 }}
                   onPress={() => {
+                    const targetDate = selectedEntry.date;
                     closeModal();
-                    router.replace('/time-entry');
+                    router.replace({
+                      pathname: '/time-entry',
+                      params: { date: targetDate },
+                    });
                   }}
                 >
                   แก้ไขรายการนี้

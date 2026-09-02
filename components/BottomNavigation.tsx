@@ -18,7 +18,8 @@ const NAV_TABS = [
 export const BottomNavigation: React.FC = React.memo(() => {
   const router = useRouter();
   const pathname = usePathname();
-  const { colors } = useThemeContext();
+  const { colors, themeMode } = useThemeContext();
+  const isDark = themeMode === 'dark';
 
   const handleTabPress = (route: string) => {
     if (pathname === route) return;
@@ -37,11 +38,11 @@ export const BottomNavigation: React.FC = React.memo(() => {
           paddingVertical: 8,
           paddingBottom: Platform.OS === 'ios' ? 24 : 10,
           paddingHorizontal: 8,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: -3 },
           shadowOpacity: 0.05,
-          shadowRadius: 8,
+          shadowRadius: 10,
+          elevation: 8,
         },
         tab: {
           flex: 1,
@@ -50,10 +51,10 @@ export const BottomNavigation: React.FC = React.memo(() => {
           paddingVertical: 4,
         },
         activePill: {
-          backgroundColor: colors.backgroundAlt,
-          borderRadius: 16,
+          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.18)' : '#eff6ff',
+          borderRadius: 20,
           paddingVertical: 4,
-          paddingHorizontal: 12,
+          paddingHorizontal: 14,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -69,7 +70,7 @@ export const BottomNavigation: React.FC = React.memo(() => {
           fontFamily: 'Sarabun_700Bold',
         },
       }),
-    [colors]
+    [colors, isDark]
   );
 
   return (
@@ -86,7 +87,7 @@ export const BottomNavigation: React.FC = React.memo(() => {
             <View style={isActive ? styles.activePill : undefined}>
               <Icon
                 name={tab.icon}
-                size={22}
+                size={20}
                 strokeWidth={isActive ? 2.2 : 1.8}
                 color={isActive ? colors.primary : colors.textSecondary}
               />

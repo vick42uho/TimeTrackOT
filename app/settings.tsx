@@ -35,15 +35,18 @@ import {
   CheckCircle,
   Code2,
   Lock,
+  Smartphone,
 } from 'lucide-react-native';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { TimeInput } from '../components/TimeInput';
 import { useDatabase } from '../hooks/useDatabase';
+import { useModeToggle } from '@/hooks/useModeToggle';
 import { BackupPayload } from '../types';
 
 const SettingsContent: React.FC = () => {
-  const { colors, themeMode, toggleTheme } = useThemeContext();
+  const { colors, themeMode } = useThemeContext();
+  const { mode, setMode } = useModeToggle();
   const isDark = themeMode === 'dark';
   const router = useRouter();
   const {
@@ -184,12 +187,6 @@ const SettingsContent: React.FC = () => {
     }
   };
 
-  const handleToggleTheme = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    toggleTheme();
-  };
 
   // ----------------------------------------------------
   // BACKUP & RESTORE HANDLERS
@@ -374,11 +371,21 @@ const SettingsContent: React.FC = () => {
       fontFamily: 'Sarabun_700Bold',
     },
     bnaCard: {
-      borderRadius: 20,
+      borderRadius: 28,
       padding: 18,
       marginVertical: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 0,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#64748b',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.05,
+          shadowRadius: 20,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     cardTitle: {
       fontSize: 16,
@@ -390,12 +397,11 @@ const SettingsContent: React.FC = () => {
     scopeSwitchContainer: {
       flexDirection: 'row',
       backgroundColor: colors.backgroundAlt,
-      borderRadius: 12,
-      padding: 3,
+      borderRadius: 999,
+      padding: 4,
       marginBottom: 14,
       gap: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 0,
     },
     scopeTab: {
       flex: 1,
@@ -403,11 +409,22 @@ const SettingsContent: React.FC = () => {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 8,
-      borderRadius: 9,
+      borderRadius: 999,
       gap: 6,
     },
     scopeTabActive: {
-      backgroundColor: isDark ? '#2563eb' : '#1d4ed8',
+      backgroundColor: colors.primary,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.28,
+          shadowRadius: 8,
+        },
+        android: {
+          elevation: 0,
+        },
+      }),
     },
     scopeTabText: {
       fontSize: 13,
@@ -422,10 +439,9 @@ const SettingsContent: React.FC = () => {
     },
     infoNoticeBox: {
       backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : '#eff6ff',
-      borderColor: isDark ? '#1e3a8a' : '#bfdbfe',
-      borderWidth: 1,
-      borderRadius: 12,
-      padding: 12,
+      borderWidth: 0,
+      borderRadius: 18,
+      padding: 14,
       marginTop: 10,
     },
     infoNoticeText: {
@@ -491,20 +507,18 @@ const SettingsContent: React.FC = () => {
       fontFamily: 'Sarabun_600SemiBold',
     },
     dangerCard: {
-      borderRadius: 20,
+      borderRadius: 28,
       padding: 18,
       marginVertical: 6,
-      borderWidth: 1,
-      borderColor: isDark ? '#ef444455' : '#fca5a5',
-      backgroundColor: isDark ? '#171422' : '#fff5f5',
+      borderWidth: 0,
+      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#ffe4e6',
     },
     metaBox: {
       backgroundColor: colors.backgroundAlt,
-      borderRadius: 12,
-      padding: 12,
+      borderRadius: 20,
+      padding: 14,
       marginVertical: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderWidth: 0,
     },
     metaText: {
       fontSize: 13,
@@ -781,22 +795,83 @@ const SettingsContent: React.FC = () => {
         <Card style={styles.bnaCard}>
           <Text style={styles.cardTitle}>การตั้งค่าแอปพลิเคชัน</Text>
 
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>ธีมสีหน้าจอ</Text>
-            <TouchableOpacity
-              style={styles.themeButton}
-              onPress={handleToggleTheme}
-              activeOpacity={0.7}
-            >
-              <Icon
-                name={themeMode === 'light' ? Sun : Moon}
-                size={16}
-                color={themeMode === 'light' ? '#f59e0b' : '#60a5fa'}
-              />
-              <Text style={styles.themeButtonText}>
-                {themeMode === 'light' ? 'โหมดสว่าง (Light)' : 'โหมดมืด (Dark)'}
+          <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={styles.settingLabel}>ธีมสีหน้าจอ</Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular' }}>
+                {mode === 'system' ? `ตามระบบเครื่อง (${isDark ? 'มืด' : 'สว่าง'})` : mode === 'dark' ? 'โหมดมืด (Dark)' : 'โหมดสว่าง (Light)'}
               </Text>
-            </TouchableOpacity>
+            </View>
+
+            {/* 3-Pill Segmented Control (Light / Dark / System) */}
+            <View
+              style={{
+                flexDirection: 'row',
+                backgroundColor: colors.backgroundAlt,
+                borderRadius: 999,
+                padding: 4,
+                gap: 4,
+                borderWidth: 0,
+              }}
+            >
+              {[
+                { key: 'light', label: 'โหมดสว่าง', icon: Sun, color: '#f59e0b' },
+                { key: 'dark', label: 'โหมดมืด', icon: Moon, color: '#60a5fa' },
+                { key: 'system', label: 'ตามระบบ', icon: Smartphone, color: '#8b5cf6' },
+              ].map((item) => {
+                const isSelected = mode === item.key;
+                const ItemIcon = item.icon;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    onPress={() => {
+                      triggerHaptic('selection');
+                      setMode(item.key as any);
+                    }}
+                    activeOpacity={0.7}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      paddingVertical: 9,
+                      borderRadius: 999,
+                      backgroundColor: isSelected
+                        ? colors.card
+                        : 'transparent',
+                      ...Platform.select({
+                        ios: {
+                          shadowColor: isSelected ? '#64748b' : 'transparent',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: isSelected ? 0.08 : 0,
+                          shadowRadius: 6,
+                        },
+                        android: {
+                          elevation: 0,
+                        },
+                      }),
+                    }}
+                  >
+                    <ItemIcon
+                      size={15}
+                      color={isSelected ? item.color : colors.textSecondary}
+                      strokeWidth={isSelected ? 2.2 : 1.8}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: isSelected ? '700' : '500',
+                        color: isSelected ? colors.text : colors.textSecondary,
+                        fontFamily: isSelected ? 'Sarabun_700Bold' : 'Sarabun_500Medium',
+                      }}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <Separator style={{ marginVertical: 8 }} />
@@ -841,9 +916,9 @@ const SettingsContent: React.FC = () => {
             <Badge
               variant="destructive"
               style={{
-                backgroundColor: isDark ? '#7f1d1d' : '#fee2e2',
-                borderWidth: 1,
-                borderColor: isDark ? '#991b1b' : '#fca5a5',
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.25)' : '#fee2e2',
+                borderWidth: 0,
+                borderRadius: 999,
               }}
             >
               <Text
@@ -903,11 +978,10 @@ const SettingsContent: React.FC = () => {
                 alignItems: 'center',
                 gap: 3,
                 backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#dcfce7',
-                borderRadius: 99,
-                paddingHorizontal: 7,
-                paddingVertical: 2,
-                borderWidth: 1,
-                borderColor: isDark ? 'rgba(34, 197, 94, 0.3)' : '#bbf7d0',
+                borderRadius: 999,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderWidth: 0,
               }}>
                 <Icon name={CheckCircle} size={10} color={isDark ? '#4ade80' : '#16a34a'} />
                 <Text style={{ fontSize: 10, color: isDark ? '#4ade80' : '#16a34a', fontFamily: 'Sarabun_700Bold' }}>
@@ -938,11 +1012,10 @@ const SettingsContent: React.FC = () => {
               alignItems: 'center',
               gap: 4,
               backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff',
-              borderRadius: 99,
+              borderRadius: 999,
               paddingHorizontal: 8,
               paddingVertical: 3,
-              borderWidth: 1,
-              borderColor: isDark ? 'rgba(59, 130, 246, 0.25)' : '#bfdbfe',
+              borderWidth: 0,
             }}>
               <Icon name={Lock} size={10} color={isDark ? '#60a5fa' : '#2563eb'} />
               <Text style={{ fontSize: 11, color: isDark ? '#60a5fa' : '#2563eb', fontFamily: 'Sarabun_600SemiBold' }}>
@@ -993,12 +1066,11 @@ const SettingsContent: React.FC = () => {
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingVertical: 10,
-              paddingHorizontal: 14,
-              borderRadius: 14,
-              backgroundColor: isDark ? 'rgba(59,130,246,0.08)' : '#eff6ff',
-              borderWidth: 1,
-              borderColor: isDark ? 'rgba(59,130,246,0.2)' : '#bfdbfe',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: 20,
+              backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : '#eff6ff',
+              borderWidth: 0,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
