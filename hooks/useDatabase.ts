@@ -32,8 +32,9 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
         await database.execAsync(`
           PRAGMA journal_mode = WAL;
           PRAGMA synchronous = NORMAL;
-          PRAGMA cache_size = -2000;
+          PRAGMA cache_size = -16000;
           PRAGMA temp_store = MEMORY;
+          PRAGMA mmap_size = 268435456;
         `);
         
         await database.execAsync(`
@@ -152,6 +153,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
           CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
           CREATE INDEX IF NOT EXISTS idx_activities_date_order ON activities(date, is_all_day, start_time);
           CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, is_completed);
+          CREATE INDEX IF NOT EXISTS idx_tasks_notes_order ON tasks_notes(is_pinned DESC, is_completed ASC, updated_at DESC);
         `);
 
         // Migration safety checks

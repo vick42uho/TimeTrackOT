@@ -181,3 +181,38 @@ export interface TaskNote {
   updatedAt?: string;
 }
 
+export type SmartAlarmWfhMode = 'normal' | 'custom' | 'skip';
+
+export interface SmartAlarmConfig {
+  enabled: boolean;
+  alarmTime: string; // HH:mm format, e.g. "06:30"
+  skipPublicHolidays: boolean; // default: true
+  skipWeekends: boolean; // default: true (Sat/Sun)
+  skipApprovedLeaves: boolean; // default: true (vacation, sick, etc.)
+  wfhMode: SmartAlarmWfhMode; // 'normal' = standard alarm, 'custom' = wfhAlarmTime, 'skip' = no alarm
+  wfhAlarmTime?: string; // HH:mm format, e.g. "07:30"
+  preHolidayReminder: boolean; // default: true (20:00 alert night before)
+  snoozeMinutes: number; // e.g. 5, 10, 15
+  vibrate: boolean;
+  soundEnabled: boolean;
+}
+
+export type SmartAlarmStatus =
+  | 'alarm'
+  | 'skip_holiday'
+  | 'skip_leave'
+  | 'skip_weekend'
+  | 'skip_wfh'
+  | 'wfh_alarm';
+
+export interface SmartAlarmScheduleItem {
+  date: string; // YYYY-MM-DD
+  dayOfWeek: number; // 0 = Sun, 1 = Mon...
+  dayName: string; // e.g. 'จันทร์'
+  status: SmartAlarmStatus;
+  alarmTime?: string; // e.g. '06:30'
+  reason?: string; // e.g. 'วันสงกรานต์', 'ลาพักร้อน', 'วันหยุดประจำสัปดาห์'
+  notificationId?: string;
+}
+
+

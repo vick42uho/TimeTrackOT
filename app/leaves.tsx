@@ -45,6 +45,7 @@ import {
   ListTodo,
   Save,
   X,
+  Settings,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -63,11 +64,14 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/toast';
+import { Icon } from '@/components/ui/icon';
 
 // Custom Hooks & Providers
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { TimeInput } from '../components/TimeInput';
+import { SmartAlarmModal } from '@/components/SmartAlarmModal';
+import { triggerHaptic } from '@/hooks/useHaptics';
 import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
 import {
@@ -79,11 +83,20 @@ import {
   LeaveSummary,
   Activity,
   ActivityCategory,
+  SmartAlarmConfig,
+  SmartAlarmScheduleItem,
 } from '../types';
 import {
   scheduleActivityReminder,
   cancelActivityReminder,
 } from '../services/notificationService';
+import {
+  getSmartAlarmConfig,
+  saveSmartAlarmConfig,
+  syncSmartAlarmSchedule,
+  getSmartAlarmSummary,
+  DEFAULT_SMART_ALARM_CONFIG,
+} from '@/services/smartAlarmService';
 
 const THAI_MONTH_NAMES = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -167,6 +180,29 @@ const LeavesContent: React.FC = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Smart Workday Alarm State
+  const [smartAlarmConfig, setSmartAlarmConfig] = useState<SmartAlarmConfig>(DEFAULT_SMART_ALARM_CONFIG);
+  const [isSmartAlarmModalVisible, setIsSmartAlarmModalVisible] = useState(false);
+  const [smartAlarmSchedule, setSmartAlarmSchedule] = useState<SmartAlarmScheduleItem[]>([]);
+
+  const smartAlarmSummary = useMemo(() => {
+    return getSmartAlarmSummary(smartAlarmSchedule);
+  }, [smartAlarmSchedule]);
+
+  const handleToggleSmartAlarm = async (newVal: boolean) => {
+    triggerHaptic('selection');
+    const updated = { ...smartAlarmConfig, enabled: newVal };
+    setSmartAlarmConfig(updated);
+    await saveSmartAlarmConfig(updated);
+    const syncRes = await syncSmartAlarmSchedule(holidays, leaves, updated);
+    setSmartAlarmSchedule(syncRes.schedule);
+    if (newVal) {
+      success('เปิดใช้งานแล้ว', `นาฬิกาปลุกจะทำงานเฉพาะวันทำงานจริง (${updated.alarmTime} น.)`);
+    } else {
+      toast({ title: 'ปิดใช้งาน', description: 'ปิดระบบนาฬิกาปลุกวันทำงานเรียบร้อยแล้ว' });
+    }
+  };
+
   // Selected Date on Calendar for quick action
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -248,6 +284,16 @@ const LeavesContent: React.FC = () => {
         });
         return quotaMap;
       });
+
+      // Load & Sync Smart Workday Alarm
+      try {
+        const alarmCfg = await getSmartAlarmConfig();
+        setSmartAlarmConfig(alarmCfg);
+        const alarmSync = await syncSmartAlarmSchedule(hList, lList, alarmCfg);
+        setSmartAlarmSchedule(alarmSync.schedule);
+      } catch (alarmErr) {
+        console.warn('Error loading/syncing smart alarm in loadAllData:', alarmErr);
+      }
     } catch (err) {
       console.error('Error loading leaves/holidays/activities:', err);
       error('เกิดข้อผิดพลาด', 'ไม่สามารถโหลดข้อมูลได้');
@@ -1028,6 +1074,104 @@ const LeavesContent: React.FC = () => {
           {/* ========================================================= */}
           <TabsContent value="calendar" style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+              {/* Smart Workday Alarm Card */}
+              <Card
+                style={{
+                  marginBottom: 10,
+                  padding: 12,
+                  backgroundColor: colors.card,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 8 }}>
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        backgroundColor: smartAlarmConfig.enabled
+                          ? isDark
+                            ? 'rgba(37, 99, 235, 0.2)'
+                            : '#eff6ff'
+                          : isDark
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : '#f1f5f9',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon
+                        name={Bell}
+                        size={18}
+                        color={smartAlarmConfig.enabled ? '#2563eb' : colors.textSecondary}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, fontFamily: 'Sarabun_700Bold' }}>
+                          นาฬิกาปลุกวันทำงาน
+                        </Text>
+                        {smartAlarmConfig.enabled ? (
+                          <Badge variant="default" style={{ paddingHorizontal: 6, paddingVertical: 1, backgroundColor: '#2563eb' }}>
+                            <Text style={{ fontSize: 10, color: '#ffffff', fontFamily: 'Sarabun_700Bold' }}>
+                              {smartAlarmConfig.alarmTime} น.
+                            </Text>
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" style={{ paddingHorizontal: 6, paddingVertical: 1 }}>
+                            <Text style={{ fontSize: 10, color: colors.textSecondary, fontFamily: 'Sarabun_600SemiBold' }}>
+                              ปิดอยู่
+                            </Text>
+                          </Badge>
+                        )}
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: smartAlarmConfig.enabled
+                            ? smartAlarmSummary.isTomorrowWorkday
+                              ? colors.primary
+                              : '#d97706'
+                            : colors.textSecondary,
+                          fontFamily: 'Sarabun_500Medium',
+                          marginTop: 2,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {smartAlarmConfig.enabled
+                          ? smartAlarmSummary.tomorrowText
+                          : 'ปลุกเฉพาะวันทำงาน และเว้นวันหยุด/วันลาให้อัตโนมัติ'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Switch
+                      value={smartAlarmConfig.enabled}
+                      onValueChange={handleToggleSmartAlarm}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        triggerHaptic('impact-light');
+                        setIsSmartAlarmModalVisible(true);
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+                      }}
+                    >
+                      <Icon name={Settings} size={15} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Card>
+
               {/* Calendar Container with ViewShot for Sharing */}
               <ViewShot
                 ref={calendarViewShotRef}
@@ -2588,6 +2732,15 @@ const LeavesContent: React.FC = () => {
         confirmVariant="destructive"
         cancelText="ยกเลิก"
         onConfirm={handleConfirmDeleteActivity}
+      />
+
+      {/* Smart Workday Alarm Modal */}
+      <SmartAlarmModal
+        visible={isSmartAlarmModalVisible}
+        onClose={() => setIsSmartAlarmModalVisible(false)}
+        holidays={holidays}
+        leaves={leaves}
+        onSaved={loadAllData}
       />
 
       {/* Bottom Navigation */}

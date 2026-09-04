@@ -66,7 +66,9 @@ const database = await SQLite.openDatabaseAsync('timetracker.db');
 await database.execAsync(`
   PRAGMA journal_mode = WAL;
   PRAGMA synchronous = NORMAL;
-  PRAGMA cache_size = -2000;
+  PRAGMA cache_size = -16000;
+  PRAGMA temp_store = MEMORY;
+  PRAGMA mmap_size = 268435456;
 `);
 ```
 
@@ -153,10 +155,16 @@ CREATE TABLE IF NOT EXISTS activities (
 
 -- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_time_entries_date ON time_entries(date);
+CREATE INDEX IF NOT EXISTS idx_time_entries_date_hours ON time_entries(date, regular_hours, overtime_hours);
 CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
 CREATE INDEX IF NOT EXISTS idx_leaves_dates ON leaves(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_leaves_status_dates ON leaves(status, start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_work_schedules_month_year ON work_schedules(month, year);
+CREATE INDEX IF NOT EXISTS idx_work_schedules_year ON work_schedules(year);
 CREATE INDEX IF NOT EXISTS idx_activities_date ON activities(date);
+CREATE INDEX IF NOT EXISTS idx_activities_date_order ON activities(date, is_all_day, start_time);
+CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, is_completed);
+CREATE INDEX IF NOT EXISTS idx_tasks_notes_order ON tasks_notes(is_pinned DESC, is_completed ASC, updated_at DESC);
 ```
 
 ### Annual Schedule Bulk Save Engine
@@ -345,6 +353,40 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
    - Toggle button beside the search bar with `LayoutGrid` and `List` vector icons from Lucide / BNA UI.
    - **List Mode**: Full-width single-column layout for focused reading.
    - **Grid Mode**: Authentic 2-column Masonry grid (Google Keep style) splitting even/odd items into dynamic height columns so cards pack tightly without vertical gaps.
-6. **Full Backup & Restore Support**:
+6. **Interactive Overflow & Quick Card Opening**:
+   - `+ ดูเพิ่มอีก X ข้อ` chips rendered with interactive styling (`TouchableOpacity`) and subtle border, calling `onEdit(item)` on tap to inspect, check, and edit all items in full screen.
+   - Card title and memo text are tap-to-open directly on the card body.
+7. **UI & Memory Performance Architecture**:
+   - Single-pass `O(N)` memoized tab counts (`pendingCount`, `completedCount`, `pinnedCount`) reducing array passes by 66%.
+   - Pre-split column memoization (`leftColItems`, `rightColItems`) eliminating per-render array re-filtering in Grid view.
+   - Memoized `useCallback` for `renderCard` with strict dependency tracking.
+   - Hardware-accelerated Reanimated worklets for ColorPicker HSV gestures running off the JS thread.
+8. **Full Backup & Restore Support**:
    - Exported and imported seamlessly in database backup JSON files.
+
+---
+
+## 8. Smart Workday Alarm & Activity Management Engine
+
+### Smart Workday Alarm Architecture (`services/smartAlarmService.ts`)
+1. **Android ALARM Audio Stream & MAX Importance**:
+   - Notification channel `smart-workday-alarm` configured with `AndroidAudioUsage.ALARM`, `AndroidAudioContentType.SONIFICATION`, `importance: AndroidImportance.MAX`, and `bypassDnd: true`.
+   - Bypasses Do Not Disturb on Android devices and sounds through the device's alarm stream.
+2. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
+   - Evaluates a rolling 21-day window starting from today:
+     $$\text{วันทำงานจริง} = \neg\text{PublicHoliday} \land \neg\text{Weekend/RegularOff} \land \neg\text{ApprovedLeave}$$
+   - **Workday**: Schedules high-priority alarm notification at configured time (e.g. `06:30 น.`).
+   - **Public Holidays & Regular Off**: Automatically skips alarms.
+   - **Approved Leaves**: Automatically skips alarms when user logs vacation, sick, or personal leave.
+   - **Work From Home (WFH)**: Supports 3 configurable modes: standard alarm time, custom delayed alarm time (e.g. `07:30 น.`), or skip alarm entirely.
+3. **Goodnight Alert (Pre-Holiday 20:00 Notification)**:
+   - On the evening before any public holiday or approved leave, sends a friendly 20:00 reminder: *"🌙 พรุ่งนี้เป็นวันหยุด: [ชื่อ] ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ!"*
+4. **UI Components & Live 7-Day Preview (`components/SmartAlarmModal.tsx`)**:
+   - Pinned footer BottomSheet providing live 7-day schedule preview that dynamically re-computes whenever user adjusts alarm time, toggles skip rules, or modifies WFH settings.
+   - Status card embedded at the top of the Calendar tab in `app/leaves.tsx` with quick on/off switch and real-time tomorrow status indicator.
+5. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
+   - Solves the jarring page jump when tapping activities on the Home Dashboard Bento card.
+   - Tapping an activity opens a full BottomSheet directly on the Home screen displaying category chip, time, location (tap to open Google Maps), reminder interval, and notes with auto-detected URLs.
+   - Direct [Edit], [Delete] (with confirmation), and [View in Calendar] action buttons without leaving the Dashboard.
+
 

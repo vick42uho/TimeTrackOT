@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,6 +32,7 @@ import {
   List,
 } from 'lucide-react-native';
 import { extractUrls, handleOpenURL } from '@/utils/urlHelper';
+import { AlertDialog, useAlertDialog } from '@/components/ui/alert-dialog';
 
 interface TaskNoteManagerSheetProps {
   isVisible: boolean;
@@ -61,7 +62,9 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const deleteDialog = useAlertDialog();
+  const [itemToDelete, setItemToDelete] = useState<TaskNote | null>(null);
 
   const filteredItems = useMemo(() => {
     return tasksNotes.filter((item) => {
@@ -83,20 +86,30 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
     });
   }, [tasksNotes, activeTab, searchQuery]);
 
-  const pendingCount = useMemo(
-    () => tasksNotes.filter((i) => !i.isCompleted).length,
-    [tasksNotes]
-  );
-  const completedCount = useMemo(
-    () => tasksNotes.filter((i) => i.isCompleted).length,
-    [tasksNotes]
-  );
-  const pinnedCount = useMemo(
-    () => tasksNotes.filter((i) => i.isPinned).length,
-    [tasksNotes]
-  );
+  const { pendingCount, completedCount, pinnedCount } = useMemo(() => {
+    let pending = 0;
+    let completed = 0;
+    let pinned = 0;
+    for (let i = 0; i < tasksNotes.length; i++) {
+      const item = tasksNotes[i];
+      if (item.isCompleted) completed++;
+      else pending++;
+      if (item.isPinned) pinned++;
+    }
+    return { pendingCount: pending, completedCount: completed, pinnedCount: pinned };
+  }, [tasksNotes]);
 
-  const renderCard = (item: TaskNote, isGrid: boolean) => {
+  const { leftColItems, rightColItems } = useMemo(() => {
+    const left: TaskNote[] = [];
+    const right: TaskNote[] = [];
+    for (let i = 0; i < filteredItems.length; i++) {
+      if (i % 2 === 0) left.push(filteredItems[i]);
+      else right.push(filteredItems[i]);
+    }
+    return { leftColItems: left, rightColItems: right };
+  }, [filteredItems]);
+
+  const renderCard = useCallback((item: TaskNote, isGrid: boolean) => {
     const cardBg = getTaskNoteBgColor(item.color, isDark, colors.card);
     const urls = item.content ? extractUrls(item.content) : [];
 
@@ -124,7 +137,12 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
             gap: 6,
           }}
         >
-          <View
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              triggerHaptic('selection');
+              onEdit(item);
+            }}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -151,7 +169,7 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
             >
               {item.title}
             </Text>
-          </View>
+          </TouchableOpacity>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: isGrid ? 4 : 6 }}>
             {item.isPinned && (
@@ -199,7 +217,8 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
               activeOpacity={0.7}
               onPress={() => {
                 triggerHaptic('warning');
-                onDelete(item.id!);
+                setItemToDelete(item);
+                deleteDialog.open();
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
@@ -268,31 +287,57 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
               );
             })}
             {isGrid && item.items.length > 4 && (
-              <Text
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  onEdit(item);
+                }}
                 style={{
-                  fontSize: 10,
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_600SemiBold',
-                  marginTop: 2,
+                  alignSelf: 'flex-start',
+                  marginTop: 4,
+                  paddingVertical: 3,
+                  paddingHorizontal: 8,
+                  borderRadius: 8,
+                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe',
                 }}
               >
-                + อีก {item.items.length - 4} ข้อ
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: '700',
+                    color: colors.primary,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  + ดูเพิ่มอีก {item.items.length - 4} ข้อ
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         ) : item.content ? (
           <View>
-            <Text
-              style={{
-                fontSize: isGrid ? 12 : 13,
-                color: colors.textSecondary,
-                fontFamily: 'Sarabun_400Regular',
-                lineHeight: isGrid ? 18 : 20,
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                triggerHaptic('selection');
+                onEdit(item);
               }}
-              numberOfLines={isGrid ? 5 : 4}
             >
-              {item.content}
-            </Text>
+              <Text
+                style={{
+                  fontSize: isGrid ? 12 : 13,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  lineHeight: isGrid ? 18 : 20,
+                }}
+                numberOfLines={isGrid ? 5 : 4}
+              >
+                {item.content}
+              </Text>
+            </TouchableOpacity>
             {urls.map((url, idx) => (
               <TouchableOpacity
                 key={idx}
@@ -398,9 +443,10 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
         </View>
       </View>
     );
-  };
+  }, [isDark, colors, onEdit, setItemToDelete, deleteDialog, onToggleItem, onToggleNote]);
 
   return (
+    <>
     <BottomSheet
       isVisible={isVisible}
       onClose={onClose}
@@ -612,15 +658,11 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
           <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
             {/* Column 1 (Left) */}
             <View style={{ flex: 1, gap: 10 }}>
-              {filteredItems
-                .filter((_, idx) => idx % 2 === 0)
-                .map((item) => renderCard(item, true))}
+              {leftColItems.map((item) => renderCard(item, true))}
             </View>
             {/* Column 2 (Right) */}
             <View style={{ flex: 1, gap: 10 }}>
-              {filteredItems
-                .filter((_, idx) => idx % 2 === 1)
-                .map((item) => renderCard(item, true))}
+              {rightColItems.map((item) => renderCard(item, true))}
             </View>
           </View>
         ) : (
@@ -630,5 +672,23 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
         )}
       </View>
     </BottomSheet>
+
+    <AlertDialog
+      isVisible={deleteDialog.isVisible}
+      onClose={deleteDialog.close}
+      title="ลบรายการนี้?"
+      description={`ต้องการลบ "${itemToDelete?.title}" ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+      confirmText="ลบข้อมูล"
+      confirmVariant="destructive"
+      cancelText="ยกเลิก"
+      onConfirm={() => {
+        if (itemToDelete) {
+          triggerHaptic('warning');
+          onDelete(itemToDelete.id!);
+          setItemToDelete(null);
+        }
+      }}
+    />
+  </>
   );
 };

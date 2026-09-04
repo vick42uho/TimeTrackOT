@@ -48,6 +48,8 @@ import { useTimeCalculation } from '../hooks/useTimeCalculation';
 import { Activity, LeaveSummary, TaskNote } from '../types';
 import { TaskNoteModal } from '@/components/TaskNoteModal';
 import { TaskNoteManagerSheet } from '@/components/TaskNoteManagerSheet';
+import { ActivityDetailSheet } from '@/components/ActivityDetailSheet';
+import { getSmartAlarmConfig, syncSmartAlarmSchedule } from '@/services/smartAlarmService';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
 const { width } = Dimensions.get('window');
@@ -115,6 +117,7 @@ const HomeContent: React.FC = () => {
     checkDateStatus,
     getActivitiesForDate,
     getHolidays,
+    getLeaves,
     getLeaveSummary,
     getTasksNotes,
     saveTaskNote,
@@ -137,6 +140,9 @@ const HomeContent: React.FC = () => {
     isRegularOff?: boolean;
   }>({ isHoliday: false, isLeave: false, isWFH: false, isRegularOff: false });
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const [isActivitySheetVisible, setIsActivitySheetVisible] = useState(false);
+  const [isActivityCreateMode, setIsActivityCreateMode] = useState(false);
   const [tasksNotes, setTasksNotes] = useState<TaskNote[]>([]);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [isManagerSheetVisible, setIsManagerSheetVisible] = useState(false);
@@ -314,6 +320,17 @@ const HomeContent: React.FC = () => {
         setNextHoliday(null);
       }
     }
+
+    // Background sync Smart Workday Alarm
+    getSmartAlarmConfig()
+      .then((alarmCfg) => {
+        if (alarmCfg.enabled) {
+          getLeaves(year).then((yearLeaves) => {
+            syncSmartAlarmSchedule(yearHolidays || [], yearLeaves || [], alarmCfg);
+          });
+        }
+      })
+      .catch(() => {});
 
     // Calculate accurate hours for today's entry if available
     let todayEntryWithLate = entry;
@@ -1328,7 +1345,12 @@ const HomeContent: React.FC = () => {
                 )}
               </View>
               <TouchableOpacity
-                onPress={() => handleActionPress('/leaves')}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setSelectedActivity(null);
+                  setIsActivityCreateMode(true);
+                  setIsActivitySheetVisible(true);
+                }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{
                   flexDirection: 'row',
@@ -1363,7 +1385,12 @@ const HomeContent: React.FC = () => {
                     <TouchableOpacity
                       key={item.id || idx}
                       activeOpacity={0.7}
-                      onPress={() => handleActionPress('/leaves')}
+                      onPress={() => {
+                        triggerHaptic('impact-light');
+                        setSelectedActivity(item);
+                        setIsActivityCreateMode(false);
+                        setIsActivitySheetVisible(true);
+                      }}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -1391,16 +1418,41 @@ const HomeContent: React.FC = () => {
                         >
                           {item.title}
                         </Text>
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            color: colors.primary,
-                            fontFamily: 'Sarabun_600SemiBold',
-                          }}
-                          numberOfLines={1}
-                        >
-                          {item.startTime} - {item.endTime} น.
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              color: colors.primary,
+                              fontFamily: 'Sarabun_600SemiBold',
+                              flexShrink: 0,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {item.isAllDay || (!item.startTime && !item.endTime)
+                              ? 'ตลอดวัน'
+                              : item.startTime && item.endTime
+                              ? `${item.startTime} - ${item.endTime} น.`
+                              : item.startTime
+                              ? `${item.startTime} น.`
+                              : `ถึง ${item.endTime} น.`}
+                          </Text>
+                          {item.location ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, flex: 1 }}>
+                              <Icon name={MapPin} size={10} color={colors.textSecondary} />
+                              <Text
+                                style={{
+                                  fontSize: 10,
+                                  color: colors.textSecondary,
+                                  fontFamily: 'Sarabun_400Regular',
+                                  flex: 1,
+                                }}
+                                numberOfLines={1}
+                              >
+                                {item.location}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
                       </View>
                     </TouchableOpacity>
                   );
@@ -1824,6 +1876,22 @@ const HomeContent: React.FC = () => {
         onToggleItem={handleToggleTaskSubItem}
         onToggleNote={handleToggleTaskNote}
         onDelete={handleDeleteTaskNote}
+      />
+
+      <ActivityDetailSheet
+        visible={isActivitySheetVisible}
+        activity={selectedActivity}
+        isCreateMode={isActivityCreateMode}
+        defaultDate={new Date().toISOString().split('T')[0]}
+        onClose={() => {
+          setIsActivitySheetVisible(false);
+          setSelectedActivity(null);
+          setIsActivityCreateMode(false);
+        }}
+        onActivityUpdated={loadTodayData}
+        onNavigateToCalendar={(dateStr) => {
+          handleActionPress('/leaves');
+        }}
       />
 
       <BottomNavigation />

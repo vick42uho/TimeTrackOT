@@ -5,9 +5,9 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Platform,
 } from 'react-native';
+import { showConfirmAlert, showErrorAlert, showNativeAlert } from '@/components/ui/alert';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
@@ -143,7 +143,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('กรุณาระบุหัวข้อ', 'โปรดใส่หัวข้องานหรือบันทึก');
+      showNativeAlert({ title: 'กรุณาระบุหัวข้อ', message: 'โปรดใส่หัวข้องานหรือบันทึก' });
       return;
     }
 
@@ -163,7 +163,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
       });
       onClose();
     } catch (e) {
-      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกได้ โปรดลองอีกครั้ง');
+      showErrorAlert('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกได้ โปรดลองอีกครั้ง');
     } finally {
       setIsSaving(false);
     }
@@ -171,21 +171,14 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
 
   const handleDelete = () => {
     if (!initialData?.id || !onDelete) return;
-    Alert.alert(
+    showConfirmAlert(
       'ลบรายการนี้?',
       `ต้องการลบ "${initialData.title}" ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้`,
-      [
-        { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'ลบข้อมูล',
-          style: 'destructive',
-          onPress: async () => {
-            triggerHaptic('warning');
-            await onDelete(initialData.id!);
-            onClose();
-          },
-        },
-      ]
+      async () => {
+        triggerHaptic('warning');
+        await onDelete(initialData.id!);
+        onClose();
+      }
     );
   };
 
