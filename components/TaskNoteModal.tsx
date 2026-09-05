@@ -290,15 +290,6 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
               >
                 {initialData ? 'แก้ไขโน้ต & งาน' : 'สร้างโน้ต & งานใหม่'}
               </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_400Regular',
-                }}
-              >
-                เต็มจอ 100% • บันทึกอัตโนมัติ 2 ส่วน
-              </Text>
             </View>
 
             {/* Action Buttons: Delete, Pin, Save */}
@@ -691,16 +682,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
                   </View>
                 )}
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: colors.textSecondary,
-                      fontFamily: 'Sarabun_400Regular',
-                    }}
-                  >
-                    บันทึกข้อมูลร่วมกับรายการสิ่งที่ต้องทำอัตโนมัติ
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' }}>
                   <Text
                     style={{
                       fontSize: 11,
