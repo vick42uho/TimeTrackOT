@@ -29,6 +29,11 @@ import {
   DEFAULT_SMART_ALARM_CONFIG,
 } from '@/services/smartAlarmService';
 import {
+  setSystemAlarm,
+  openSystemAlarmApp,
+  openAppBatterySettings,
+} from '@/services/systemAlarmService';
+import {
   Bell,
   Clock,
   Calendar,
@@ -44,6 +49,11 @@ import {
   Briefcase,
   BellOff,
   Car,
+  Smartphone,
+  ExternalLink,
+  BatteryCharging,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native';
 
 interface SmartAlarmModalProps {
@@ -63,10 +73,11 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
 }) => {
   const { colors, themeMode } = useThemeContext();
   const isDark = themeMode === 'dark';
-  const { success, warning } = useToast();
+  const { success, warning, error } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showBatteryGuide, setShowBatteryGuide] = useState(false);
 
   // Form states
   const [enabled, setEnabled] = useState(false);
@@ -719,6 +730,369 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
             }}
           />
         </View>
+
+        {/* Section 4: System Alarm Integration (Hybrid - Native Clock App) */}
+        <View
+          style={{
+            backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : '#f0f7ff',
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1.5,
+            borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe',
+            gap: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                backgroundColor: '#2563eb',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 2,
+              }}
+            >
+              <Icon name={Smartphone} size={18} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: colors.text,
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                ซิงค์ไปแอพนาฬิกาปลุกของเครื่อง (System Clock)
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  marginTop: 2,
+                }}
+              >
+                ส่งเวลาปลุกไปตั้งใน Google Clock / Samsung Clock เพื่อให้เสียงดังต่อเนื่องจนกว่าจะตื่นมากดปิด ปิดแอพหรือรีสตาร์ทเครื่องก็ดัง 100%
+              </Text>
+            </View>
+          </View>
+
+          {/* Quick sync buttons */}
+          <View style={{ gap: 8, marginTop: 2 }}>
+            <TouchableOpacity
+              onPress={async () => {
+                triggerHaptic('impact-light');
+                const res = await setSystemAlarm(alarmTime, 'TimeTrack: วันทำงานปกติ');
+                if (res.success) {
+                  success('สำเร็จ', res.message || `ตั้งปลุกเวลา ${alarmTime} น. ในแอพนาฬิกาของเครื่องแล้ว`);
+                } else {
+                  error('ไม่สำเร็จ', res.error || 'ไม่สามารถเปิดแอพนาฬิกาของเครื่องได้');
+                }
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                backgroundColor: colors.card,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name={Briefcase} size={15} color="#2563eb" />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  ตั้งในนาฬิกาเครื่อง: วันทำงานปกติ
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: '#2563eb',
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  {alarmTime} น.
+                </Text>
+                <Icon name={ExternalLink} size={13} color="#2563eb" />
+              </View>
+            </TouchableOpacity>
+
+            {useWeekendWorkAlarm && (
+              <TouchableOpacity
+                onPress={async () => {
+                  triggerHaptic('impact-light');
+                  const targetTime = weekendWorkAlarmTime || '07:00';
+                  const res = await setSystemAlarm(targetTime, 'TimeTrack: ทำงาน เสาร์-อาทิตย์');
+                  if (res.success) {
+                    success('สำเร็จ', res.message || `ตั้งปลุกเวลา ${targetTime} น. ในแอพนาฬิกาของเครื่องแล้ว`);
+                  } else {
+                    error('ไม่สำเร็จ', res.error || 'ไม่สามารถเปิดแอพนาฬิกาของเครื่องได้');
+                  }
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  backgroundColor: colors.card,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Icon name={Car} size={15} color="#6366f1" />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: colors.text,
+                      fontFamily: 'Sarabun_600SemiBold',
+                    }}
+                  >
+                    ตั้งในนาฬิกาเครื่อง: เสาร์-อาทิตย์ (รถไม่ติด)
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#6366f1',
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    {weekendWorkAlarmTime} น.
+                  </Text>
+                  <Icon name={ExternalLink} size={13} color="#6366f1" />
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {wfhMode === 'custom' && (
+              <TouchableOpacity
+                onPress={async () => {
+                  triggerHaptic('impact-light');
+                  const targetTime = wfhAlarmTime || '07:30';
+                  const res = await setSystemAlarm(targetTime, 'TimeTrack: วัน WFH');
+                  if (res.success) {
+                    success('สำเร็จ', res.message || `ตั้งปลุกเวลา ${targetTime} น. ในแอพนาฬิกาของเครื่องแล้ว`);
+                  } else {
+                    error('ไม่สำเร็จ', res.error || 'ไม่สามารถเปิดแอพนาฬิกาของเครื่องได้');
+                  }
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  backgroundColor: colors.card,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Icon name={Home} size={15} color="#10b981" />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: colors.text,
+                      fontFamily: 'Sarabun_600SemiBold',
+                    }}
+                  >
+                    ตั้งในนาฬิกาเครื่อง: วัน WFH
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#10b981',
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    {wfhAlarmTime} น.
+                  </Text>
+                  <Icon name={ExternalLink} size={13} color="#10b981" />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Direct Open Clock App button */}
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('selection');
+              openSystemAlarmApp();
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingVertical: 8,
+              borderTopWidth: 1,
+              borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              marginTop: 4,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '600',
+                color: colors.primary,
+                fontFamily: 'Sarabun_600SemiBold',
+              }}
+            >
+              เปิดดูรายการนาฬิกาปลุกทั้งหมดของเครื่อง
+            </Text>
+            <Icon name={ExternalLink} size={12} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Section 5: Battery Optimization Guide (Android) */}
+        {Platform.OS === 'android' && (
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: colors.border,
+              overflow: 'hidden',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                triggerHaptic('selection');
+                setShowBatteryGuide((prev) => !prev);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 14,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Icon name={BatteryCharging} size={16} color="#f59e0b" />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: colors.text,
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    การตั้งค่าแบตเตอรี่ (ให้เตือนตรงเวลาแม้ปิดแอพ)
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: colors.textSecondary,
+                      fontFamily: 'Sarabun_400Regular',
+                    }}
+                  >
+                    ตั้งค่าให้ Android ไม่บล็อกการทำงานเมื่อปิดแอพ
+                  </Text>
+                </View>
+              </View>
+              <Icon
+                name={showBatteryGuide ? ChevronUp : ChevronDown}
+                size={16}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {showBatteryGuide && (
+              <View
+                style={{
+                  paddingHorizontal: 14,
+                  paddingBottom: 14,
+                  gap: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                  paddingTop: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    lineHeight: 18,
+                    color: colors.textSecondary,
+                    fontFamily: 'Sarabun_400Regular',
+                  }}
+                >
+                  บน Android หากต้องการให้ระบบแจ้งเตือนและส่งเสียงเตือนได้ตรงเวลา 100% แม้ปัดปิดแอพไปแล้ว แนะนำให้ตั้งค่าการใช้แบตเตอรี่ของแอพเป็น <Text style={{ fontWeight: '700', color: colors.text }}>"ไม่จำกัด (Unrestricted)"</Text>:
+                </Text>
+
+                <View style={{ gap: 4, paddingLeft: 6 }}>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    1. กดปุ่ม "เปิดหน้าตั้งค่าแอพ" ด้านล่าง
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    2. เลือกเมนู "แบตเตอรี่ (Battery)" หรือ "การประหยัดพลังงาน"
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    3. เลือกตัวเลือก "ไม่จำกัด (Unrestricted / No restrictions)"
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    triggerHaptic('impact-light');
+                    openAppBatterySettings();
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7',
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a',
+                    marginTop: 4,
+                  }}
+                >
+                  <Icon name={ExternalLink} size={14} color="#d97706" />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#d97706',
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    เปิดหน้าตั้งค่าแอพใน Android
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* 7-Day Live Preview Section */}
         <View

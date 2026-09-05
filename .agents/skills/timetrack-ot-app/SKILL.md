@@ -388,7 +388,12 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
    - Pinned footer BottomSheet providing live 7-day schedule preview that dynamically re-computes whenever user adjusts alarm times, toggles weekend work alarm, skip rules, or modifies WFH settings.
    - Distinct badges in preview: Blue (Normal Workday), Indigo (Weekend Workday - Light Traffic), Emerald (WFH), Amber/Pink/Slate (Skipped days).
    - Status card embedded at the top of the Calendar tab in `app/leaves.tsx` with quick on/off switch and real-time tomorrow status indicator.
-5. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
+5. **Hybrid Architecture with System Alarm Clock (`services/systemAlarmService.ts`)**:
+   - Solves the mobile OS limitation where push notifications only chime for a few seconds and background killers silence killed apps.
+   - 1-Tap direct sync to the device's native Clock app (Google Clock / Samsung Clock) using `android.intent.action.SET_ALARM` via `expo-intent-launcher`. Guarantees continuous looping sound, lock-screen full screen dismissal, and 100% reliability even if app is closed or phone is rebooted.
+   - Exact alarm hardening with `USE_EXACT_ALARM`, `WAKE_LOCK`, `USE_FULL_SCREEN_INTENT`, and `com.android.alarm.permission.SET_ALARM` in `app.json`.
+   - Collapsible in-app Battery Optimization guide with direct link to Android App Details settings to set battery to "Unrestricted".
+6. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
    - Solves the jarring page jump when tapping activities on the Home Dashboard Bento card.
    - Tapping an activity opens a full BottomSheet directly on the Home screen displaying category chip, time, location (tap to open Google Maps), reminder interval, and notes with auto-detected URLs.
    - Direct [Edit], [Delete] (with confirmation), and [View in Calendar] action buttons without leaving the Dashboard.
