@@ -32,7 +32,7 @@ export const DEFAULT_SMART_ALARM_CONFIG: SmartAlarmConfig = {
   alarmTime: '06:30',
   skipPublicHolidays: true,
   skipRegularOff: true,
-  skipWeekends: true,
+  skipWeekends: false, // Default to false: calendar defines all workdays & off-days
   skipApprovedLeaves: true,
   wfhMode: 'custom',
   wfhAlarmTime: '07:30',
@@ -40,6 +40,7 @@ export const DEFAULT_SMART_ALARM_CONFIG: SmartAlarmConfig = {
   snoozeMinutes: 10,
   vibrate: true,
   soundEnabled: true,
+  configVersion: 2,
 };
 
 const THAI_DAY_NAMES = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
@@ -108,9 +109,13 @@ export async function getSmartAlarmConfig(): Promise<SmartAlarmConfig> {
     const raw = await AsyncStorage.getItem(SMART_ALARM_CONFIG_KEY);
     if (!raw) return DEFAULT_SMART_ALARM_CONFIG;
     const parsed = JSON.parse(raw);
+    const isMigratedV2 = (parsed.configVersion || 0) >= 2;
     return {
       ...DEFAULT_SMART_ALARM_CONFIG,
       ...parsed,
+      // Migrate legacy skipWeekends default (true) to false so calendar strictly controls off-days
+      skipWeekends: isMigratedV2 ? !!parsed.skipWeekends : false,
+      configVersion: 2,
       skipRegularOff: parsed.skipRegularOff !== undefined ? parsed.skipRegularOff : true,
       wfhAlarmTime: parsed.wfhAlarmTime || '07:30',
     };

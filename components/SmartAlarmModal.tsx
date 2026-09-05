@@ -71,7 +71,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   const [enabled, setEnabled] = useState(false);
   const [alarmTime, setAlarmTime] = useState('06:30');
   const [skipRegularOff, setSkipRegularOff] = useState(true);
-  const [skipWeekends, setSkipWeekends] = useState(true);
+  const [skipWeekends, setSkipWeekends] = useState(false);
   const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
   const [skipApprovedLeaves, setSkipApprovedLeaves] = useState(true);
   const [wfhMode, setWfhMode] = useState<SmartAlarmWfhMode>('custom');
@@ -92,7 +92,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
       setEnabled(cfg.enabled);
       setAlarmTime(cfg.alarmTime || '06:30');
       setSkipRegularOff(cfg.skipRegularOff !== undefined ? cfg.skipRegularOff : true);
-      setSkipWeekends(cfg.skipWeekends);
+      setSkipWeekends(cfg.skipWeekends ?? false);
       setSkipPublicHolidays(cfg.skipPublicHolidays);
       setSkipApprovedLeaves(cfg.skipApprovedLeaves);
       setWfhMode(cfg.wfhMode || 'custom');
@@ -477,7 +477,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                     fontFamily: 'Sarabun_600SemiBold',
                   }}
                 >
-                  งดปลุกวันเสาร์ - อาทิตย์
+                  งดปลุกวันเสาร์ - อาทิตย์ (อัตโนมัติ)
                 </Text>
               </View>
               <Text
@@ -488,7 +488,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                   marginTop: 2,
                 }}
               >
-                สำหรับคนหยุดเสาร์-อาทิตย์ (หากเข้ากะ ส.-อา. ให้ปิดสวิตช์นี้เพื่ออิงตามปฏิทิน)
+                ปิดไว้เป็นค่าเริ่มต้น เพื่อให้อิงวันทำงานและวันหยุดตามปฏิทินของคุณ 100% (วันอาทิตย์หรือเสาร์ที่ไม่ได้กำหนดเป็นวันหยุดในปฏิทินจะปลุกตามปกติ)
               </Text>
             </View>
             <Switch

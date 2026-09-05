@@ -188,7 +188,7 @@ export interface SmartAlarmConfig {
   alarmTime: string; // HH:mm format, e.g. "06:30"
   skipPublicHolidays: boolean; // default: true
   skipRegularOff?: boolean; // default: true (งดปลุกวันหยุดปกติตามปฏิทิน เช่น วันหยุดตามรอบกะ)
-  skipWeekends: boolean; // default: true (Sat/Sun)
+  skipWeekends: boolean; // default: false (Calendar is single source of truth; Sat/Sun ring normally unless marked in calendar)
   skipApprovedLeaves: boolean; // default: true (vacation, sick, etc.)
   wfhMode: SmartAlarmWfhMode; // 'normal' = standard alarm, 'custom' = wfhAlarmTime, 'skip' = no alarm
   wfhAlarmTime?: string; // HH:mm format, e.g. "07:30"
@@ -196,6 +196,7 @@ export interface SmartAlarmConfig {
   snoozeMinutes: number; // e.g. 5, 10, 15
   vibrate: boolean;
   soundEnabled: boolean;
+  configVersion?: number;
 }
 
 export type SmartAlarmStatus =
