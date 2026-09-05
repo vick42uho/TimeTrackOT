@@ -187,6 +187,7 @@ export interface SmartAlarmConfig {
   enabled: boolean;
   alarmTime: string; // HH:mm format, e.g. "06:30"
   skipPublicHolidays: boolean; // default: true
+  skipRegularOff?: boolean; // default: true (งดปลุกวันหยุดปกติตามปฏิทิน เช่น วันหยุดตามรอบกะ)
   skipWeekends: boolean; // default: true (Sat/Sun)
   skipApprovedLeaves: boolean; // default: true (vacation, sick, etc.)
   wfhMode: SmartAlarmWfhMode; // 'normal' = standard alarm, 'custom' = wfhAlarmTime, 'skip' = no alarm
@@ -202,6 +203,7 @@ export type SmartAlarmStatus =
   | 'skip_holiday'
   | 'skip_leave'
   | 'skip_weekend'
+  | 'skip_regular_off'
   | 'skip_wfh'
   | 'wfh_alarm';
 
@@ -211,7 +213,7 @@ export interface SmartAlarmScheduleItem {
   dayName: string; // e.g. 'จันทร์'
   status: SmartAlarmStatus;
   alarmTime?: string; // e.g. '06:30'
-  reason?: string; // e.g. 'วันสงกรานต์', 'ลาพักร้อน', 'วันหยุดประจำสัปดาห์'
+  reason?: string; // e.g. 'วันสงกรานต์', 'ลาพักร้อน', 'วันหยุดปกติ (ตามปฏิทิน)', 'Work From Home'
   notificationId?: string;
 }
 

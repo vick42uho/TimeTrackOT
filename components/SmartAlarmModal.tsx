@@ -40,6 +40,9 @@ import {
   Home,
   Check,
   AlertCircle,
+  Coffee,
+  Briefcase,
+  BellOff,
 } from 'lucide-react-native';
 
 interface SmartAlarmModalProps {
@@ -67,10 +70,11 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   // Form states
   const [enabled, setEnabled] = useState(false);
   const [alarmTime, setAlarmTime] = useState('06:30');
-  const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
+  const [skipRegularOff, setSkipRegularOff] = useState(true);
   const [skipWeekends, setSkipWeekends] = useState(true);
+  const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
   const [skipApprovedLeaves, setSkipApprovedLeaves] = useState(true);
-  const [wfhMode, setWfhMode] = useState<SmartAlarmWfhMode>('normal');
+  const [wfhMode, setWfhMode] = useState<SmartAlarmWfhMode>('custom');
   const [wfhAlarmTime, setWfhAlarmTime] = useState('07:30');
   const [preHolidayReminder, setPreHolidayReminder] = useState(true);
 
@@ -87,10 +91,11 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
       const cfg = await getSmartAlarmConfig();
       setEnabled(cfg.enabled);
       setAlarmTime(cfg.alarmTime || '06:30');
-      setSkipPublicHolidays(cfg.skipPublicHolidays);
+      setSkipRegularOff(cfg.skipRegularOff !== undefined ? cfg.skipRegularOff : true);
       setSkipWeekends(cfg.skipWeekends);
+      setSkipPublicHolidays(cfg.skipPublicHolidays);
       setSkipApprovedLeaves(cfg.skipApprovedLeaves);
-      setWfhMode(cfg.wfhMode || 'normal');
+      setWfhMode(cfg.wfhMode || 'custom');
       setWfhAlarmTime(cfg.wfhAlarmTime || '07:30');
       setPreHolidayReminder(cfg.preHolidayReminder);
     } catch (err) {
@@ -105,8 +110,9 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
     return {
       enabled,
       alarmTime,
-      skipPublicHolidays,
+      skipRegularOff,
       skipWeekends,
+      skipPublicHolidays,
       skipApprovedLeaves,
       wfhMode,
       wfhAlarmTime,
@@ -118,8 +124,9 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   }, [
     enabled,
     alarmTime,
-    skipPublicHolidays,
+    skipRegularOff,
     skipWeekends,
+    skipPublicHolidays,
     skipApprovedLeaves,
     wfhMode,
     wfhAlarmTime,
@@ -242,7 +249,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           />
         </View>
 
-        {/* Alarm Time Section */}
+        {/* Section 1: Workday Alarm Time (Normal) */}
         <View
           style={{
             backgroundColor: colors.card,
@@ -250,40 +257,11 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
             padding: 14,
             borderWidth: 1,
             borderColor: colors.border,
+            gap: 8,
           }}
         >
-          <Text
-            style={{
-              fontSize: 13,
-              fontWeight: '700',
-              color: colors.text,
-              fontFamily: 'Sarabun_700Bold',
-              marginBottom: 8,
-            }}
-          >
-            เวลาปลุกวันทำงานปกติ:
-          </Text>
-          <TimeInput
-            label="เวลาปลุก (วันปกติ)"
-            value={alarmTime}
-            onChange={setAlarmTime}
-            placeholder="06:30"
-          />
-        </View>
-
-        {/* Skip Rules Section */}
-        <View
-          style={{
-            backgroundColor: colors.card,
-            borderRadius: 14,
-            padding: 14,
-            borderWidth: 1,
-            borderColor: colors.border,
-            gap: 12,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <Icon name={Sparkles} size={15} color="#f59e0b" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name={Briefcase} size={15} color="#2563eb" />
             <Text
               style={{
                 fontSize: 13,
@@ -292,129 +270,27 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                 fontFamily: 'Sarabun_700Bold',
               }}
             >
-              กฎการงดปลุกอัตโนมัติ (Smart Skip):
+              เวลาปลุกวันทำงานปกติ (เข้าออฟฟิศ / โรงงาน)
             </Text>
           </View>
-
-          {/* Rule 1: Public Holidays */}
-          <View
+          <Text
             style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: 2,
+              fontSize: 11,
+              color: colors.textSecondary,
+              fontFamily: 'Sarabun_400Regular',
             }}
           >
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '600',
-                  color: colors.text,
-                  fontFamily: 'Sarabun_600SemiBold',
-                }}
-              >
-                งดปลุกวันหยุดนักขัตฤกษ์ & ชดเชย
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_400Regular',
-                }}
-              >
-                อิงตามปฏิทินวันหยุดไทยในระบบ
-              </Text>
-            </View>
-            <Switch
-              value={skipPublicHolidays}
-              onValueChange={(val) => {
-                triggerHaptic('selection');
-                setSkipPublicHolidays(val);
-              }}
-            />
-          </View>
-
-          {/* Rule 2: Weekends */}
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: 2,
-            }}
-          >
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '600',
-                  color: colors.text,
-                  fontFamily: 'Sarabun_600SemiBold',
-                }}
-              >
-                งดปลุกวันหยุดประจำสัปดาห์ (เสาร์-อาทิตย์)
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_400Regular',
-                }}
-              >
-                และวันที่ระบุเป็น "วันหยุดปกติ"
-              </Text>
-            </View>
-            <Switch
-              value={skipWeekends}
-              onValueChange={(val) => {
-                triggerHaptic('selection');
-                setSkipWeekends(val);
-              }}
-            />
-          </View>
-
-          {/* Rule 3: Approved Leaves */}
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingVertical: 2,
-            }}
-          >
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '600',
-                  color: colors.text,
-                  fontFamily: 'Sarabun_600SemiBold',
-                }}
-              >
-                งดปลุกในวันที่บันทึกการลา
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_400Regular',
-                }}
-              >
-                ลาพักร้อน, ลาป่วย, ลากิจ
-              </Text>
-            </View>
-            <Switch
-              value={skipApprovedLeaves}
-              onValueChange={(val) => {
-                triggerHaptic('selection');
-                setSkipApprovedLeaves(val);
-              }}
-            />
-          </View>
+            เวลาตื่นสำหรับการเดินทางไปทำงานตามปกติ
+          </Text>
+          <TimeInput
+            label="เวลาปลุกวันทำงานปกติ"
+            value={alarmTime}
+            onChange={setAlarmTime}
+            placeholder="06:30"
+          />
         </View>
 
-        {/* WFH Mode Section */}
+        {/* Section 2: WFH Alarm Time */}
         <View
           style={{
             backgroundColor: colors.card,
@@ -435,15 +311,24 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                 fontFamily: 'Sarabun_700Bold',
               }}
             >
-              โหมดวันทำงานที่บ้าน (WFH):
+              เวลาปลุกวันทำงานที่บ้าน (Work From Home - WFH)
             </Text>
           </View>
+          <Text
+            style={{
+              fontSize: 11,
+              color: colors.textSecondary,
+              fontFamily: 'Sarabun_400Regular',
+            }}
+          >
+            ไม่ต้องเดินทาง สามารถตั้งเวลาตื่นสบายๆ แยกอิสระ หรือเลือกงดปลุกได้
+          </Text>
 
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {[
-              { key: 'normal' as SmartAlarmWfhMode, label: 'ปลุกเวลาปกติ' },
-              { key: 'custom' as SmartAlarmWfhMode, label: 'ปลุกช้าลง' },
-              { key: 'skip' as SmartAlarmWfhMode, label: 'ไม่ต้องปลุก' },
+              { key: 'custom' as SmartAlarmWfhMode, label: 'ปลุกเวลา WFH' },
+              { key: 'normal' as SmartAlarmWfhMode, label: 'เวลาเดียวกับวันปกติ' },
+              { key: 'skip' as SmartAlarmWfhMode, label: 'งดปลุกวัน WFH' },
             ].map((opt) => {
               const isSel = wfhMode === opt.key;
               return (
@@ -469,7 +354,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                 >
                   <Text
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: isSel ? '700' : '500',
                       color: isSel ? '#10b981' : colors.text,
                       fontFamily: isSel ? 'Sarabun_700Bold' : 'Sarabun_500Medium',
@@ -483,15 +368,223 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           </View>
 
           {wfhMode === 'custom' && (
-            <View style={{ marginTop: 4 }}>
+            <View style={{ marginTop: 2 }}>
               <TimeInput
                 label="เวลาปลุกเฉพาะวัน WFH"
                 value={wfhAlarmTime}
                 onChange={setWfhAlarmTime}
                 placeholder="07:30"
               />
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: '#10b981',
+                  fontFamily: 'Sarabun_500Medium',
+                  marginTop: 4,
+                }}
+              >
+                มีผลในทุกวันที่ระบุเป็น WFH ในปฏิทิน (รวมถึงเสาร์-อาทิตย์)
+              </Text>
             </View>
           )}
+        </View>
+
+        {/* Section 3: Smart Skip Rules */}
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <Icon name={Sparkles} size={15} color="#f59e0b" />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: colors.text,
+                fontFamily: 'Sarabun_700Bold',
+              }}
+            >
+              กฎการงดปลุกอัตโนมัติ (Smart Skip Rules):
+            </Text>
+          </View>
+
+          {/* Rule 1: Calendar Regular Day Off */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 2,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name={Coffee} size={14} color="#64748b" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  งดปลุกวันหยุดปกติ (ตามปฏิทิน)
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  marginTop: 2,
+                }}
+              >
+                วันที่กดตั้งเป็น "หยุดปกติ" ในปฏิทิน (สำหรับวันหยุดตามรอบกะ/เวร)
+              </Text>
+            </View>
+            <Switch
+              value={skipRegularOff}
+              onValueChange={(val) => {
+                triggerHaptic('selection');
+                setSkipRegularOff(val);
+              }}
+            />
+          </View>
+
+          {/* Rule 2: Weekends */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 2,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name={Calendar} size={14} color="#2563eb" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  งดปลุกวันเสาร์ - อาทิตย์
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  marginTop: 2,
+                }}
+              >
+                สำหรับคนหยุดเสาร์-อาทิตย์ (หากเข้ากะ ส.-อา. ให้ปิดสวิตช์นี้เพื่ออิงตามปฏิทิน)
+              </Text>
+            </View>
+            <Switch
+              value={skipWeekends}
+              onValueChange={(val) => {
+                triggerHaptic('selection');
+                setSkipWeekends(val);
+              }}
+            />
+          </View>
+
+          {/* Rule 3: Public Holidays */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 2,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name={Sparkles} size={14} color="#f59e0b" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  งดปลุกวันหยุดนักขัตฤกษ์ & ชดเชย
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  marginTop: 2,
+                }}
+              >
+                อิงตามวันหยุดราชการและประเพณีในระบบ
+              </Text>
+            </View>
+            <Switch
+              value={skipPublicHolidays}
+              onValueChange={(val) => {
+                triggerHaptic('selection');
+                setSkipPublicHolidays(val);
+              }}
+            />
+          </View>
+
+          {/* Rule 4: Approved Leaves */}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingVertical: 2,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name={Palmtree} size={14} color="#db2777" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  งดปลุกในวันที่บันทึกการลา
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  marginTop: 2,
+                }}
+              >
+                ลาพักร้อน, ลาป่วย, ลากิจ
+              </Text>
+            </View>
+            <Switch
+              value={skipApprovedLeaves}
+              onValueChange={(val) => {
+                triggerHaptic('selection');
+                setSkipApprovedLeaves(val);
+              }}
+            />
+          </View>
         </View>
 
         {/* Pre-holiday Goodnight Reminder */}
@@ -579,37 +672,48 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           <View style={{ gap: 6 }}>
             {previewSchedule.map((item, idx) => {
               const isToday = idx === 0;
-              const isAlarm = item.status === 'alarm' || item.status === 'wfh_alarm';
 
               let badgeBg = isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff';
               let badgeColor = '#2563eb';
-              let statusText = `⏰ ปลุก ${item.alarmTime} น.`;
+              let statusIcon = Clock;
+              let statusText = `ปลุก ${item.alarmTime} น.`;
 
               if (item.status === 'wfh_alarm') {
                 badgeBg = isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5';
                 badgeColor = '#10b981';
-                statusText = `🏠 ปลุก ${item.alarmTime} น. (WFH)`;
+                statusIcon = Home;
+                statusText = `ปลุก ${item.alarmTime} น. (WFH)`;
+              } else if (item.status === 'skip_regular_off') {
+                badgeBg = isDark ? 'rgba(100, 116, 139, 0.15)' : '#f1f5f9';
+                badgeColor = '#64748b';
+                statusIcon = Coffee;
+                statusText = `งดปลุก (${item.reason || 'วันหยุดปกติ'})`;
               } else if (item.status === 'skip_holiday') {
                 badgeBg = isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7';
                 badgeColor = '#d97706';
-                statusText = `🏖️ งดปลุก (${item.reason})`;
+                statusIcon = Sparkles;
+                statusText = `งดปลุก (${item.reason})`;
               } else if (item.status === 'skip_leave') {
                 badgeBg = isDark ? 'rgba(236, 72, 153, 0.15)' : '#fdf2f8';
                 badgeColor = '#db2777';
-                statusText = `🌴 งดปลุก (${item.reason})`;
+                statusIcon = Palmtree;
+                statusText = `งดปลุก (${item.reason})`;
               } else if (item.status === 'skip_weekend') {
                 badgeBg = isDark ? 'rgba(100, 116, 139, 0.15)' : '#f1f5f9';
                 badgeColor = '#64748b';
-                statusText = `💤 งดปลุก (วันหยุดสัปดาห์)`;
+                statusIcon = Moon;
+                statusText = `งดปลุก (วันหยุดสัปดาห์)`;
               } else if (item.status === 'skip_wfh') {
                 badgeBg = isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5';
                 badgeColor = '#10b981';
-                statusText = `🏠 งดปลุก (วัน WFH)`;
+                statusIcon = Home;
+                statusText = `งดปลุก (วัน WFH)`;
               }
 
               if (!enabled) {
                 badgeBg = isDark ? 'rgba(100, 116, 139, 0.1)' : '#f8fafc';
                 badgeColor = colors.textSecondary;
+                statusIcon = BellOff;
                 statusText = 'ปิดระบบนาฬิกาปลุก';
               }
 
@@ -644,12 +748,16 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
 
                   <View
                     style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
                       paddingHorizontal: 8,
                       paddingVertical: 3,
                       borderRadius: 999,
                       backgroundColor: badgeBg,
                     }}
                   >
+                    <Icon name={statusIcon} size={11} color={badgeColor} />
                     <Text
                       style={{
                         fontSize: 11,

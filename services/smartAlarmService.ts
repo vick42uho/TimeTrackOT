@@ -31,9 +31,10 @@ export const DEFAULT_SMART_ALARM_CONFIG: SmartAlarmConfig = {
   enabled: false,
   alarmTime: '06:30',
   skipPublicHolidays: true,
+  skipRegularOff: true,
   skipWeekends: true,
   skipApprovedLeaves: true,
-  wfhMode: 'normal',
+  wfhMode: 'custom',
   wfhAlarmTime: '07:30',
   preHolidayReminder: true,
   snoozeMinutes: 10,
@@ -106,7 +107,13 @@ export async function getSmartAlarmConfig(): Promise<SmartAlarmConfig> {
   try {
     const raw = await AsyncStorage.getItem(SMART_ALARM_CONFIG_KEY);
     if (!raw) return DEFAULT_SMART_ALARM_CONFIG;
-    return { ...DEFAULT_SMART_ALARM_CONFIG, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_SMART_ALARM_CONFIG,
+      ...parsed,
+      skipRegularOff: parsed.skipRegularOff !== undefined ? parsed.skipRegularOff : true,
+      wfhAlarmTime: parsed.wfhAlarmTime || '07:30',
+    };
   } catch (error) {
     console.error('Error loading smart alarm config:', error);
     return DEFAULT_SMART_ALARM_CONFIG;
@@ -174,39 +181,7 @@ export function calculateSmartAlarmSchedule(
     const isRegularOff = holiday?.type === 'regular_off';
     const isPublicHoliday = !!holiday && !isWfh && !isRegularOff;
 
-    if (isWeekend && config.skipWeekends) {
-      schedule.push({
-        date: dateStr,
-        dayOfWeek,
-        dayName,
-        status: 'skip_weekend',
-        reason: 'วันหยุดประจำสัปดาห์',
-      });
-      continue;
-    }
-
-    if (isRegularOff) {
-      schedule.push({
-        date: dateStr,
-        dayOfWeek,
-        dayName,
-        status: 'skip_weekend',
-        reason: holiday?.name || 'วันหยุดปกติ',
-      });
-      continue;
-    }
-
-    if (isPublicHoliday && config.skipPublicHolidays) {
-      schedule.push({
-        date: dateStr,
-        dayOfWeek,
-        dayName,
-        status: 'skip_holiday',
-        reason: holiday.name || 'วันหยุดนักขัตฤกษ์',
-      });
-      continue;
-    }
-
+    // 1. Leave Request (Top priority: user took approved leave)
     if (leave && config.skipApprovedLeaves) {
       schedule.push({
         date: dateStr,
@@ -218,6 +193,8 @@ export function calculateSmartAlarmSchedule(
       continue;
     }
 
+    // 2. Calendar Tag: Work From Home (WFH)
+    // CRITICAL: WFH is a WORK DAY, taking top precedence over weekend/weekday!
     if (isWfh) {
       if (config.wfhMode === 'skip') {
         schedule.push({
@@ -241,11 +218,50 @@ export function calculateSmartAlarmSchedule(
           date: dateStr,
           dayOfWeek,
           dayName,
-          status: 'alarm',
+          status: 'wfh_alarm',
           alarmTime: config.alarmTime,
           reason: 'Work From Home',
         });
       }
+      continue;
+    }
+
+    // 3. Calendar Tag: Regular Day Off ('regular_off' / วันหยุดปกติ)
+    // User explicitly assigned this day as their day off on the calendar (shift/schedule off)
+    if (isRegularOff) {
+      if (config.skipRegularOff !== false) {
+        schedule.push({
+          date: dateStr,
+          dayOfWeek,
+          dayName,
+          status: 'skip_regular_off',
+          reason: holiday?.name || 'วันหยุดปกติ (ตามปฏิทิน)',
+        });
+        continue;
+      }
+    }
+
+    // 4. Calendar Tag: Public / Special / Company Holiday
+    if (isPublicHoliday && config.skipPublicHolidays) {
+      schedule.push({
+        date: dateStr,
+        dayOfWeek,
+        dayName,
+        status: 'skip_holiday',
+        reason: holiday.name || 'วันหยุดนักขัตฤกษ์',
+      });
+      continue;
+    }
+
+    // 5. Weekend (Sat / Sun): ONLY applies if no explicit calendar tag exists!
+    if (isWeekend && config.skipWeekends) {
+      schedule.push({
+        date: dateStr,
+        dayOfWeek,
+        dayName,
+        status: 'skip_weekend',
+        reason: 'วันหยุดเสาร์-อาทิตย์',
+      });
       continue;
     }
 
@@ -335,10 +351,16 @@ export async function syncSmartAlarmSchedule(
 
       if (!isNaN(alarmDate.getTime()) && alarmDate.getTime() > now) {
         try {
+          const isWfhAlarm = item.status === 'wfh_alarm';
+          const notifTitle = `ถึงเวลาตื่นแล้ว! (${item.reason})`;
+          const notifBody = isWfhAlarm
+            ? `วันนี้ทำงานที่บ้าน WFH (${targetTime} น.) เริ่มต้นวันใหม่อย่างสดชื่นครับ`
+            : `วันนี้เป็นวันทำงาน (${targetTime} น.) ลุกขึ้นมาเริ่มต้นวันใหม่อย่างสดชื่นครับ`;
+
           const notifId = await scheduleNotificationAsync({
             content: {
-              title: `⏰ ถึงเวลาตื่นแล้ว! (${item.reason})`,
-              body: `วันนี้เป็นวันทำงาน (${targetTime} น.) ลุกขึ้นมาเริ่มต้นวันใหม่อย่างสดชื่นครับ!`,
+              title: notifTitle,
+              body: notifBody,
               sound: 'default',
               priority: AndroidNotificationPriority.MAX,
               color: '#2563EB',
@@ -369,7 +391,7 @@ export async function syncSmartAlarmSchedule(
     // --- B. Schedule Pre-holiday Goodnight Alert (Night before at 20:00) ---
     if (
       config.preHolidayReminder &&
-      (item.status === 'skip_holiday' || item.status === 'skip_leave')
+      (item.status === 'skip_holiday' || item.status === 'skip_leave' || item.status === 'skip_regular_off')
     ) {
       // Calculate night before at 20:00
       const holidayDate = new Date(`${item.date}T00:00:00`);
@@ -379,11 +401,13 @@ export async function syncSmartAlarmSchedule(
 
       if (nightBefore.getTime() > now) {
         try {
-          const isHoliday = item.status === 'skip_holiday';
-          const goodnightTitle = isHoliday
-            ? `🌙 พรุ่งนี้วันหยุด: ${item.reason}`
-            : `🌙 พรุ่งนี้วันลา: ${item.reason}`;
-          const goodnightBody = `ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ!`;
+          let goodnightTitle = `แจ้งเตือน: พรุ่งนี้วันหยุด (${item.reason})`;
+          if (item.status === 'skip_leave') {
+            goodnightTitle = `แจ้งเตือน: พรุ่งนี้วันลา (${item.reason})`;
+          } else if (item.status === 'skip_regular_off') {
+            goodnightTitle = `แจ้งเตือน: พรุ่งนี้วันหยุดปกติ (${item.reason})`;
+          }
+          const goodnightBody = `ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ`;
 
           const gId = await scheduleNotificationAsync({
             content: {
@@ -459,6 +483,9 @@ export function getSmartAlarmSummary(schedule: SmartAlarmScheduleItem[]) {
     case 'wfh_alarm':
       tomorrowText = `พรุ่งนี้ WFH (ปลุก ${tomorrow.alarmTime} น.)`;
       isTomorrowWorkday = true;
+      break;
+    case 'skip_regular_off':
+      tomorrowText = `พรุ่งนี้วันหยุดปกติ (งดปลุก)`;
       break;
     case 'skip_holiday':
       tomorrowText = `พรุ่งนี้วันหยุด: ${tomorrow.reason} (งดปลุก)`;
