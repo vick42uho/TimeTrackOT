@@ -30,7 +30,7 @@
         "backgroundColor": "#00000000"
       },
       "package": "com.anonymous.timetrackot",
-      "versionCode": 9,
+      "versionCode": 10,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
