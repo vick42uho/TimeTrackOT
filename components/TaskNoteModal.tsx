@@ -25,6 +25,8 @@ import {
   Save,
   Check,
   ExternalLink,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react-native';
 import { extractUrls, handleOpenURL } from '@/utils/urlHelper';
 
@@ -91,9 +93,11 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
   const [color, setColor] = useState<TaskNoteColor>('default');
   const [isPinned, setIsPinned] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExpandedEditor, setIsExpandedEditor] = useState(false);
 
   useEffect(() => {
     if (isVisible) {
+      setIsExpandedEditor(false);
       if (initialData) {
         setTitle(initialData.title || '');
         setContent(initialData.content || '');
@@ -150,12 +154,24 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
     try {
       setIsSaving(true);
       triggerHaptic('success');
-      const allDone = type === 'checklist' && items.length > 0 && items.every((i) => i.isDone);
+
+      const hasItems = items.length > 0;
+      const allDone = hasItems && items.every((i) => i.isDone);
+      const trimmedContent = content.trim();
+
+      // Determine the primary type:
+      let resolvedType = type;
+      if (hasItems && !trimmedContent) {
+        resolvedType = 'checklist';
+      } else if (!hasItems && trimmedContent) {
+        resolvedType = 'note';
+      }
+
       await onSave({
         title: title.trim(),
-        content: type === 'note' ? content.trim() : undefined,
-        type,
-        items: type === 'checklist' ? items : [],
+        content: trimmedContent ? trimmedContent : undefined,
+        type: resolvedType,
+        items: items,
         isCompleted: allDone,
         color,
         isPinned,
@@ -216,73 +232,86 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
     >
       <View style={{ gap: 16, paddingBottom: 24 }}>
         {/* Type Selector (Checklist vs Note) */}
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: isDark ? 'rgba(51, 65, 85, 0.4)' : '#f1f5f9',
-            borderRadius: 999,
-            padding: 4,
-          }}
-        >
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              triggerHaptic('selection');
-              setType('checklist');
-            }}
+        <View style={{ gap: 6 }}>
+          <View
             style={{
-              flex: 1,
               flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              paddingVertical: 9,
+              backgroundColor: isDark ? 'rgba(51, 65, 85, 0.4)' : '#f1f5f9',
               borderRadius: 999,
-              backgroundColor: type === 'checklist' ? colors.primary : 'transparent',
+              padding: 4,
             }}
           >
-            <Icon name={CheckSquare} size={16} color={type === 'checklist' ? '#ffffff' : colors.textSecondary} />
-            <Text
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                triggerHaptic('selection');
+                setType('checklist');
+              }}
               style={{
-                fontSize: 13,
-                fontWeight: '700',
-                color: type === 'checklist' ? '#ffffff' : colors.textSecondary,
-                fontFamily: 'Sarabun_700Bold',
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 9,
+                borderRadius: 999,
+                backgroundColor: type === 'checklist' ? colors.primary : 'transparent',
               }}
             >
-              สิ่งที่ต้องทำ (To-Do)
-            </Text>
-          </TouchableOpacity>
+              <Icon name={CheckSquare} size={16} color={type === 'checklist' ? '#ffffff' : colors.textSecondary} />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: type === 'checklist' ? '#ffffff' : colors.textSecondary,
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                สิ่งที่ต้องทำ (To-Do){items.length > 0 ? ` (${items.length})` : ''}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => {
-              triggerHaptic('selection');
-              setType('note');
-            }}
-            style={{
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              paddingVertical: 9,
-              borderRadius: 999,
-              backgroundColor: type === 'note' ? colors.primary : 'transparent',
-            }}
-          >
-            <Icon name={FileText} size={16} color={type === 'note' ? '#ffffff' : colors.textSecondary} />
-            <Text
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                triggerHaptic('selection');
+                setType('note');
+              }}
               style={{
-                fontSize: 13,
-                fontWeight: '700',
-                color: type === 'note' ? '#ffffff' : colors.textSecondary,
-                fontFamily: 'Sarabun_700Bold',
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: 9,
+                borderRadius: 999,
+                backgroundColor: type === 'note' ? colors.primary : 'transparent',
               }}
             >
-              บันทึกข้อความ (Note)
-            </Text>
-          </TouchableOpacity>
+              <Icon name={FileText} size={16} color={type === 'note' ? '#ffffff' : colors.textSecondary} />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: type === 'note' ? '#ffffff' : colors.textSecondary,
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                บันทึกข้อความ (Note){content.trim().length > 0 ? ' •' : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text
+            style={{
+              fontSize: 11,
+              color: colors.textSecondary,
+              fontFamily: 'Sarabun_400Regular',
+              textAlign: 'center',
+            }}
+          >
+            ใส่ได้ทั้งรายการสิ่งที่ต้องทำและข้อความบันทึกร่วมกันได้ ระบบจะบันทึกข้อมูลทั้ง 2 ส่วน
+          </Text>
         </View>
 
         {/* Title Input */}
@@ -418,34 +447,87 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
           </View>
         ) : (
           <View>
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: colors.textSecondary,
-                fontFamily: 'Sarabun_700Bold',
-                marginBottom: 6,
-              }}
-            >
-              เนื้อหาบันทึก:
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: colors.textSecondary,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  เนื้อหาบันทึก:
+                </Text>
+                {content.length > 0 && (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: colors.textSecondary,
+                      fontFamily: 'Sarabun_500Medium',
+                    }}
+                  >
+                    ({content.length} ตัวอักษร)
+                  </Text>
+                )}
+              </View>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setIsExpandedEditor((prev) => !prev);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 8,
+                  backgroundColor: isExpandedEditor
+                    ? isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff'
+                    : isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9',
+                }}
+              >
+                <Icon
+                  name={isExpandedEditor ? Minimize2 : Maximize2}
+                  size={12}
+                  color={isExpandedEditor ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: isExpandedEditor ? colors.primary : colors.textSecondary,
+                    fontFamily: 'Sarabun_600SemiBold',
+                  }}
+                >
+                  {isExpandedEditor ? 'ย่อขนาด' : 'ขยายเต็มจอ'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <TextInput
               value={content}
               onChangeText={setContent}
               placeholder="เขียนบันทึกรายละเอียด..."
               placeholderTextColor={colors.textSecondary}
               multiline
-              numberOfLines={5}
               textAlignVertical="top"
+              scrollEnabled={isExpandedEditor}
               style={{
                 backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#f8fafc',
                 color: colors.text,
                 fontSize: 14,
+                lineHeight: 22,
                 paddingHorizontal: 16,
-                paddingVertical: 12,
+                paddingVertical: 14,
                 borderRadius: 18,
-                minHeight: 110,
+                minHeight: isExpandedEditor ? 320 : 180,
+                maxHeight: isExpandedEditor ? 460 : undefined,
                 fontFamily: 'Sarabun_400Regular',
+                borderWidth: 1,
+                borderColor: colors.border,
               }}
             />
 

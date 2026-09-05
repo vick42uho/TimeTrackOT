@@ -150,7 +150,12 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
               flex: 1,
             }}
           >
-            {item.type === 'checklist' ? (
+            {item.items && item.items.length > 0 && item.content ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <Icon name={FileText} size={isGrid ? 12 : 14} color={colors.primary} />
+                <Icon name={CheckSquare} size={isGrid ? 12 : 14} color={colors.primary} />
+              </View>
+            ) : item.items && item.items.length > 0 ? (
               <Icon name={CheckSquare} size={isGrid ? 14 : 16} color={colors.primary} />
             ) : (
               <Icon name={FileText} size={isGrid ? 14 : 16} color={colors.primary} />
@@ -227,8 +232,72 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
           </View>
         </View>
 
-        {/* Body Content */}
-        {item.type === 'checklist' ? (
+        {/* Body Content: Note content (if any) */}
+        {item.content ? (
+          <View style={{ marginBottom: item.items && item.items.length > 0 ? 4 : 0 }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                triggerHaptic('selection');
+                onEdit(item);
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: isGrid ? 12 : 13,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  lineHeight: isGrid ? 18 : 20,
+                }}
+                numberOfLines={isGrid ? (item.items && item.items.length > 0 ? 2 : 5) : (item.items && item.items.length > 0 ? 3 : 4)}
+              >
+                {item.content}
+              </Text>
+            </TouchableOpacity>
+            {urls.map((url, idx) => (
+              <TouchableOpacity
+                key={idx}
+                activeOpacity={0.7}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic('selection');
+                  handleOpenURL(url);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  alignSelf: 'flex-start',
+                  marginTop: 6,
+                  paddingHorizontal: isGrid ? 8 : 10,
+                  paddingVertical: isGrid ? 3 : 5,
+                  borderRadius: 10,
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff',
+                  borderWidth: 1,
+                  borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#bfdbfe',
+                }}
+              >
+                <Icon name={ExternalLink} size={isGrid ? 10 : 12} color={colors.primary} />
+                <Text
+                  style={{
+                    fontSize: isGrid ? 10 : 11,
+                    fontWeight: '600',
+                    color: colors.primary,
+                    fontFamily: 'Sarabun_600SemiBold',
+                    textDecorationLine: 'underline',
+                    maxWidth: isGrid ? 110 : 240,
+                  }}
+                  numberOfLines={1}
+                >
+                  {url}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Body Content: Checklist items (if any) */}
+        {item.items && item.items.length > 0 ? (
           <View style={{ gap: isGrid ? 4 : 6, marginTop: 2 }}>
             {(isGrid ? item.items.slice(0, 4) : item.items).map((subItem) => {
               const subUrls = extractUrls(subItem.text);
@@ -316,67 +385,6 @@ export const TaskNoteManagerSheet: React.FC<TaskNoteManagerSheetProps> = ({
                 </Text>
               </TouchableOpacity>
             )}
-          </View>
-        ) : item.content ? (
-          <View>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                triggerHaptic('selection');
-                onEdit(item);
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: isGrid ? 12 : 13,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_400Regular',
-                  lineHeight: isGrid ? 18 : 20,
-                }}
-                numberOfLines={isGrid ? 5 : 4}
-              >
-                {item.content}
-              </Text>
-            </TouchableOpacity>
-            {urls.map((url, idx) => (
-              <TouchableOpacity
-                key={idx}
-                activeOpacity={0.7}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  triggerHaptic('selection');
-                  handleOpenURL(url);
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  alignSelf: 'flex-start',
-                  marginTop: 6,
-                  paddingHorizontal: isGrid ? 8 : 10,
-                  paddingVertical: isGrid ? 3 : 5,
-                  borderRadius: 10,
-                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff',
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#bfdbfe',
-                }}
-              >
-                <Icon name={ExternalLink} size={isGrid ? 10 : 12} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: isGrid ? 10 : 11,
-                    fontWeight: '600',
-                    color: colors.primary,
-                    fontFamily: 'Sarabun_600SemiBold',
-                    textDecorationLine: 'underline',
-                    maxWidth: isGrid ? 110 : 240,
-                  }}
-                  numberOfLines={1}
-                >
-                  เปิดลิงก์: {url}
-                </Text>
-              </TouchableOpacity>
-            ))}
           </View>
         ) : null}
 
