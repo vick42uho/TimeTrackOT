@@ -374,15 +374,19 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
    - Bypasses Do Not Disturb on Android devices and sounds through the device's alarm stream.
 2. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
    - Evaluates a rolling 21-day window starting from today:
-     $$\text{วันทำงานจริง} = \neg\text{PublicHoliday} \land \neg\text{Weekend/RegularOff} \land \neg\text{ApprovedLeave}$$
-   - **Workday**: Schedules high-priority alarm notification at configured time (e.g. `06:30 น.`).
-   - **Public Holidays & Regular Off**: Automatically skips alarms.
+     - **Calendar-First Truth**: The calendar is the single source of truth (`skipWeekends: false` by default). Saturdays and Sundays ring normally unless marked as holidays/leaves or explicitly configured to skip weekends.
+     - **3 Configurable Wake-Up Profiles**:
+       1. `alarmTime` (e.g. `05:10 น.`): Weekday on-site work (Mon-Fri) with normal morning traffic.
+       2. `weekendWorkAlarmTime` (e.g. `07:00 น.`): Weekend on-site work (Sat-Sun) when roads are clear/light traffic (`useWeekendWorkAlarm: true`).
+       3. `wfhAlarmTime` (e.g. `07:30 น.`): Remote work from home without commuting (`wfhMode: 'custom'`).
+   - **Public Holidays & Regular Off**: Automatically skips alarms based on calendar entries.
    - **Approved Leaves**: Automatically skips alarms when user logs vacation, sick, or personal leave.
    - **Work From Home (WFH)**: Supports 3 configurable modes: standard alarm time, custom delayed alarm time (e.g. `07:30 น.`), or skip alarm entirely.
 3. **Goodnight Alert (Pre-Holiday 20:00 Notification)**:
    - On the evening before any public holiday or approved leave, sends a friendly 20:00 reminder: *"🌙 พรุ่งนี้เป็นวันหยุด: [ชื่อ] ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ!"*
 4. **UI Components & Live 7-Day Preview (`components/SmartAlarmModal.tsx`)**:
-   - Pinned footer BottomSheet providing live 7-day schedule preview that dynamically re-computes whenever user adjusts alarm time, toggles skip rules, or modifies WFH settings.
+   - Pinned footer BottomSheet providing live 7-day schedule preview that dynamically re-computes whenever user adjusts alarm times, toggles weekend work alarm, skip rules, or modifies WFH settings.
+   - Distinct badges in preview: Blue (Normal Workday), Indigo (Weekend Workday - Light Traffic), Emerald (WFH), Amber/Pink/Slate (Skipped days).
    - Status card embedded at the top of the Calendar tab in `app/leaves.tsx` with quick on/off switch and real-time tomorrow status indicator.
 5. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
    - Solves the jarring page jump when tapping activities on the Home Dashboard Bento card.

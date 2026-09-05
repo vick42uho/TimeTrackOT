@@ -185,7 +185,9 @@ export type SmartAlarmWfhMode = 'normal' | 'custom' | 'skip';
 
 export interface SmartAlarmConfig {
   enabled: boolean;
-  alarmTime: string; // HH:mm format, e.g. "06:30"
+  alarmTime: string; // HH:mm format, e.g. "05:10" (เวลาปลุกวันทำงานปกติ จันทร์-ศุกร์)
+  useWeekendWorkAlarm?: boolean; // default: true (เปิดใช้เวลาปลุกแยกสำหรับวันทำงานเสาร์-อาทิตย์ รถไม่ติด)
+  weekendWorkAlarmTime?: string; // HH:mm format, e.g. "06:30" (เวลาปลุกวันเสาร์-อาทิตย์ รถไม่ติด ตื่นสายขึ้นได้)
   skipPublicHolidays: boolean; // default: true
   skipRegularOff?: boolean; // default: true (งดปลุกวันหยุดปกติตามปฏิทิน เช่น วันหยุดตามรอบกะ)
   skipWeekends: boolean; // default: false (Calendar is single source of truth; Sat/Sun ring normally unless marked in calendar)
@@ -201,6 +203,7 @@ export interface SmartAlarmConfig {
 
 export type SmartAlarmStatus =
   | 'alarm'
+  | 'weekend_alarm'
   | 'skip_holiday'
   | 'skip_leave'
   | 'skip_weekend'

@@ -43,6 +43,7 @@ import {
   Coffee,
   Briefcase,
   BellOff,
+  Car,
 } from 'lucide-react-native';
 
 interface SmartAlarmModalProps {
@@ -70,6 +71,8 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   // Form states
   const [enabled, setEnabled] = useState(false);
   const [alarmTime, setAlarmTime] = useState('06:30');
+  const [useWeekendWorkAlarm, setUseWeekendWorkAlarm] = useState(true);
+  const [weekendWorkAlarmTime, setWeekendWorkAlarmTime] = useState('07:00');
   const [skipRegularOff, setSkipRegularOff] = useState(true);
   const [skipWeekends, setSkipWeekends] = useState(false);
   const [skipPublicHolidays, setSkipPublicHolidays] = useState(true);
@@ -91,6 +94,8 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
       const cfg = await getSmartAlarmConfig();
       setEnabled(cfg.enabled);
       setAlarmTime(cfg.alarmTime || '06:30');
+      setUseWeekendWorkAlarm(cfg.useWeekendWorkAlarm !== undefined ? cfg.useWeekendWorkAlarm : true);
+      setWeekendWorkAlarmTime(cfg.weekendWorkAlarmTime || '07:00');
       setSkipRegularOff(cfg.skipRegularOff !== undefined ? cfg.skipRegularOff : true);
       setSkipWeekends(cfg.skipWeekends ?? false);
       setSkipPublicHolidays(cfg.skipPublicHolidays);
@@ -110,6 +115,8 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
     return {
       enabled,
       alarmTime,
+      useWeekendWorkAlarm,
+      weekendWorkAlarmTime,
       skipRegularOff,
       skipWeekends,
       skipPublicHolidays,
@@ -124,6 +131,8 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   }, [
     enabled,
     alarmTime,
+    useWeekendWorkAlarm,
+    weekendWorkAlarmTime,
     skipRegularOff,
     skipWeekends,
     skipPublicHolidays,
@@ -288,6 +297,84 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
             onChange={setAlarmTime}
             placeholder="06:30"
           />
+        </View>
+
+        {/* Section 1.5: Weekend Workday Alarm Time (Car / Light Traffic) */}
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name={Car} size={15} color="#6366f1" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  วันทำงาน เสาร์ - อาทิตย์ (รถไม่ติด)
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                  marginTop: 2,
+                }}
+              >
+                ตื่นสายกว่าวันธรรมดาได้ เพราะการจราจรคล่องตัว รถไม่ติด
+              </Text>
+            </View>
+            <Switch
+              value={useWeekendWorkAlarm}
+              onValueChange={(val) => {
+                triggerHaptic('selection');
+                setUseWeekendWorkAlarm(val);
+              }}
+            />
+          </View>
+
+          {useWeekendWorkAlarm ? (
+            <View style={{ marginTop: 2 }}>
+              <TimeInput
+                label="เวลาปลุกวันทำงาน เสาร์-อาทิตย์"
+                value={weekendWorkAlarmTime}
+                onChange={setWeekendWorkAlarmTime}
+                placeholder="07:00"
+              />
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: '#6366f1',
+                  fontFamily: 'Sarabun_500Medium',
+                  marginTop: 4,
+                }}
+              >
+                มีผลเฉพาะวันเสาร์หรืออาทิตย์ที่ต้องเดินทางไปทำงาน (ไม่ใช่ WFH)
+              </Text>
+            </View>
+          ) : (
+            <Text
+              style={{
+                fontSize: 11,
+                color: colors.textSecondary,
+                fontFamily: 'Sarabun_400Regular',
+              }}
+            >
+              (ใช้เวลาเดียวกับวันทำงานปกติ: {alarmTime} น.)
+            </Text>
+          )}
         </View>
 
         {/* Section 2: WFH Alarm Time */}
@@ -678,7 +765,12 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
               let statusIcon = Clock;
               let statusText = `ปลุก ${item.alarmTime} น.`;
 
-              if (item.status === 'wfh_alarm') {
+              if (item.status === 'weekend_alarm') {
+                badgeBg = isDark ? 'rgba(99, 102, 241, 0.15)' : '#eef2ff';
+                badgeColor = '#6366f1';
+                statusIcon = Car;
+                statusText = `ปลุก ${item.alarmTime} น. (ส.-อา. รถไม่ติด)`;
+              } else if (item.status === 'wfh_alarm') {
                 badgeBg = isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5';
                 badgeColor = '#10b981';
                 statusIcon = Home;

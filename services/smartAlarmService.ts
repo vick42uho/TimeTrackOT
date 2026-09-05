@@ -30,6 +30,8 @@ export const SMART_ALARM_PRE_REMINDER_CHANNEL_ID = 'smart-alarm-goodnight';
 export const DEFAULT_SMART_ALARM_CONFIG: SmartAlarmConfig = {
   enabled: false,
   alarmTime: '06:30',
+  useWeekendWorkAlarm: true,
+  weekendWorkAlarmTime: '07:00',
   skipPublicHolidays: true,
   skipRegularOff: true,
   skipWeekends: false, // Default to false: calendar defines all workdays & off-days
@@ -116,6 +118,8 @@ export async function getSmartAlarmConfig(): Promise<SmartAlarmConfig> {
       // Migrate legacy skipWeekends default (true) to false so calendar strictly controls off-days
       skipWeekends: isMigratedV2 ? !!parsed.skipWeekends : false,
       configVersion: 2,
+      useWeekendWorkAlarm: parsed.useWeekendWorkAlarm !== undefined ? parsed.useWeekendWorkAlarm : true,
+      weekendWorkAlarmTime: parsed.weekendWorkAlarmTime || '07:00',
       skipRegularOff: parsed.skipRegularOff !== undefined ? parsed.skipRegularOff : true,
       wfhAlarmTime: parsed.wfhAlarmTime || '07:30',
     };
@@ -270,15 +274,27 @@ export function calculateSmartAlarmSchedule(
       continue;
     }
 
-    // Standard workday
-    schedule.push({
-      date: dateStr,
-      dayOfWeek,
-      dayName,
-      status: 'alarm',
-      alarmTime: config.alarmTime,
-      reason: 'วันทำงานปกติ',
-    });
+    // 6. Workday Alarm:
+    // If it falls on Saturday or Sunday and user enabled weekendWorkAlarmTime (traffic is light, can wake up later)
+    if (isWeekend && config.useWeekendWorkAlarm) {
+      schedule.push({
+        date: dateStr,
+        dayOfWeek,
+        dayName,
+        status: 'weekend_alarm',
+        alarmTime: config.weekendWorkAlarmTime || config.alarmTime,
+        reason: 'วันทำงาน เสาร์-อาทิตย์ (รถไม่ติด)',
+      });
+    } else {
+      schedule.push({
+        date: dateStr,
+        dayOfWeek,
+        dayName,
+        status: 'alarm',
+        alarmTime: config.alarmTime,
+        reason: 'วันทำงานปกติ',
+      });
+    }
   }
 
   return schedule;
@@ -349,18 +365,22 @@ export async function syncSmartAlarmSchedule(
   for (let idx = 0; idx < fullSchedule.length; idx++) {
     const item = fullSchedule[idx];
 
-    // --- A. Schedule Alarm (if workday or WFH alarm) ---
-    if (item.status === 'alarm' || item.status === 'wfh_alarm') {
+    // --- A. Schedule Alarm (if workday, weekend workday, or WFH alarm) ---
+    if (item.status === 'alarm' || item.status === 'wfh_alarm' || item.status === 'weekend_alarm') {
       const targetTime = item.alarmTime || config.alarmTime;
       const alarmDate = new Date(`${item.date}T${targetTime}:00`);
 
       if (!isNaN(alarmDate.getTime()) && alarmDate.getTime() > now) {
         try {
           const isWfhAlarm = item.status === 'wfh_alarm';
+          const isWeekendAlarm = item.status === 'weekend_alarm';
           const notifTitle = `ถึงเวลาตื่นแล้ว! (${item.reason})`;
-          const notifBody = isWfhAlarm
-            ? `วันนี้ทำงานที่บ้าน WFH (${targetTime} น.) เริ่มต้นวันใหม่อย่างสดชื่นครับ`
-            : `วันนี้เป็นวันทำงาน (${targetTime} น.) ลุกขึ้นมาเริ่มต้นวันใหม่อย่างสดชื่นครับ`;
+          let notifBody = `วันนี้เป็นวันทำงาน (${targetTime} น.) ลุกขึ้นมาเริ่มต้นวันใหม่อย่างสดชื่นครับ`;
+          if (isWfhAlarm) {
+            notifBody = `วันนี้ทำงานที่บ้าน WFH (${targetTime} น.) เริ่มต้นวันใหม่อย่างสดชื่นครับ`;
+          } else if (isWeekendAlarm) {
+            notifBody = `วันนี้ทำงานเสาร์-อาทิตย์ (${targetTime} น.) รถไม่ติด เดินทางสบายๆ เริ่มต้นวันอย่างสดชื่นครับ`;
+          }
 
           const notifId = await scheduleNotificationAsync({
             content: {
@@ -485,6 +505,10 @@ export function getSmartAlarmSummary(schedule: SmartAlarmScheduleItem[]) {
       tomorrowText = `พรุ่งนี้วันทำงาน (ปลุก ${tomorrow.alarmTime} น.)`;
       isTomorrowWorkday = true;
       break;
+    case 'weekend_alarm':
+      tomorrowText = `พรุ่งนี้ทำงาน เสาร์-อาทิตย์ (ปลุก ${tomorrow.alarmTime} น.)`;
+      isTomorrowWorkday = true;
+      break;
     case 'wfh_alarm':
       tomorrowText = `พรุ่งนี้ WFH (ปลุก ${tomorrow.alarmTime} น.)`;
       isTomorrowWorkday = true;
@@ -510,7 +534,7 @@ export function getSmartAlarmSummary(schedule: SmartAlarmScheduleItem[]) {
 
   // Find next ringing alarm
   const nextRinging = schedule.find(
-    (s) => s.status === 'alarm' || s.status === 'wfh_alarm'
+    (s) => s.status === 'alarm' || s.status === 'wfh_alarm' || s.status === 'weekend_alarm'
   );
   const nextAlarmText = nextRinging
     ? `วัน${nextRinging.dayName} ${nextRinging.alarmTime} น.`
