@@ -1,32 +1,33 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Platform,
+  Modal,
+  ScrollView,
+  KeyboardAvoidingView,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { showConfirmAlert, showErrorAlert, showNativeAlert } from '@/components/ui/alert';
-import { BottomSheet } from '@/components/ui/bottom-sheet';
-import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { Icon } from '@/components/ui/icon';
 import { useThemeContext } from '@/components/ThemeProvider';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { TaskNote, TaskNoteColor, TaskNoteItem, TaskNoteType } from '@/types';
 import {
+  ArrowLeft,
+  Check,
   CheckSquare,
   FileText,
   Pin,
   Plus,
   Trash2,
-  X,
   Save,
-  Check,
   ExternalLink,
-  Maximize2,
-  Minimize2,
+  ListTodo,
 } from 'lucide-react-native';
 import { extractUrls, handleOpenURL } from '@/utils/urlHelper';
 
@@ -39,7 +40,7 @@ interface TaskNoteModalProps {
   defaultDate?: string;
 }
 
-const COLOR_OPTIONS: { key: TaskNoteColor; label: string; lightBg: string; darkBg: string }[] = [
+export const COLOR_OPTIONS: { key: TaskNoteColor; label: string; lightBg: string; darkBg: string }[] = [
   { key: 'default', label: 'มาตรฐาน', lightBg: '#ffffff', darkBg: '#1e293b' },
   { key: 'blue', label: 'ฟ้าอ่อน', lightBg: '#dbeafe', darkBg: '#1e3a8a' },
   { key: 'green', label: 'เขียวมิ้นต์', lightBg: '#dcfce7', darkBg: '#14532d' },
@@ -82,6 +83,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
   onDelete,
   defaultDate,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, themeMode } = useThemeContext();
   const isDark = themeMode === 'dark';
 
@@ -93,11 +95,11 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
   const [color, setColor] = useState<TaskNoteColor>('default');
   const [isPinned, setIsPinned] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isExpandedEditor, setIsExpandedEditor] = useState(false);
+
+  const noteInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (isVisible) {
-      setIsExpandedEditor(false);
       if (initialData) {
         setTitle(initialData.title || '');
         setContent(initialData.content || '');
@@ -198,268 +200,507 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
     );
   };
 
+  // Dynamic canvas background according to selected color
+  const canvasBgColor = useMemo(() => {
+    if (color === 'default') {
+      return isDark ? '#0f172a' : '#ffffff';
+    }
+    switch (color) {
+      case 'blue':
+        return isDark ? '#0b192c' : '#f0f7ff';
+      case 'green':
+        return isDark ? '#052e16' : '#f0fdf4';
+      case 'yellow':
+        return isDark ? '#261a03' : '#fefce8';
+      case 'rose':
+        return isDark ? '#2b0b14' : '#fff1f2';
+      case 'purple':
+        return isDark ? '#1e0e33' : '#faf5ff';
+      default:
+        return isDark ? '#0f172a' : '#ffffff';
+    }
+  }, [color, isDark]);
+
+  if (!isVisible) return null;
+
   return (
-    <BottomSheet
-      isVisible={isVisible}
-      onClose={onClose}
-      snapPoints={[0.92]}
-      title={initialData ? 'แก้ไขโน้ต & งาน' : 'สร้างโน้ต & งานใหม่'}
-      footer={
-        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-          {initialData?.id && onDelete && (
-            <Button
-              variant="destructive"
-              icon={Trash2}
-              size="icon"
-              onPress={handleDelete}
-              style={{ width: 48, height: 48 }}
-            />
-          )}
-          <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={onClose}>
-            ยกเลิก
-          </Button>
-          <Button
-            variant="default"
-            icon={Save}
-            style={{ flex: 1 }}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? 'กำลังบันทึก...' : 'บันทึก'}
-          </Button>
-        </View>
-      }
+    <Modal
+      visible={isVisible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      statusBarTranslucent={true}
+      onRequestClose={onClose}
     >
-      <View style={{ gap: 16, paddingBottom: 24 }}>
-        {/* Type Selector (Checklist vs Note) */}
-        <View style={{ gap: 6 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: canvasBgColor,
+          paddingTop: Math.max(insets.top, 14),
+          paddingBottom: Math.max(insets.bottom, 12),
+        }}
+      >
+        <StatusBar
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor="transparent"
+          translucent={true}
+        />
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          {/* Top Navigation & Action Header */}
           <View
             style={{
               flexDirection: 'row',
-              backgroundColor: isDark ? 'rgba(51, 65, 85, 0.4)' : '#f1f5f9',
-              borderRadius: 999,
-              padding: 4,
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                triggerHaptic('selection');
-                setType('checklist');
-              }}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 9,
-                borderRadius: 999,
-                backgroundColor: type === 'checklist' ? colors.primary : 'transparent',
-              }}
-            >
-              <Icon name={CheckSquare} size={16} color={type === 'checklist' ? '#ffffff' : colors.textSecondary} />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: type === 'checklist' ? '#ffffff' : colors.textSecondary,
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                สิ่งที่ต้องทำ (To-Do){items.length > 0 ? ` (${items.length})` : ''}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => {
-                triggerHaptic('selection');
-                setType('note');
-              }}
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                paddingVertical: 9,
-                borderRadius: 999,
-                backgroundColor: type === 'note' ? colors.primary : 'transparent',
-              }}
-            >
-              <Icon name={FileText} size={16} color={type === 'note' ? '#ffffff' : colors.textSecondary} />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: type === 'note' ? '#ffffff' : colors.textSecondary,
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                บันทึกข้อความ (Note){content.trim().length > 0 ? ' •' : ''}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text
-            style={{
-              fontSize: 11,
-              color: colors.textSecondary,
-              fontFamily: 'Sarabun_400Regular',
-              textAlign: 'center',
-            }}
-          >
-            ใส่ได้ทั้งรายการสิ่งที่ต้องทำและข้อความบันทึกร่วมกันได้ ระบบจะบันทึกข้อมูลทั้ง 2 ส่วน
-          </Text>
-        </View>
-
-        {/* Title Input */}
-        <View>
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '700',
-              color: colors.textSecondary,
-              fontFamily: 'Sarabun_700Bold',
-              marginBottom: 6,
-            }}
-          >
-            หัวข้อ:
-          </Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder={type === 'checklist' ? 'เช่น ตรวจรับงานส่งของ, จัดทำเอกสาร OT' : 'เช่น สรุปการประชุม, บันทึกช่วยจำ'}
-            placeholderTextColor={colors.textSecondary}
-            style={{
-              backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#f8fafc',
-              color: colors.text,
-              fontSize: 15,
+              alignItems: 'center',
+              justifyContent: 'space-between',
               paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderRadius: 18,
-              fontFamily: 'Sarabun_500Medium',
+              paddingVertical: 10,
+              borderBottomWidth: 1,
+              borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
             }}
-          />
-        </View>
-
-        {/* Content depending on Type */}
-        {type === 'checklist' ? (
-          <View style={{ gap: 10 }}>
-            <Text
+          >
+            {/* Back Button */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: colors.textSecondary,
-                fontFamily: 'Sarabun_700Bold',
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              รายการย่อย ({items.length}):
-            </Text>
+              <Icon name={ArrowLeft} size={20} color={colors.text} />
+            </TouchableOpacity>
 
-            {items.map((item) => (
-              <View
-                key={item.id}
+            {/* Title / Status */}
+            <View style={{ alignItems: 'center' }}>
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 10,
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc',
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 16,
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: colors.text,
+                  fontFamily: 'Sarabun_700Bold',
                 }}
               >
+                {initialData ? 'แก้ไขโน้ต & งาน' : 'สร้างโน้ต & งานใหม่'}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                }}
+              >
+                เต็มจอ 100% • บันทึกอัตโนมัติ 2 ส่วน
+              </Text>
+            </View>
+
+            {/* Action Buttons: Delete, Pin, Save */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {initialData?.id && onDelete && (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => handleToggleItem(item.id)}
+                  onPress={handleDelete}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 8,
-                    borderWidth: item.isDone ? 0 : 2,
-                    borderColor: colors.border,
-                    backgroundColor: item.isDone ? '#16a34a' : 'transparent',
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  {item.isDone && <Icon name={Check} size={16} color="#ffffff" />}
+                  <Icon name={Trash2} size={18} color="#ef4444" />
                 </TouchableOpacity>
+              )}
 
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: 14,
-                    color: item.isDone ? colors.textSecondary : colors.text,
-                    textDecorationLine: item.isDone ? 'line-through' : 'none',
-                    fontFamily: 'Sarabun_500Medium',
-                  }}
-                >
-                  {item.text}
-                </Text>
-
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => handleDeleteItem(item.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Icon name={Trash2} size={16} color="#ef4444" />
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            {/* Add Sub-Item Input */}
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-              <TextInput
-                value={newItemText}
-                onChangeText={setNewItemText}
-                placeholder="เพิ่มรายการย่อย..."
-                placeholderTextColor={colors.textSecondary}
-                onSubmitEditing={handleAddItem}
-                returnKeyType="done"
-                style={{
-                  flex: 1,
-                  backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#f8fafc',
-                  color: colors.text,
-                  fontSize: 14,
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  borderRadius: 16,
-                  fontFamily: 'Sarabun_400Regular',
-                }}
-              />
+              {/* Pin Toggle Button */}
               <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={handleAddItem}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setIsPinned((prev) => !prev);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={{
-                  backgroundColor: colors.primary,
-                  paddingHorizontal: 16,
-                  borderRadius: 16,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: isPinned
+                    ? colors.primary
+                    : isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Icon name={Plus} size={18} color="#ffffff" />
+                <Icon
+                  name={Pin}
+                  size={18}
+                  color={isPinned ? '#ffffff' : colors.textSecondary}
+                />
               </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+
+              {/* Save Button */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleSave}
+                disabled={isSaving}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: colors.primary,
+                  paddingHorizontal: 16,
+                  paddingVertical: 9,
+                  borderRadius: 999,
+                  shadowColor: colors.primary,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Icon name={Save} size={16} color="#ffffff" />
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: '700',
-                    color: colors.textSecondary,
+                    color: '#ffffff',
                     fontFamily: 'Sarabun_700Bold',
                   }}
                 >
-                  เนื้อหาบันทึก:
+                  {isSaving ? 'บันทึก...' : 'บันทึก'}
                 </Text>
-                {content.length > 0 && (
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Sub-Header Toolbar: Mode Tabs & Color Swatches */}
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingTop: 10,
+              paddingBottom: 8,
+              borderBottomWidth: 1,
+              borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+              gap: 10,
+            }}
+          >
+            {/* Mode Switcher Tabs */}
+            <View
+              style={{
+                flexDirection: 'row',
+                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#f1f5f9',
+                borderRadius: 14,
+                padding: 3,
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setType('checklist');
+                }}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  backgroundColor: type === 'checklist' ? colors.primary : 'transparent',
+                }}
+              >
+                <Icon
+                  name={CheckSquare}
+                  size={15}
+                  color={type === 'checklist' ? '#ffffff' : colors.textSecondary}
+                />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: type === 'checklist' ? '#ffffff' : colors.textSecondary,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  สิ่งที่ต้องทำ (To-Do){items.length > 0 ? ` (${items.length})` : ''}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setType('note');
+                }}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  backgroundColor: type === 'note' ? colors.primary : 'transparent',
+                }}
+              >
+                <Icon
+                  name={FileText}
+                  size={15}
+                  color={type === 'note' ? '#ffffff' : colors.textSecondary}
+                />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: type === 'note' ? '#ffffff' : colors.textSecondary,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  บันทึกข้อความ (Note){content.trim().length > 0 ? ` (${content.length})` : ''}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Color Swatches & Pin Status in One Row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              {/* Color Swatches */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                {COLOR_OPTIONS.map((opt) => {
+                  const isSelected = color === opt.key;
+                  const bg = isDark ? opt.darkBg : opt.lightBg;
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        triggerHaptic('selection');
+                        setColor(opt.key);
+                      }}
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: bg,
+                        borderWidth: isSelected ? 2.5 : 1,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {isSelected && (
+                        <Icon
+                          name={Check}
+                          size={13}
+                          color={opt.key === 'default' && !isDark ? colors.primary : '#ffffff'}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {/* Custom ColorPicker (7th swatch circle) */}
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: color.startsWith('#') ? 2.5 : 1,
+                    borderColor: color.startsWith('#') ? colors.primary : colors.border,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.4)' : '#f8fafc',
+                  }}
+                >
+                  <ColorPicker
+                    value={
+                      color.startsWith('#')
+                        ? color
+                        : color === 'blue'
+                        ? '#3b82f6'
+                        : color === 'green'
+                        ? '#22c55e'
+                        : color === 'yellow'
+                        ? '#eab308'
+                        : color === 'rose'
+                        ? '#f43f5e'
+                        : color === 'purple'
+                        ? '#a855f7'
+                        : '#3b82f6'
+                    }
+                    swatchSize={24}
+                    title="เลือกสีโน้ต"
+                    cancelText="ยกเลิก"
+                    confirmText="เลือกสีนี้"
+                    onColorChange={(newColor) => {
+                      setColor(newColor);
+                    }}
+                    onColorSelect={(selectedHex) => {
+                      triggerHaptic('selection');
+                      setColor(selectedHex);
+                    }}
+                  />
+                </View>
+              </View>
+
+              {/* Pin Status Label */}
+              {isPinned && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 999,
+                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
+                  }}
+                >
+                  <Icon name={Pin} size={11} color={colors.primary} />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: colors.primary,
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    ปักหมุดบนสุด
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Title Area (Big, Bold, Clean) */}
+          <View
+            style={{
+              paddingHorizontal: 18,
+              paddingTop: 12,
+              paddingBottom: 6,
+            }}
+          >
+            <TextInput
+              value={title}
+              onChangeText={setTitle}
+              placeholder={type === 'checklist' ? 'หัวข้องานสิ่งที่ต้องทำ...' : 'หัวข้อบันทึกข้อความ...'}
+              placeholderTextColor={colors.textSecondary}
+              style={{
+                color: colors.text,
+                fontSize: 20,
+                fontWeight: '700',
+                fontFamily: 'Sarabun_700Bold',
+                paddingVertical: 6,
+              }}
+            />
+          </View>
+
+          {/* Full Screen Body Content */}
+          {type === 'note' ? (
+            /* NOTE FULL SCREEN CANVAS: Takes 100% of remaining screen height */
+            <View style={{ flex: 1, paddingHorizontal: 18 }}>
+              <TextInput
+                ref={noteInputRef}
+                value={content}
+                onChangeText={setContent}
+                placeholder="เริ่มพิมพ์เนื้อหาบันทึกข้อความของคุณที่นี่... สามารถพิมพ์ข้อความยาวได้เต็มที่ หน้าจอจะขยายตามต้องการ"
+                placeholderTextColor={colors.textSecondary}
+                multiline={true}
+                scrollEnabled={true}
+                textAlignVertical="top"
+                style={{
+                  flex: 1,
+                  color: colors.text,
+                  fontSize: 15,
+                  lineHeight: 24,
+                  fontFamily: 'Sarabun_400Regular',
+                  paddingTop: 8,
+                  paddingBottom: 24,
+                }}
+              />
+
+              {/* Bottom Note Toolbar: URLs and Character counter */}
+              <View
+                style={{
+                  paddingVertical: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                  gap: 8,
+                }}
+              >
+                {/* Detected Clickable URLs */}
+                {detectedUrls.length > 0 && (
+                  <View style={{ gap: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '600',
+                        color: colors.textSecondary,
+                        fontFamily: 'Sarabun_600SemiBold',
+                      }}
+                    >
+                      ลิงก์ที่ตรวจพบ (แตะเพื่อเปิด):
+                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+                      {detectedUrls.map((url, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            triggerHaptic('selection');
+                            handleOpenURL(url);
+                          }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 12,
+                            backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff',
+                            borderWidth: 1,
+                            borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#bfdbfe',
+                          }}
+                        >
+                          <Icon name={ExternalLink} size={13} color={colors.primary} />
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              fontWeight: '600',
+                              color: colors.primary,
+                              fontFamily: 'Sarabun_600SemiBold',
+                              textDecorationLine: 'underline',
+                              maxWidth: 220,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {url}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: colors.textSecondary,
+                      fontFamily: 'Sarabun_400Regular',
+                    }}
+                  >
+                    บันทึกข้อมูลร่วมกับรายการสิ่งที่ต้องทำอัตโนมัติ
+                  </Text>
                   <Text
                     style={{
                       fontSize: 11,
@@ -467,294 +708,145 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
                       fontFamily: 'Sarabun_500Medium',
                     }}
                   >
-                    ({content.length} ตัวอักษร)
+                    {content.length} ตัวอักษร
                   </Text>
-                )}
+                </View>
               </View>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => {
-                  triggerHaptic('selection');
-                  setIsExpandedEditor((prev) => !prev);
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 8,
-                  backgroundColor: isExpandedEditor
-                    ? isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff'
-                    : isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9',
-                }}
-              >
-                <Icon
-                  name={isExpandedEditor ? Minimize2 : Maximize2}
-                  size={12}
-                  color={isExpandedEditor ? colors.primary : colors.textSecondary}
-                />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: isExpandedEditor ? colors.primary : colors.textSecondary,
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  {isExpandedEditor ? 'ย่อขนาด' : 'ขยายเต็มจอ'}
-                </Text>
-              </TouchableOpacity>
             </View>
-
-            <TextInput
-              value={content}
-              onChangeText={setContent}
-              placeholder="เขียนบันทึกรายละเอียด..."
-              placeholderTextColor={colors.textSecondary}
-              multiline
-              textAlignVertical="top"
-              scrollEnabled={isExpandedEditor}
-              style={{
-                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#f8fafc',
-                color: colors.text,
-                fontSize: 14,
-                lineHeight: 22,
-                paddingHorizontal: 16,
-                paddingVertical: 14,
-                borderRadius: 18,
-                minHeight: isExpandedEditor ? 320 : 180,
-                maxHeight: isExpandedEditor ? 460 : undefined,
-                fontFamily: 'Sarabun_400Regular',
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            />
-
-            {/* Detected Clickable URLs */}
-            {detectedUrls.length > 0 && (
-              <View style={{ gap: 6, marginTop: 8 }}>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '600',
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  ลิงก์ที่ตรวจพบ (แตะเพื่อเปิด):
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {detectedUrls.map((url, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        triggerHaptic('selection');
-                        handleOpenURL(url);
+          ) : (
+            /* CHECKLIST FULL SCREEN CANVAS */
+            <View style={{ flex: 1, paddingHorizontal: 18 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingBottom: 16, gap: 8 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              >
+                {items.length === 0 ? (
+                  <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 8 }}>
+                    <Icon name={ListTodo} size={36} color={colors.textSecondary} />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: colors.textSecondary,
+                        fontFamily: 'Sarabun_500Medium',
                       }}
+                    >
+                      ยังไม่มีรายการสิ่งที่ต้องทำ
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                        fontFamily: 'Sarabun_400Regular',
+                      }}
+                    >
+                      พิมพ์รายการด้านล่างแล้วกดเครื่องหมายบวกเพื่อเพิ่ม
+                    </Text>
+                  </View>
+                ) : (
+                  items.map((item) => (
+                    <View
+                      key={item.id}
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: 6,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 12,
-                        backgroundColor: isDark ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff',
+                        gap: 10,
+                        backgroundColor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#f8fafc',
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        borderRadius: 16,
                         borderWidth: 1,
-                        borderColor: isDark ? 'rgba(37, 99, 235, 0.4)' : '#bfdbfe',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
                       }}
                     >
-                      <Icon name={ExternalLink} size={13} color={colors.primary} />
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleToggleItem(item.id)}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 8,
+                          borderWidth: item.isDone ? 0 : 2,
+                          borderColor: colors.border,
+                          backgroundColor: item.isDone ? '#16a34a' : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {item.isDone && <Icon name={Check} size={16} color="#ffffff" />}
+                      </TouchableOpacity>
+
                       <Text
                         style={{
-                          fontSize: 12,
-                          fontWeight: '600',
-                          color: colors.primary,
-                          fontFamily: 'Sarabun_600SemiBold',
-                          textDecorationLine: 'underline',
-                          maxWidth: 240,
+                          flex: 1,
+                          fontSize: 14,
+                          color: item.isDone ? colors.textSecondary : colors.text,
+                          textDecorationLine: item.isDone ? 'line-through' : 'none',
+                          fontFamily: 'Sarabun_500Medium',
                         }}
-                        numberOfLines={1}
                       >
-                        {url}
+                        {item.text}
                       </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
 
-        {/* Color Palette Selection */}
-        <View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: colors.textSecondary,
-                fontFamily: 'Sarabun_700Bold',
-              }}
-            >
-              สีการ์ด:
-            </Text>
-            {color.startsWith('#') && (
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleDeleteItem(item.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Icon name={Trash2} size={16} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+
+              {/* Add Checklist Item Input Bar */}
               <View
                 style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 999,
-                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
+                  flexDirection: 'row',
+                  gap: 8,
+                  paddingVertical: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
                 }}
               >
-                <Text
+                <TextInput
+                  value={newItemText}
+                  onChangeText={setNewItemText}
+                  placeholder="เพิ่มรายการสิ่งที่ต้องทำ..."
+                  placeholderTextColor={colors.textSecondary}
+                  onSubmitEditing={handleAddItem}
+                  returnKeyType="done"
                   style={{
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: colors.primary,
-                    fontFamily: 'Sarabun_700Bold',
+                    flex: 1,
+                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.7)' : '#f1f5f9',
+                    color: colors.text,
+                    fontSize: 14,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderRadius: 16,
+                    fontFamily: 'Sarabun_400Regular',
                   }}
-                >
-                  {color.toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            {COLOR_OPTIONS.map((opt) => {
-              const isSelected = color === opt.key;
-              const bg = isDark ? opt.darkBg : opt.lightBg;
-              return (
+                />
                 <TouchableOpacity
-                  key={opt.key}
                   activeOpacity={0.7}
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    setColor(opt.key);
-                  }}
+                  onPress={handleAddItem}
                   style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: bg,
-                    borderWidth: isSelected ? 2.5 : 1,
-                    borderColor: isSelected ? colors.primary : colors.border,
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 18,
+                    borderRadius: 16,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  {isSelected && (
-                    <Icon
-                      name={Check}
-                      size={16}
-                      color={opt.key === 'default' && !isDark ? colors.primary : '#ffffff'}
-                    />
-                  )}
+                  <Icon name={Plus} size={20} color="#ffffff" />
                 </TouchableOpacity>
-              );
-            })}
-
-            {/* Custom ColorPicker (7th swatch circle) */}
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: color.startsWith('#') ? 2.5 : 1,
-                borderColor: color.startsWith('#') ? colors.primary : colors.border,
-                backgroundColor: isDark ? 'rgba(30, 41, 59, 0.4)' : '#f8fafc',
-              }}
-            >
-              <ColorPicker
-                value={
-                  color.startsWith('#')
-                    ? color
-                    : color === 'blue'
-                    ? '#3b82f6'
-                    : color === 'green'
-                    ? '#22c55e'
-                    : color === 'yellow'
-                    ? '#eab308'
-                    : color === 'rose'
-                    ? '#f43f5e'
-                    : color === 'purple'
-                    ? '#a855f7'
-                    : '#3b82f6'
-                }
-                swatchSize={32}
-                title="เลือกสีการ์ด"
-                cancelText="ยกเลิก"
-                confirmText="เลือกสีนี้"
-                onColorChange={(newColor) => {
-                  setColor(newColor);
-                }}
-                onColorSelect={(selectedHex) => {
-                  triggerHaptic('selection');
-                  setColor(selectedHex);
-                }}
-              />
+              </View>
             </View>
-          </View>
-        </View>
-
-        {/* Pin to Top Option */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => {
-            triggerHaptic('selection');
-            setIsPinned((prev) => !prev);
-          }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: isPinned
-              ? isDark
-                ? 'rgba(59, 130, 246, 0.2)'
-                : '#eff6ff'
-              : isDark
-              ? 'rgba(30, 41, 59, 0.4)'
-              : '#f8fafc',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderRadius: 18,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Icon name={Pin} size={18} color={isPinned ? colors.primary : colors.textSecondary} />
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: isPinned ? '700' : '500',
-                color: isPinned ? colors.primary : colors.text,
-                fontFamily: isPinned ? 'Sarabun_700Bold' : 'Sarabun_500Medium',
-              }}
-            >
-              ปักหมุดไว้บนสุด (Pin to Top)
-            </Text>
-          </View>
-
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: isPinned ? colors.primary : 'transparent',
-              borderWidth: isPinned ? 0 : 2,
-              borderColor: colors.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {isPinned && <Icon name={Check} size={14} color="#ffffff" />}
-          </View>
-        </TouchableOpacity>
+          )}
+        </KeyboardAvoidingView>
       </View>
-    </BottomSheet>
+    </Modal>
   );
 };
