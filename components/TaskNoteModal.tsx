@@ -608,39 +608,6 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
           {type === 'note' ? (
             /* NOTE FULL SCREEN CANVAS: Takes 100% of remaining screen height */
             <View style={{ flex: 1, paddingHorizontal: 18 }}>
-              {/* Quick banner if checklist items exist */}
-              {items.length > 0 && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    setType('checklist');
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.8)' : '#eff6ff',
-                    paddingHorizontal: 14,
-                    paddingVertical: 9,
-                    borderRadius: 12,
-                    marginBottom: 8,
-                    borderWidth: 1,
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Icon name={CheckSquare} size={16} color={colors.primary} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, fontFamily: 'Sarabun_700Bold' }}>
-                      มีรายการสิ่งที่ต้องทำ {items.length} รายการ (บันทึกร่วมกัน)
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 12, color: colors.primary, fontFamily: 'Sarabun_600SemiBold' }}>
-                    สลับไปดู To-Do &gt;
-                  </Text>
-                </TouchableOpacity>
-              )}
-
               <TextInput
                 ref={noteInputRef}
                 value={content}
@@ -749,39 +716,6 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
           ) : (
             /* CHECKLIST FULL SCREEN CANVAS */
             <View style={{ flex: 1, paddingHorizontal: 18 }}>
-              {/* Quick banner if note content exists */}
-              {content.trim().length > 0 && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    setType('note');
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    backgroundColor: isDark ? 'rgba(30, 41, 59, 0.8)' : '#eff6ff',
-                    paddingHorizontal: 14,
-                    paddingVertical: 9,
-                    borderRadius: 12,
-                    marginBottom: 8,
-                    borderWidth: 1,
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Icon name={FileText} size={16} color={colors.primary} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, fontFamily: 'Sarabun_700Bold' }}>
-                      มีเนื้อหาบันทึกข้อความ ({content.trim().length} ตัวอักษร)
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 12, color: colors.primary, fontFamily: 'Sarabun_600SemiBold' }}>
-                    สลับไปดู Note &gt;
-                  </Text>
-                </TouchableOpacity>
-              )}
-
               <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ paddingBottom: 16, gap: 8 }}
