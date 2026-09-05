@@ -279,7 +279,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                 fontFamily: 'Sarabun_700Bold',
               }}
             >
-              เวลาปลุกวันทำงานปกติ (เข้าออฟฟิศ / โรงงาน)
+              เวลาปลุกวันทำงานปกติ
             </Text>
           </View>
           <Text
