@@ -1,5 +1,9 @@
-import { NativeModule, requireNativeModule } from 'expo';
-import { FullScreenAlarmModuleType, FullScreenAlarmEvents, InitialAlarmData } from './FullScreenAlarm.types';
+import { NativeModule, requireOptionalNativeModule } from 'expo';
+import {
+  FullScreenAlarmModuleType,
+  FullScreenAlarmEvents,
+  InitialAlarmData,
+} from './FullScreenAlarm.types';
 
 declare class FullScreenAlarmNativeModule extends NativeModule<FullScreenAlarmEvents> implements FullScreenAlarmModuleType {
   scheduleAlarm(
@@ -19,4 +23,23 @@ declare class FullScreenAlarmNativeModule extends NativeModule<FullScreenAlarmEv
   getInitialAlarm(): InitialAlarmData | null;
 }
 
-export default requireNativeModule<FullScreenAlarmNativeModule>('FullScreenAlarm');
+const NativeModuleInstance = requireOptionalNativeModule<FullScreenAlarmNativeModule>('FullScreenAlarm');
+
+export const isFullScreenAlarmAvailable: boolean = !!NativeModuleInstance;
+
+const FallbackModule: FullScreenAlarmModuleType = {
+  scheduleAlarm: async () => false,
+  cancelAlarm: async () => false,
+  dismissAlarm: async () => false,
+  canScheduleExactAlarms: () => false,
+  canUseFullScreenIntent: () => false,
+  openExactAlarmSettings: async () => false,
+  openFullScreenIntentSettings: async () => false,
+  getInitialAlarm: () => null,
+  addListener: () => ({ remove: () => {} }),
+  removeListener: () => {},
+};
+
+const FullScreenAlarm: FullScreenAlarmModuleType = NativeModuleInstance || FallbackModule;
+
+export default FullScreenAlarm;

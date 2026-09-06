@@ -17,7 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useThemeContext } from '../components/ThemeProvider';
 import { initNotificationService } from '../services/notificationService';
 import { initSmartAlarmChannels, snoozeSmartAlarm } from '../services/smartAlarmService';
-import FullScreenAlarm from '../modules/full-screen-alarm';
+import FullScreenAlarm, { isFullScreenAlarmAvailable } from '../modules/full-screen-alarm';
 import { AlarmRingingModal } from '../components/AlarmRingingModal';
 import {
   addNotificationResponseReceivedListener,
@@ -66,7 +66,7 @@ function RootLayoutContent() {
       }
     } else {
       // 0. Check if launched by Native FullScreenAlarm
-      if (Platform.OS === 'android') {
+      if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
         const initialAlarm = FullScreenAlarm.getInitialAlarm();
         if (initialAlarm?.isAlarmTriggered) {
           setAlarmRingingData({
@@ -78,7 +78,7 @@ function RootLayoutContent() {
       }
 
       // Listen for Native FullScreenAlarm triggers while app is running/backgrounded
-      const alarmSub = Platform.OS === 'android'
+      const alarmSub = Platform.OS === 'android' && isFullScreenAlarmAvailable
         ? FullScreenAlarm.addListener('onAlarmTriggered', (event) => {
             if (event?.isAlarmTriggered) {
               setAlarmRingingData({

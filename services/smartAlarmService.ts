@@ -22,7 +22,7 @@ import {
   SmartAlarmScheduleItem,
 } from '../types';
 import { requestNotificationPermissions } from './notificationService';
-import FullScreenAlarm from '../modules/full-screen-alarm';
+import FullScreenAlarm, { isFullScreenAlarmAvailable } from '../modules/full-screen-alarm';
 
 export const SMART_ALARM_CONFIG_KEY = '@timetrack_smart_alarm_config';
 export const SMART_ALARM_SCHEDULED_IDS_KEY = '@timetrack_smart_alarm_scheduled_ids';
@@ -350,7 +350,7 @@ export async function cancelAllSmartAlarms(): Promise<void> {
       const ids: string[] = JSON.parse(rawIds);
       await Promise.all(
         ids.map(async (id) => {
-          if (Platform.OS === 'android') {
+          if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
             await FullScreenAlarm.cancelAlarm(id).catch(() => {});
           }
           return cancelScheduledNotificationAsync(id).catch((e) =>
@@ -425,7 +425,7 @@ export async function syncSmartAlarmSchedule(
 
           let scheduledAlarmId: string | undefined;
 
-          if (Platform.OS === 'android') {
+          if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
             const nativeId = `alarm_${item.date}_${targetTime.replace(':', '')}`;
             const ok = await FullScreenAlarm.scheduleAlarm(
               nativeId,
@@ -438,7 +438,9 @@ export async function syncSmartAlarmSchedule(
             if (ok) {
               scheduledAlarmId = nativeId;
             }
-          } else {
+          }
+
+          if (!scheduledAlarmId) {
             scheduledAlarmId = await scheduleNotificationAsync({
               content: {
                 title: notifTitle,
@@ -626,7 +628,7 @@ export async function snoozeSmartAlarm(
       triggerDate.getMinutes()
     ).padStart(2, '0')}`;
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
       const snoozeId = `snooze_${Date.now()}`;
       const ok = await FullScreenAlarm.scheduleAlarm(
         snoozeId,
@@ -686,7 +688,7 @@ export async function triggerTestSmartAlarm(): Promise<string | undefined> {
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
       const testId = `test_alarm_${Date.now()}`;
       const ok = await FullScreenAlarm.scheduleAlarm(
         testId,

@@ -9,6 +9,10 @@ export type FullScreenAlarmEvents = {
   onAlarmTriggered: (data: InitialAlarmData) => void;
 };
 
+export interface Subscription {
+  remove(): void;
+}
+
 export interface FullScreenAlarmModuleType {
   scheduleAlarm(
     id: string,
@@ -25,4 +29,12 @@ export interface FullScreenAlarmModuleType {
   openExactAlarmSettings(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
   getInitialAlarm(): InitialAlarmData | null;
+  addListener(
+    eventName: string,
+    listener: (data: InitialAlarmData) => void
+  ): Subscription;
+  removeListener?(
+    eventName: string,
+    listener: (data: InitialAlarmData) => void
+  ): void;
 }
