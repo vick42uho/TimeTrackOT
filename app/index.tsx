@@ -200,25 +200,25 @@ const HomeContent: React.FC = () => {
   const leaveQuotaRef = useRef<View>(null);
 
   useEffect(() => {
-    if (['5', '6', '7', '8'].includes(tourStep || '')) {
+    if (['8', '9', '10', '11'].includes(tourStep || '')) {
       setIsTourActive(true);
       let targetRef: React.RefObject<any> | null = null;
       let scrollY = 0;
       let radius = 24;
 
-      if (tourStep === '5') {
+      if (tourStep === '8') {
         targetRef = metricsGridRef;
         scrollY = 0;
         radius = 24;
-      } else if (tourStep === '6') {
+      } else if (tourStep === '9') {
         targetRef = shiftCardRef;
         scrollY = 130;
         radius = 24;
-      } else if (tourStep === '7') {
+      } else if (tourStep === '10') {
         targetRef = tasksNotesRef;
         scrollY = 320;
         radius = 24;
-      } else if (tourStep === '8') {
+      } else if (tourStep === '11') {
         targetRef = leaveQuotaRef;
         scrollY = 560;
         radius = 24;
@@ -1981,52 +1981,52 @@ const HomeContent: React.FC = () => {
         }}
       />
 
-      {/* Interactive Tour Overlay for Steps 5, 6, 7, and 8 */}
+      {/* Interactive Tour Overlay for Steps 8, 9, 10, and 11 */}
       <InteractiveTourOverlay
-        visible={['5', '6', '7', '8'].includes(tourStep || '') && isTourActive}
+        visible={['8', '9', '10', '11'].includes(tourStep || '') && isTourActive}
         currentStepIndex={
-          tourStep === '6'
-            ? 5
-            : tourStep === '7'
-            ? 6
-            : tourStep === '8'
-            ? 7
-            : 4
+          tourStep === '9'
+            ? 8
+            : tourStep === '10'
+            ? 9
+            : tourStep === '11'
+            ? 10
+            : 7
         }
         totalSteps={APP_TOUR_STEPS.length}
         stepData={{
           ...APP_TOUR_STEPS[
-            tourStep === '6'
-              ? 5
-              : tourStep === '7'
-              ? 6
-              : tourStep === '8'
-              ? 7
-              : 4
+            tourStep === '9'
+              ? 8
+              : tourStep === '10'
+              ? 9
+              : tourStep === '11'
+              ? 10
+              : 7
           ],
           targetLayout: tourLayout,
         }}
         onNext={() => {
-          if (tourStep === '5') {
-            router.replace('/?tourStep=6');
-          } else if (tourStep === '6') {
-            router.replace('/?tourStep=7');
-          } else if (tourStep === '7') {
-            router.replace('/?tourStep=8');
+          if (tourStep === '8') {
+            router.replace('/?tourStep=9');
+          } else if (tourStep === '9') {
+            router.replace('/?tourStep=10');
+          } else if (tourStep === '10') {
+            router.replace('/?tourStep=11');
           } else {
             markTourCompleted();
             router.replace('/');
           }
         }}
         onPrev={() => {
-          if (tourStep === '8') {
-            router.replace('/?tourStep=7');
-          } else if (tourStep === '7') {
-            router.replace('/?tourStep=6');
-          } else if (tourStep === '6') {
-            router.replace('/?tourStep=5');
+          if (tourStep === '11') {
+            router.replace('/?tourStep=10');
+          } else if (tourStep === '10') {
+            router.replace('/?tourStep=9');
+          } else if (tourStep === '9') {
+            router.replace('/?tourStep=8');
           } else {
-            router.replace('/reports?tourStep=4');
+            router.replace('/reports?tourStep=7');
           }
         }}
         onSkip={() => {

@@ -78,7 +78,7 @@ const ReportsContent: React.FC = () => {
   const summaryCardRef = useRef<View>(null);
 
   useEffect(() => {
-    if (tourStep === '4') {
+    if (tourStep === '7') {
       const timer = setTimeout(() => {
         summaryCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
           if (width > 0 && height > 0) {
@@ -1551,17 +1551,17 @@ const ReportsContent: React.FC = () => {
         </View>
       </Modal>
 
-      {/* Interactive Tour Overlay for Step 4 */}
+      {/* Interactive Tour Overlay for Step 7 */}
       <InteractiveTourOverlay
-        visible={tourStep === '4'}
-        currentStepIndex={3}
+        visible={tourStep === '7'}
+        currentStepIndex={6}
         totalSteps={APP_TOUR_STEPS.length}
         stepData={{
-          ...APP_TOUR_STEPS[3],
+          ...APP_TOUR_STEPS[6],
           targetLayout: tourLayout,
         }}
-        onNext={() => router.replace('/?tourStep=5')}
-        onPrev={() => router.replace('/time-entry?tourStep=3')}
+        onNext={() => router.replace('/?tourStep=8')}
+        onPrev={() => router.replace('/time-entry?tourStep=6')}
         onSkip={() => {
           markTourCompleted();
           router.replace('/');

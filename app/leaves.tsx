@@ -183,14 +183,65 @@ const LeavesContent: React.FC = () => {
   // Tour State
   const { tourStep } = useLocalSearchParams<{ tourStep?: string }>();
   const [tourLayout, setTourLayout] = useState<TargetLayout | null>(null);
+  const [activeTab, setActiveTab] = useState('calendar');
   const calendarCardRef = useRef<View>(null);
+  const alarmCardRef = useRef<View>(null);
+  const quotasCardRef = useRef<View>(null);
+  const requestLeaveBtnRef = useRef<View>(null);
+  const calendarScrollViewRef = useRef<ScrollView>(null);
+  const leavesScrollViewRef = useRef<ScrollView>(null);
+  const quotaScrollViewRef = useRef<ScrollView>(null);
+
+  const tourStepNum = tourStep ? parseInt(tourStep, 10) : 0;
+  const isTourActiveInLeaves = tourStepNum >= 2 && tourStepNum <= 5;
+  const currentTourConfig = isTourActiveInLeaves ? APP_TOUR_STEPS[tourStepNum - 1] : null;
 
   useEffect(() => {
+    if (!tourStep) {
+      setTourLayout(null);
+      return;
+    }
+
     if (tourStep === '2') {
+      setActiveTab('calendar');
+      calendarScrollViewRef.current?.scrollTo({ y: 0, animated: false });
       const timer = setTimeout(() => {
         calendarCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
           if (width > 0 && height > 0) {
-            setTourLayout({ x, y, width, height, borderRadius: 999 });
+            setTourLayout({ x, y, width, height, borderRadius: 20 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else if (tourStep === '3') {
+      setActiveTab('calendar');
+      calendarScrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      const timer = setTimeout(() => {
+        alarmCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 18 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else if (tourStep === '4') {
+      setActiveTab('quota');
+      quotaScrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      const timer = setTimeout(() => {
+        quotasCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 16 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else if (tourStep === '5') {
+      setActiveTab('leaves');
+      leavesScrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      const timer = setTimeout(() => {
+        requestLeaveBtnRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 16 });
           }
         });
       }, 350);
@@ -1089,8 +1140,8 @@ const LeavesContent: React.FC = () => {
 
       {/* Main Content Tabs */}
       <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}>
-        <Tabs defaultValue="calendar" style={{ flex: 1 }}>
-          <View ref={calendarCardRef} collapsable={false} style={{ marginBottom: 10 }}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} style={{ flex: 1 }}>
+          <View style={{ marginBottom: 10 }}>
             <TabsList style={{ marginBottom: 0 }}>
               <TabsTrigger value="calendar">ปฏิทิน & วันหยุด</TabsTrigger>
               <TabsTrigger value="leaves">การลา ({leaves.length})</TabsTrigger>
@@ -1102,116 +1153,119 @@ const LeavesContent: React.FC = () => {
           {/* TAB 1: INTERACTIVE CALENDAR & HOLIDAYS */}
           {/* ========================================================= */}
           <TabsContent value="calendar" style={{ flex: 1 }}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+            <ScrollView ref={calendarScrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
               {/* Smart Workday Alarm Card */}
-              <Card
-                style={{
-                  marginBottom: 10,
-                  padding: 12,
-                  backgroundColor: colors.card,
-                  borderRadius: 16,
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 8 }}>
-                    <View
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 12,
-                        backgroundColor: smartAlarmConfig.enabled
-                          ? isDark
-                            ? 'rgba(37, 99, 235, 0.2)'
-                            : '#eff6ff'
-                          : isDark
-                          ? 'rgba(255, 255, 255, 0.05)'
-                          : '#f1f5f9',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Icon
-                        name={Bell}
-                        size={18}
-                        color={smartAlarmConfig.enabled ? '#2563eb' : colors.textSecondary}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, fontFamily: 'Sarabun_700Bold' }}>
-                          นาฬิกาปลุกวันทำงาน
-                        </Text>
-                        {smartAlarmConfig.enabled ? (
-                          <Badge variant="default" style={{ paddingHorizontal: 6, paddingVertical: 1, backgroundColor: '#2563eb' }}>
-                            <Text style={{ fontSize: 10, color: '#ffffff', fontFamily: 'Sarabun_700Bold' }}>
-                              {smartAlarmConfig.alarmTime} น.
-                            </Text>
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" style={{ paddingHorizontal: 6, paddingVertical: 1 }}>
-                            <Text style={{ fontSize: 10, color: colors.textSecondary, fontFamily: 'Sarabun_600SemiBold' }}>
-                              ปิดอยู่
-                            </Text>
-                          </Badge>
-                        )}
-                      </View>
-                      <Text
+              <View ref={alarmCardRef} collapsable={false}>
+                <Card
+                  style={{
+                    marginBottom: 10,
+                    padding: 12,
+                    backgroundColor: colors.card,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, paddingRight: 8 }}>
+                      <View
                         style={{
-                          fontSize: 11,
-                          color: smartAlarmConfig.enabled
-                            ? smartAlarmSummary.isTomorrowWorkday
-                              ? colors.primary
-                              : '#d97706'
-                            : colors.textSecondary,
-                          fontFamily: 'Sarabun_500Medium',
-                          marginTop: 2,
+                          width: 38,
+                          height: 38,
+                          borderRadius: 12,
+                          backgroundColor: smartAlarmConfig.enabled
+                            ? isDark
+                              ? 'rgba(37, 99, 235, 0.2)'
+                              : '#eff6ff'
+                            : isDark
+                            ? 'rgba(255, 255, 255, 0.05)'
+                            : '#f1f5f9',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
-                        numberOfLines={1}
                       >
-                        {smartAlarmConfig.enabled
-                          ? smartAlarmSummary.tomorrowText
-                          : 'ปลุกเฉพาะวันทำงาน และเว้นวันหยุด/วันลาให้อัตโนมัติ'}
-                      </Text>
+                        <Icon
+                          name={Bell}
+                          size={18}
+                          color={smartAlarmConfig.enabled ? '#2563eb' : colors.textSecondary}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, fontFamily: 'Sarabun_700Bold' }}>
+                            นาฬิกาปลุกวันทำงาน
+                          </Text>
+                          {smartAlarmConfig.enabled ? (
+                            <Badge variant="default" style={{ paddingHorizontal: 6, paddingVertical: 1, backgroundColor: '#2563eb' }}>
+                              <Text style={{ fontSize: 10, color: '#ffffff', fontFamily: 'Sarabun_700Bold' }}>
+                                {smartAlarmConfig.alarmTime} น.
+                              </Text>
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" style={{ paddingHorizontal: 6, paddingVertical: 1 }}>
+                              <Text style={{ fontSize: 10, color: colors.textSecondary, fontFamily: 'Sarabun_600SemiBold' }}>
+                                ปิดอยู่
+                              </Text>
+                            </Badge>
+                          )}
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: smartAlarmConfig.enabled
+                              ? smartAlarmSummary.isTomorrowWorkday
+                                ? colors.primary
+                                : '#d97706'
+                              : colors.textSecondary,
+                            fontFamily: 'Sarabun_500Medium',
+                            marginTop: 2,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {smartAlarmConfig.enabled
+                            ? smartAlarmSummary.tomorrowText
+                            : 'ปลุกเฉพาะวันทำงาน และเว้นวันหยุด/วันลาให้อัตโนมัติ'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Switch
+                        value={smartAlarmConfig.enabled}
+                        onValueChange={handleToggleSmartAlarm}
+                      />
+                      <TouchableOpacity
+                        onPress={() => {
+                          triggerHaptic('impact-light');
+                          setIsSmartAlarmModalVisible(true);
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+                        }}
+                      >
+                        <Icon name={Settings} size={15} color={colors.text} />
+                      </TouchableOpacity>
                     </View>
                   </View>
-
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Switch
-                      value={smartAlarmConfig.enabled}
-                      onValueChange={handleToggleSmartAlarm}
-                    />
-                    <TouchableOpacity
-                      onPress={() => {
-                        triggerHaptic('impact-light');
-                        setIsSmartAlarmModalVisible(true);
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={{
-                        paddingHorizontal: 8,
-                        paddingVertical: 6,
-                        borderRadius: 8,
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
-                      }}
-                    >
-                      <Icon name={Settings} size={15} color={colors.text} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </Card>
+                </Card>
+              </View>
 
               {/* Calendar Container with ViewShot for Sharing */}
-              <ViewShot
-                ref={calendarViewShotRef}
-                options={{ format: 'png', quality: 1.0 }}
-                style={{
-                  backgroundColor: colors.card,
-                  borderRadius: 16,
-                  overflow: 'hidden',
-                  marginBottom: 10,
-                }}
-              >
+              <View ref={calendarCardRef} collapsable={false}>
+                <ViewShot
+                  ref={calendarViewShotRef}
+                  options={{ format: 'png', quality: 1.0 }}
+                  style={{
+                    backgroundColor: colors.card,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    marginBottom: 10,
+                  }}
+                >
                 <Card style={{ padding: 12, backgroundColor: colors.card }}>
                   {/* Month Navigator Header */}
                   <View style={styles.calendarMonthHeader}>
@@ -1423,6 +1477,7 @@ const LeavesContent: React.FC = () => {
                   </View>
                 </Card>
               </ViewShot>
+              </View>
 
               {/* Compact Share Calendar Pill Button */}
               <TouchableOpacity
@@ -1894,7 +1949,7 @@ const LeavesContent: React.FC = () => {
           {/* TAB 2: LEAVE HISTORY & REQUEST */}
           {/* ========================================================= */}
           <TabsContent value="leaves" style={{ flex: 1 }}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+            <ScrollView ref={leavesScrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
               {/* Summary Stats Pill Row */}
               <View style={styles.leaveStatsRow}>
                 {summaries.map((s) => (
@@ -1925,15 +1980,16 @@ const LeavesContent: React.FC = () => {
               </View>
 
               {/* Action Button */}
-              <Button
-                variant="default"
-                size="lg"
-                icon={Plus}
-                style={{ marginVertical: 12 }}
-                onPress={leaveSheet.open}
-              >
-                ยื่นขอลา / บันทึกการลา
-              </Button>
+              <View ref={requestLeaveBtnRef} collapsable={false} style={{ marginVertical: 12 }}>
+                <Button
+                  variant="default"
+                  size="lg"
+                  icon={Plus}
+                  onPress={leaveSheet.open}
+                >
+                  ยื่นขอลา / บันทึกการลา
+                </Button>
+              </View>
 
               {/* Leave List */}
               <View style={{ gap: 8 }}>
@@ -1948,11 +2004,12 @@ const LeavesContent: React.FC = () => {
                           </Text>
                         </View>
                         <Text variant="subtitle" style={{ fontWeight: '600', marginBottom: 2 }}>
-                          {formatDateThai(l.startDate)} - {formatDateThai(l.endDate)}
+                          {l.reason || 'ไม่ได้ระบุเหตุผล'}
                         </Text>
-                        {l.reason && (
-                          <Text variant="caption" style={{ color: colors.textSecondary }}>{l.reason}</Text>
-                        )}
+                        <Text variant="caption" style={{ color: colors.primary, fontWeight: '500' }}>
+                          {formatDateThai(l.startDate)}
+                          {l.startDate !== l.endDate && ` - ${formatDateThai(l.endDate)}`}
+                        </Text>
                       </View>
                       <TouchableOpacity
                         onPress={() => {
@@ -1974,8 +2031,8 @@ const LeavesContent: React.FC = () => {
           {/* TAB 3: QUOTA & SUMMARY */}
           {/* ========================================================= */}
           <TabsContent value="quota" style={{ flex: 1 }}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <ScrollView ref={quotaScrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+              <View ref={quotasCardRef} collapsable={false} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <Text variant="subtitle" style={{ fontWeight: '700' }}>
                   โควตาวันลาประจำปี {selectedYear + 543}
                 </Text>
@@ -2772,17 +2829,37 @@ const LeavesContent: React.FC = () => {
         onSaved={loadAllData}
       />
 
-      {/* Interactive Tour Overlay for Step 2 */}
+      {/* Interactive Tour Overlay for Steps 2, 3, 4, and 5 */}
       <InteractiveTourOverlay
-        visible={tourStep === '2'}
-        currentStepIndex={1}
+        visible={isTourActiveInLeaves && !!currentTourConfig}
+        currentStepIndex={tourStepNum - 1}
         totalSteps={APP_TOUR_STEPS.length}
         stepData={{
-          ...APP_TOUR_STEPS[1],
+          ...(currentTourConfig || APP_TOUR_STEPS[1]),
           targetLayout: tourLayout,
         }}
-        onNext={() => router.replace('/time-entry?tourStep=3')}
-        onPrev={() => router.replace('/settings?tourStep=1')}
+        onNext={() => {
+          if (tourStep === '2') {
+            router.replace('/leaves?tourStep=3');
+          } else if (tourStep === '3') {
+            router.replace('/leaves?tourStep=4');
+          } else if (tourStep === '4') {
+            router.replace('/leaves?tourStep=5');
+          } else if (tourStep === '5') {
+            router.replace('/time-entry?tourStep=6');
+          }
+        }}
+        onPrev={() => {
+          if (tourStep === '2') {
+            router.replace('/settings?tourStep=1');
+          } else if (tourStep === '3') {
+            router.replace('/leaves?tourStep=2');
+          } else if (tourStep === '4') {
+            router.replace('/leaves?tourStep=3');
+          } else if (tourStep === '5') {
+            router.replace('/leaves?tourStep=4');
+          }
+        }}
         onSkip={() => {
           markTourCompleted();
           router.replace('/');

@@ -1119,10 +1119,10 @@ const SettingsContent: React.FC = () => {
               </View>
               <View>
                 <Text style={{ fontSize: 13, fontFamily: 'Sarabun_600SemiBold', color: isDark ? '#e2e8f0' : '#0f172a' }}>
-                  คู่มือแนะนำการใช้งานแอพ (ไกด์พาทัวร์)
+                  คู่มือ
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular', marginTop: 1 }}>
-                  เริ่มระบบสอนใช้งานและส่องไฟเมนูสำคัญบนหน้าหลัก
+                  เริ่มระบบแนะนำการใช้งานแอพแบบทีละขั้นตอน
                 </Text>
               </View>
             </View>

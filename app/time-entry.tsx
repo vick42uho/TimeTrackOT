@@ -47,7 +47,7 @@ const TimeEntryContent: React.FC = () => {
   const timeCardRef = useRef<View>(null);
 
   useEffect(() => {
-    if (params.tourStep === '3') {
+    if (params.tourStep === '6') {
       const timer = setTimeout(() => {
         timeCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
           if (width > 0 && height > 0) {
@@ -1061,17 +1061,17 @@ const TimeEntryContent: React.FC = () => {
         onConfirm={confirmDelete}
       />
 
-      {/* Interactive Tour Overlay for Step 3 */}
+      {/* Interactive Tour Overlay for Step 6 */}
       <InteractiveTourOverlay
-        visible={params.tourStep === '3'}
-        currentStepIndex={2}
+        visible={params.tourStep === '6'}
+        currentStepIndex={5}
         totalSteps={APP_TOUR_STEPS.length}
         stepData={{
-          ...APP_TOUR_STEPS[2],
+          ...APP_TOUR_STEPS[5],
           targetLayout: tourLayout,
         }}
-        onNext={() => router.replace('/reports?tourStep=4')}
-        onPrev={() => router.replace('/leaves?tourStep=2')}
+        onNext={() => router.replace('/reports?tourStep=7')}
+        onPrev={() => router.replace('/leaves?tourStep=5')}
         onSkip={() => {
           markTourCompleted();
           router.replace('/');
