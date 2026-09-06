@@ -86,6 +86,11 @@ export const PieChart = ({ data, config = {}, style }: Props) => {
   const chartWidth = containerWidth || config.width || 300;
 
   const primaryColor = useColor('primary');
+  const blueColor = useColor('blue');
+  const greenColor = useColor('green');
+  const orangeColor = useColor('orange');
+  const purpleColor = useColor('purple');
+  const pinkColor = useColor('pink');
 
   const animationProgress = useSharedValue(0);
 
@@ -117,11 +122,11 @@ export const PieChart = ({ data, config = {}, style }: Props) => {
 
   const colors = [
     primaryColor,
-    useColor('blue'),
-    useColor('green'),
-    useColor('orange'),
-    useColor('purple'),
-    useColor('pink'),
+    blueColor,
+    greenColor,
+    orangeColor,
+    purpleColor,
+    pinkColor,
   ];
 
   return (

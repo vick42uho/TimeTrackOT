@@ -58,54 +58,55 @@ export function ActionSheet({
   const feedback = useHaptics(haptic);
 
   // Use iOS native ActionSheet on iOS
-  if (Platform.OS === 'ios') {
-    useEffect(() => {
-      if (visible) {
-        const optionTitles = options.map((option) => option.title);
-        const destructiveButtonIndex = options.findIndex(
-          (option) => option.destructive
-        );
-        const disabledButtonIndices = options
-          .map((option, index) => (option.disabled ? index : -1))
-          .filter((index) => index !== -1);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    if (visible) {
+      const optionTitles = options.map((option) => option.title);
+      const destructiveButtonIndex = options.findIndex(
+        (option) => option.destructive
+      );
+      const disabledButtonIndices = options
+        .map((option, index) => (option.disabled ? index : -1))
+        .filter((index) => index !== -1);
 
-        ActionSheetIOS.showActionSheetWithOptions(
-          {
-            title,
-            message,
-            options: [...optionTitles, cancelButtonTitle],
-            cancelButtonIndex: optionTitles.length,
-            destructiveButtonIndex:
-              destructiveButtonIndex !== -1
-                ? destructiveButtonIndex
-                : undefined,
-            disabledButtonIndices:
-              disabledButtonIndices.length > 0
-                ? disabledButtonIndices
-                : undefined,
-          },
-          (buttonIndex) => {
-            if (buttonIndex < optionTitles.length) {
-              // ActionSheetIOS emits no haptic of its own.
-              feedback(
-                options[buttonIndex].destructive ? 'warning' : 'selection'
-              );
-              options[buttonIndex].onPress();
-            }
-            onClose();
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title,
+          message,
+          options: [...optionTitles, cancelButtonTitle],
+          cancelButtonIndex: optionTitles.length,
+          destructiveButtonIndex:
+            destructiveButtonIndex !== -1
+              ? destructiveButtonIndex
+              : undefined,
+          disabledButtonIndices:
+            disabledButtonIndices.length > 0
+              ? disabledButtonIndices
+              : undefined,
+        },
+        (buttonIndex) => {
+          if (buttonIndex < optionTitles.length) {
+            // ActionSheetIOS emits no haptic of its own.
+            feedback(
+              options[buttonIndex].destructive ? 'warning' : 'selection'
+            );
+            options[buttonIndex].onPress();
           }
-        );
-      }
-    }, [
-      visible,
-      title,
-      message,
-      options,
-      cancelButtonTitle,
-      onClose,
-      feedback,
-    ]);
+          onClose();
+        }
+      );
+    }
+  }, [
+    visible,
+    title,
+    message,
+    options,
+    cancelButtonTitle,
+    onClose,
+    feedback,
+  ]);
 
+  if (Platform.OS === 'ios') {
     // Return null for iOS as we use the native ActionSheet
     return null;
   }
