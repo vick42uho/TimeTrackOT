@@ -22,6 +22,7 @@ import {
   SmartAlarmScheduleItem,
 } from '../types';
 import { requestNotificationPermissions } from './notificationService';
+import FullScreenAlarm from '../modules/full-screen-alarm';
 
 export const SMART_ALARM_CONFIG_KEY = '@timetrack_smart_alarm_config';
 export const SMART_ALARM_SCHEDULED_IDS_KEY = '@timetrack_smart_alarm_scheduled_ids';
@@ -348,11 +349,14 @@ export async function cancelAllSmartAlarms(): Promise<void> {
     if (rawIds) {
       const ids: string[] = JSON.parse(rawIds);
       await Promise.all(
-        ids.map((id) =>
-          cancelScheduledNotificationAsync(id).catch((e) =>
+        ids.map(async (id) => {
+          if (Platform.OS === 'android') {
+            await FullScreenAlarm.cancelAlarm(id).catch(() => {});
+          }
+          return cancelScheduledNotificationAsync(id).catch((e) =>
             console.warn('Error cancelling notification ID:', id, e)
-          )
-        )
+          );
+        })
       );
     }
     await AsyncStorage.removeItem(SMART_ALARM_SCHEDULED_IDS_KEY);
@@ -419,33 +423,50 @@ export async function syncSmartAlarmSchedule(
             notifBody = `วันนี้ทำงานเสาร์-อาทิตย์ (${targetTime} น.) รถไม่ติด เดินทางสบายๆ เริ่มต้นวันอย่างสดชื่นครับ`;
           }
 
-          const notifId = await scheduleNotificationAsync({
-            content: {
-              title: notifTitle,
-              body: notifBody,
-              sound: 'alarm.wav',
-              priority: AndroidNotificationPriority.MAX,
-              sticky: true,
-              autoDismiss: false,
-              color: '#2563EB',
-              categoryIdentifier: SMART_ALARM_CATEGORY,
-              data: {
-                type: 'smart-alarm',
-                date: item.date,
-                alarmTime: targetTime,
-                reason: item.reason,
-              },
-            },
-            trigger: {
-              type: SchedulableTriggerInputTypes.DATE,
-              date: alarmDate,
-              channelId: SMART_ALARM_CHANNEL_ID,
-            },
-          });
+          let scheduledAlarmId: string | undefined;
 
-          if (notifId) {
-            scheduledIds.push(notifId);
-            item.notificationId = notifId;
+          if (Platform.OS === 'android') {
+            const nativeId = `alarm_${item.date}_${targetTime.replace(':', '')}`;
+            const ok = await FullScreenAlarm.scheduleAlarm(
+              nativeId,
+              alarmDate.getTime(),
+              notifTitle,
+              notifBody,
+              targetTime,
+              item.reason || 'วันทำงานปกติ'
+            );
+            if (ok) {
+              scheduledAlarmId = nativeId;
+            }
+          } else {
+            scheduledAlarmId = await scheduleNotificationAsync({
+              content: {
+                title: notifTitle,
+                body: notifBody,
+                sound: 'alarm.wav',
+                priority: AndroidNotificationPriority.MAX,
+                sticky: true,
+                autoDismiss: false,
+                color: '#2563EB',
+                categoryIdentifier: SMART_ALARM_CATEGORY,
+                data: {
+                  type: 'smart-alarm',
+                  date: item.date,
+                  alarmTime: targetTime,
+                  reason: item.reason,
+                },
+              },
+              trigger: {
+                type: SchedulableTriggerInputTypes.DATE,
+                date: alarmDate,
+                channelId: SMART_ALARM_CHANNEL_ID,
+              },
+            });
+          }
+
+          if (scheduledAlarmId) {
+            scheduledIds.push(scheduledAlarmId);
+            item.notificationId = scheduledAlarmId;
             scheduledCount++;
           }
         } catch (err) {
@@ -605,6 +626,22 @@ export async function snoozeSmartAlarm(
       triggerDate.getMinutes()
     ).padStart(2, '0')}`;
 
+    if (Platform.OS === 'android') {
+      const snoozeId = `snooze_${Date.now()}`;
+      const ok = await FullScreenAlarm.scheduleAlarm(
+        snoozeId,
+        triggerDate.getTime(),
+        `ถึงเวลาตื่นแล้ว! (${reason} - เลื่อนปลุก ${minutes} นาที)`,
+        `ถึงเวลาที่เลื่อนปลุกไว้แล้ว (${timeStr} น.) เริ่มต้นวันใหม่อย่างสดชื่นครับ`,
+        timeStr,
+        `${reason} (เลื่อนปลุก)`
+      );
+      if (ok) {
+        console.log(`Smart alarm snoozed for ${minutes} minutes via FullScreenAlarm (ID: ${snoozeId})`);
+        return snoozeId;
+      }
+    }
+
     const notifId = await scheduleNotificationAsync({
       content: {
         title: `ถึงเวลาตื่นแล้ว! (${reason} - เลื่อนปลุก ${minutes} นาที)`,
@@ -648,6 +685,21 @@ export async function triggerTestSmartAlarm(): Promise<string | undefined> {
     const triggerDate = new Date(Date.now() + 3000); // 3 seconds from now
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    if (Platform.OS === 'android') {
+      const testId = `test_alarm_${Date.now()}`;
+      const ok = await FullScreenAlarm.scheduleAlarm(
+        testId,
+        triggerDate.getTime(),
+        'ทดสอบระบบนาฬิกาปลุก (Smart Alarm Test)',
+        'ระบบกำลังเปิดหน้าต่างปลุกเต็มจออัตโนมัติ',
+        timeStr,
+        'ทดสอบระบบนาฬิกาปลุก'
+      );
+      if (ok) {
+        return testId;
+      }
+    }
 
     const notifId = await scheduleNotificationAsync({
       content: {

@@ -368,12 +368,21 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
 
 ## 8. Smart Workday Alarm & Activity Management Engine
 
-### Smart Workday Alarm Architecture (`services/smartAlarmService.ts`)
-1. **Android ALARM Audio Stream, Custom 34s Tone & MAX Importance**:
-   - Notification channel `smart_workday_alarm_v4` configured with `AndroidAudioUsage.ALARM`, `AndroidAudioContentType.SONIFICATION`, `importance: AndroidImportance.MAX`, `bypassDnd: true`, and custom sound file `alarm.wav`.
-   - Automatic cache purge on initialization: deletes legacy channels (`smart-workday-alarm`, `smart-workday-alarm-v2`, `smart-workday-alarm-v3`) via `deleteNotificationChannelAsync` to bypass Android OS notification channel immutability caching bugs.
-   - Continuous pulse vibration pattern: `[0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000]`.
-   - Notifications scheduled with `sound: 'alarm.wav'`, `priority: AndroidNotificationPriority.MAX`, `sticky: true`, `autoDismiss: false`, and `categoryIdentifier: 'smart_alarm_actions'`.
+### Smart Workday Alarm Architecture (`services/smartAlarmService.ts` & `modules/full-screen-alarm`)
+1. **Native Android Full-Screen Intent Module (`modules/full-screen-alarm`)**:
+   - Custom Local Expo Module written in Kotlin utilizing `AlarmManager.setExactAndAllowWhileIdle(RTC_WAKEUP, ...)` for sub-second precision wakeups even in Android Doze Mode.
+   - **`AlarmReceiver` (BroadcastReceiver)**:
+     - Acquires `WakeLock` (`PARTIAL_WAKE_LOCK | ACQUIRE_CAUSES_WAKEUP | ON_AFTER_RELEASE`).
+     - Builds high-priority notification with **`.setFullScreenIntent(fullScreenPendingIntent, true)`** attached to `MainActivity`.
+     - When device screen is off/locked, Android OS automatically launches `MainActivity` full-screen over the keyguard without requiring user tap or unlock.
+     - Custom notification channel `smart_workday_alarm_v4` with `USAGE_ALARM`, `enforceAudibility: true`, sound `alarm.wav`, and 16-pulse vibration pattern.
+   - **`AlarmActionReceiver` (BroadcastReceiver)**:
+     - Handles native lock screen button actions directly in Kotlin:
+       - `ACTION_SNOOZE`: cancels notification and reschedules exact alarm 10 minutes later via `AlarmManager`.
+       - `ACTION_DISMISS`: cancels notification and silences alarm immediately.
+   - **`FullScreenAlarmModule` (Kotlin)**:
+     - Lifecycle hooks `OnActivityEntersForeground` and `OnNewIntent` ensuring `setShowWhenLocked(true)` and `setTurnScreenOn(true)` are dynamically applied to `MainActivity`.
+     - Sends `onAlarmTriggered` event to React Native runtime and provides `getInitialAlarm()` for cold-start launches.
 2. **Dedicated Alarm Audio Tone (`assets/sounds/alarm.wav`)**:
    - Dual-tone high-frequency harmonic alarm chime (987.77 Hz - 2093 Hz) running ~34 seconds per loop.
    - Clean 22,050 Hz 16-bit PCM WAV (1.43 MB) registered in `app.json` under `expo-notifications` `sounds` array, copied to native raw resources during build.

@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useThemeContext } from '../components/ThemeProvider';
 import { initNotificationService } from '../services/notificationService';
 import { initSmartAlarmChannels, snoozeSmartAlarm } from '../services/smartAlarmService';
+import FullScreenAlarm from '../modules/full-screen-alarm';
 import { AlarmRingingModal } from '../components/AlarmRingingModal';
 import {
   addNotificationResponseReceivedListener,
@@ -64,6 +65,31 @@ function RootLayoutContent() {
         }
       }
     } else {
+      // 0. Check if launched by Native FullScreenAlarm
+      if (Platform.OS === 'android') {
+        const initialAlarm = FullScreenAlarm.getInitialAlarm();
+        if (initialAlarm?.isAlarmTriggered) {
+          setAlarmRingingData({
+            visible: true,
+            alarmTime: initialAlarm.alarmTime || '06:30',
+            reason: initialAlarm.reason || 'วันทำงานปกติ',
+          });
+        }
+      }
+
+      // Listen for Native FullScreenAlarm triggers while app is running/backgrounded
+      const alarmSub = Platform.OS === 'android'
+        ? FullScreenAlarm.addListener('onAlarmTriggered', (event) => {
+            if (event?.isAlarmTriggered) {
+              setAlarmRingingData({
+                visible: true,
+                alarmTime: event.alarmTime || '06:30',
+                reason: event.reason || 'วันทำงานปกติ',
+              });
+            }
+          })
+        : null;
+
       const handleAlarmResponse = (response: any) => {
         if (response?.notification?.request?.content?.data?.type === 'smart-alarm') {
           const actionId = response.actionIdentifier;
@@ -118,6 +144,7 @@ function RootLayoutContent() {
       });
 
       return () => {
+        alarmSub?.remove();
         responseSub.remove();
         receivedSub.remove();
       };
