@@ -190,7 +190,7 @@ const LeavesContent: React.FC = () => {
       const timer = setTimeout(() => {
         calendarCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
           if (width > 0 && height > 0) {
-            setTourLayout({ x, y, width, height, borderRadius: 20 });
+            setTourLayout({ x, y, width, height, borderRadius: 999 });
           }
         });
       }, 350);
@@ -1090,11 +1090,13 @@ const LeavesContent: React.FC = () => {
       {/* Main Content Tabs */}
       <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}>
         <Tabs defaultValue="calendar" style={{ flex: 1 }}>
-          <TabsList style={{ marginBottom: 10 }}>
-            <TabsTrigger value="calendar">ปฏิทิน & วันหยุด</TabsTrigger>
-            <TabsTrigger value="leaves">การลา ({leaves.length})</TabsTrigger>
-            <TabsTrigger value="quota">โควตา</TabsTrigger>
-          </TabsList>
+          <View ref={calendarCardRef} collapsable={false} style={{ marginBottom: 10 }}>
+            <TabsList style={{ marginBottom: 0 }}>
+              <TabsTrigger value="calendar">ปฏิทิน & วันหยุด</TabsTrigger>
+              <TabsTrigger value="leaves">การลา ({leaves.length})</TabsTrigger>
+              <TabsTrigger value="quota">โควตา</TabsTrigger>
+            </TabsList>
+          </View>
 
           {/* ========================================================= */}
           {/* TAB 1: INTERACTIVE CALENDAR & HOLIDAYS */}
@@ -1102,8 +1104,7 @@ const LeavesContent: React.FC = () => {
           <TabsContent value="calendar" style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
               {/* Smart Workday Alarm Card */}
-              <View ref={calendarCardRef} collapsable={false}>
-                <Card
+              <Card
                 style={{
                   marginBottom: 10,
                   padding: 12,
@@ -1199,7 +1200,6 @@ const LeavesContent: React.FC = () => {
                   </View>
                 </View>
               </Card>
-            </View>
 
               {/* Calendar Container with ViewShot for Sharing */}
               <ViewShot
