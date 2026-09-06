@@ -82,7 +82,7 @@ export const APP_TOUR_STEPS: TourStepConfig[] = [
     route: '/leaves',
     badge: 'ปฏิทินวันหยุด',
     title: '2. ปฏิทินวันหยุด & กำหนดวันหยุด',
-    description: 'กำหนดวันหยุดและกิจกรรมได้ง่ายๆ:\n• แตะที่ "วันที่" บนปฏิทิน (เช่น วันที่ 1)\n• จะมีเมนูป๊อปอัปขึ้นมาให้เลือกกำหนด เช่น วันหยุดปกติ, นักขัตฤกษ์ หรือ WFH ได้ทันที',
+    description: 'กำหนดวันหยุดและกิจกรรมได้ง่ายๆ:\n• ในการใช้งานจริง แตะ "วันที่" บนปฏิทิน (เช่น วันที่ 1) จะมีเมนูขึ้นมาให้เลือกกำหนด เช่น วันหยุดปกติ, นักขัตฤกษ์ หรือ WFH\n• แตะปุ่ม "ถัดไป" หรือแตะที่ปฏิทินเพื่อไปขั้นตอนต่อไป',
     icon: Calendar,
     iconColor: '#f59e0b',
   },
@@ -285,8 +285,48 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
   const holeH = hasTarget ? target.height + padding * 2 : 120;
   const holeRadius = hasTarget ? target.borderRadius || 18 : 18;
 
-  // Decide if tooltip card should appear above or below the target hole
-  const isTooltipAbove = holeY > SCREEN_HEIGHT * 0.46;
+  // Safe margins for notch and navigation bars
+  const SAFE_TOP = Platform.OS === 'android' ? 36 : 50;
+  const SAFE_BOTTOM = Platform.OS === 'android' ? 24 : 36;
+  const ESTIMATED_CARD_HEIGHT = 190;
+
+  // Space available above and below the hole
+  const spaceAbove = holeY - SAFE_TOP;
+  const spaceBelow = SCREEN_HEIGHT - (holeY + holeH) - SAFE_BOTTOM;
+
+  let isTooltipAbove = false;
+  let tooltipPositionStyle: any = {};
+  let showArrow = true;
+
+  if (spaceBelow >= ESTIMATED_CARD_HEIGHT) {
+    // Fits comfortably below hole
+    isTooltipAbove = false;
+    showArrow = true;
+    tooltipPositionStyle = {
+      top: Math.min(holeY + holeH + 10, SCREEN_HEIGHT - SAFE_BOTTOM - ESTIMATED_CARD_HEIGHT),
+    };
+  } else if (spaceAbove >= ESTIMATED_CARD_HEIGHT) {
+    // Fits comfortably above hole
+    isTooltipAbove = true;
+    showArrow = true;
+    tooltipPositionStyle = {
+      bottom: Math.max(SAFE_BOTTOM, SCREEN_HEIGHT - holeY + 10),
+    };
+  } else {
+    // Large target: place where there is more room, pinned safely to edge
+    showArrow = false;
+    if (spaceAbove >= spaceBelow) {
+      isTooltipAbove = true;
+      tooltipPositionStyle = {
+        top: SAFE_TOP,
+      };
+    } else {
+      isTooltipAbove = false;
+      tooltipPositionStyle = {
+        bottom: SAFE_BOTTOM,
+      };
+    }
+  }
 
   const isLastStep = currentStepIndex === totalSteps - 1;
   const IconComponent = stepData.icon || Sparkles;
@@ -380,8 +420,14 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
                 },
               ]}
             >
+              {/* Tapping anywhere on the highlighted target advances to next step */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleNextPress}
+                style={StyleSheet.absoluteFill}
+              />
               {/* Corner Tag for Game-like UI */}
-              <View style={styles.spotlightPill}>
+              <View style={styles.spotlightPill} pointerEvents="none">
                 <View style={styles.liveDot} />
                 <Text style={styles.spotlightPillText}>{stepData.badge || 'จุดนี้เลย'}</Text>
               </View>
@@ -400,39 +446,39 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
               borderColor: isDark ? '#3b82f6' : '#2563eb',
               opacity: fadeAnim,
               transform: [{ translateY: tooltipSlideAnim }],
-              ...(isTooltipAbove
-                ? { bottom: SCREEN_HEIGHT - holeY + 16 }
-                : { top: holeY + holeH + 16 }),
+              ...tooltipPositionStyle,
             },
           ]}
         >
           {/* Arrow Pointer Pointing to the Hole */}
-          {isTooltipAbove ? (
-            <View
-              style={[
-                styles.arrowDown,
-                {
-                  borderTopColor: isDark ? '#1e293b' : '#ffffff',
-                  left: Math.min(
-                    SCREEN_WIDTH - 60,
-                    Math.max(30, holeX + holeW / 2 - 20)
-                  ),
-                },
-              ]}
-            />
-          ) : (
-            <View
-              style={[
-                styles.arrowUp,
-                {
-                  borderBottomColor: isDark ? '#1e293b' : '#ffffff',
-                  left: Math.min(
-                    SCREEN_WIDTH - 60,
-                    Math.max(30, holeX + holeW / 2 - 20)
-                  ),
-                },
-              ]}
-            />
+          {showArrow && (
+            isTooltipAbove ? (
+              <View
+                style={[
+                  styles.arrowDown,
+                  {
+                    borderTopColor: isDark ? '#1e293b' : '#ffffff',
+                    left: Math.min(
+                      SCREEN_WIDTH - 60,
+                      Math.max(30, holeX + holeW / 2 - 20)
+                    ),
+                  },
+                ]}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.arrowUp,
+                  {
+                    borderBottomColor: isDark ? '#1e293b' : '#ffffff',
+                    left: Math.min(
+                      SCREEN_WIDTH - 60,
+                      Math.max(30, holeX + holeW / 2 - 20)
+                    ),
+                  },
+                ]}
+              />
+            )
           )}
 
           {/* Tooltip Header: Game Step Badge + Close button */}
@@ -638,11 +684,12 @@ const styles = StyleSheet.create({
   },
   tooltipCard: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 14,
+    right: 14,
     borderRadius: 20,
     borderWidth: 1.5,
-    padding: 16,
+    padding: 13,
+    maxHeight: 280,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -685,7 +732,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   headerBadgeWrap: {
     flexDirection: 'row',
@@ -710,13 +757,13 @@ const styles = StyleSheet.create({
   contentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 8,
   },
   iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -725,21 +772,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   stepTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Sarabun_700Bold',
-    marginBottom: 4,
-    lineHeight: 22,
+    marginBottom: 2,
+    lineHeight: 20,
   },
   stepDescription: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontFamily: 'Sarabun_400Regular',
-    lineHeight: 19,
+    lineHeight: 18,
   },
   dotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginBottom: 14,
+    gap: 4,
+    marginBottom: 10,
   },
   dot: {
     height: 5,
