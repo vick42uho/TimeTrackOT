@@ -1555,7 +1555,7 @@ const ReportsContent: React.FC = () => {
       <InteractiveTourOverlay
         visible={tourStep === '4'}
         currentStepIndex={3}
-        totalSteps={5}
+        totalSteps={APP_TOUR_STEPS.length}
         stepData={{
           ...APP_TOUR_STEPS[3],
           targetLayout: tourLayout,

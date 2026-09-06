@@ -2776,7 +2776,7 @@ const LeavesContent: React.FC = () => {
       <InteractiveTourOverlay
         visible={tourStep === '2'}
         currentStepIndex={1}
-        totalSteps={5}
+        totalSteps={APP_TOUR_STEPS.length}
         stepData={{
           ...APP_TOUR_STEPS[1],
           targetLayout: tourLayout,

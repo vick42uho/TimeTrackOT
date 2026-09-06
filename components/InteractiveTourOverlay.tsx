@@ -23,6 +23,7 @@ import {
   X,
   BarChart3,
   Home,
+  Palmtree,
 } from 'lucide-react-native';
 import { useThemeContext } from './ThemeProvider';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -110,11 +111,44 @@ export const APP_TOUR_STEPS: TourStepConfig[] = [
     stepNumber: 5,
     stepParam: '5',
     route: '/',
-    badge: 'หน้าหลัก & แดชบอร์ด',
-    title: '5. แดชบอร์ดหน้าหลัก & โน้ต/งาน',
-    description: 'ศูนย์รวมข้อมูลประจำวันของคุณ! ดูยอด OT และสถิติสะสมแบบเรียลไทม์ กดลงเวลางานกะวันนี้ พร้อมจดโน้ตและรายการสิ่งที่ต้องทำ (To-Do List)... พร้อมเริ่มต้นใช้งานเลย!',
-    icon: Home,
+    badge: 'แดชบอร์ดสถิติ',
+    title: '5. แดชบอร์ดสรุปสถิติ OT & การทำงาน',
+    description: 'สรุปภาพรวมเวลาทำงานและสถิติสำคัญของคุณ:\n• OT คงเหลือทั้งปี และ OT รวมประจำเดือน\n• ชั่วโมงทำงานจริงสะสม และสถิติการมาสาย',
+    icon: TrendingUp,
     iconColor: '#8b5cf6',
+  },
+  {
+    stepIndex: 5,
+    stepNumber: 6,
+    stepParam: '6',
+    route: '/',
+    badge: 'การทำงานวันนี้',
+    title: '6. การทำงานวันนี้ & ลงเวลาด่วน',
+    description: 'เช็คสถานะการทำงานประจำวันได้อย่างรวดเร็ว:\n• ดูเวลากะทำงาน และความคืบหน้าของวันนี้\n• กดปุ่มบันทึกเวลาเข้างาน / เลิกงาน ได้ทันทีในหน้าเดียว',
+    icon: Clock,
+    iconColor: '#2563eb',
+  },
+  {
+    stepIndex: 6,
+    stepNumber: 7,
+    stepParam: '7',
+    route: '/',
+    badge: 'โน้ต & กิจกรรม',
+    title: '7. กิจกรรม & โน้ต/งาน (To-Do List)',
+    description: 'จัดการตารางงานและนัดหมายประจำวัน:\n• กิจกรรม & นัดหมาย: เพิ่มและติดตามนัดหมายสำคัญ\n• โน้ต & งาน: สร้างสิ่งที่ต้องทำ (To-Do List) พร้อมติ๊กเมื่อทำเสร็จ',
+    icon: CheckSquare,
+    iconColor: '#10b981',
+  },
+  {
+    stepIndex: 7,
+    stepNumber: 8,
+    stepParam: '8',
+    route: '/',
+    badge: 'โควตาวันลา',
+    title: '8. โควตาวันลาคงเหลือประจำปี',
+    description: 'ตรวจสอบสิทธิ์วันลาคงเหลือประจำปีได้ทันที:\n• เช็ควันลาพักร้อน ลาป่วย ลากิจ และอื่นๆ\n• แตะเพื่อดูรายละเอียดหรือยื่นขอลาหยุด... พร้อมเริ่มใช้งานจริงได้เลย!',
+    icon: Palmtree,
+    iconColor: '#f59e0b',
   },
 ];
 
@@ -133,7 +167,7 @@ export const restartTour = (router: any) => {
 export interface InteractiveTourOverlayProps {
   visible: boolean;
   currentStepIndex: number;
-  totalSteps: number;
+  totalSteps?: number;
   stepData: TourStepItem;
   onNext: () => void;
   onPrev: () => void;
@@ -146,7 +180,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
   visible,
   currentStepIndex,
-  totalSteps,
+  totalSteps = APP_TOUR_STEPS.length,
   stepData,
   onNext,
   onPrev,
@@ -314,7 +348,7 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
               {/* Corner Tag for Game-like UI */}
               <View style={styles.spotlightPill}>
                 <View style={styles.liveDot} />
-                <Text style={styles.spotlightPillText}>จุดนี้เลย</Text>
+                <Text style={styles.spotlightPillText}>{stepData.badge || 'จุดนี้เลย'}</Text>
               </View>
             </Animated.View>
           </>

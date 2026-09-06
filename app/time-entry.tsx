@@ -1065,7 +1065,7 @@ const TimeEntryContent: React.FC = () => {
       <InteractiveTourOverlay
         visible={params.tourStep === '3'}
         currentStepIndex={2}
-        totalSteps={5}
+        totalSteps={APP_TOUR_STEPS.length}
         stepData={{
           ...APP_TOUR_STEPS[2],
           targetLayout: tourLayout,

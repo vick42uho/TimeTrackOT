@@ -197,18 +197,43 @@ const HomeContent: React.FC = () => {
   const shiftCardRef = useRef<View>(null);
   const metricsGridRef = useRef<View>(null);
   const tasksNotesRef = useRef<View>(null);
+  const leaveQuotaRef = useRef<View>(null);
 
   useEffect(() => {
-    if (tourStep === '5') {
+    if (['5', '6', '7', '8'].includes(tourStep || '')) {
       setIsTourActive(true);
-      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      let targetRef: React.RefObject<any> | null = null;
+      let scrollY = 0;
+      let radius = 24;
+
+      if (tourStep === '5') {
+        targetRef = metricsGridRef;
+        scrollY = 0;
+        radius = 24;
+      } else if (tourStep === '6') {
+        targetRef = shiftCardRef;
+        scrollY = 130;
+        radius = 24;
+      } else if (tourStep === '7') {
+        targetRef = tasksNotesRef;
+        scrollY = 320;
+        radius = 24;
+      } else if (tourStep === '8') {
+        targetRef = leaveQuotaRef;
+        scrollY = 560;
+        radius = 24;
+      }
+
+      mainScrollViewRef.current?.scrollTo({ y: scrollY, animated: true });
+
       const timer = setTimeout(() => {
-        metricsGridRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+        targetRef?.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
           if (width > 0 && height > 0) {
-            setTourLayout({ x, y, width, height, borderRadius: 24 });
+            setTourLayout({ x, y, width, height, borderRadius: radius });
           }
         });
-      }, 350);
+      }, 400);
+
       return () => clearTimeout(timer);
     } else {
       setIsTourActive(false);
@@ -1794,7 +1819,7 @@ const HomeContent: React.FC = () => {
         )}
 
         {/* Leave Quotas (4 Slots) - Replaced redundant menu shortcuts */}
-        <View style={{ marginTop: 4, marginBottom: 26 }}>
+        <View ref={leaveQuotaRef} collapsable={false} style={{ marginTop: 4, marginBottom: 26 }}>
           <View
             style={{
               flexDirection: 'row',
@@ -1956,19 +1981,54 @@ const HomeContent: React.FC = () => {
         }}
       />
 
+      {/* Interactive Tour Overlay for Steps 5, 6, 7, and 8 */}
       <InteractiveTourOverlay
-        visible={tourStep === '5' && isTourActive}
-        currentStepIndex={4}
-        totalSteps={5}
+        visible={['5', '6', '7', '8'].includes(tourStep || '') && isTourActive}
+        currentStepIndex={
+          tourStep === '6'
+            ? 5
+            : tourStep === '7'
+            ? 6
+            : tourStep === '8'
+            ? 7
+            : 4
+        }
+        totalSteps={APP_TOUR_STEPS.length}
         stepData={{
-          ...APP_TOUR_STEPS[4],
+          ...APP_TOUR_STEPS[
+            tourStep === '6'
+              ? 5
+              : tourStep === '7'
+              ? 6
+              : tourStep === '8'
+              ? 7
+              : 4
+          ],
           targetLayout: tourLayout,
         }}
         onNext={() => {
-          markTourCompleted();
-          router.replace('/');
+          if (tourStep === '5') {
+            router.replace('/?tourStep=6');
+          } else if (tourStep === '6') {
+            router.replace('/?tourStep=7');
+          } else if (tourStep === '7') {
+            router.replace('/?tourStep=8');
+          } else {
+            markTourCompleted();
+            router.replace('/');
+          }
         }}
-        onPrev={() => router.replace('/reports?tourStep=4')}
+        onPrev={() => {
+          if (tourStep === '8') {
+            router.replace('/?tourStep=7');
+          } else if (tourStep === '7') {
+            router.replace('/?tourStep=6');
+          } else if (tourStep === '6') {
+            router.replace('/?tourStep=5');
+          } else {
+            router.replace('/reports?tourStep=4');
+          }
+        }}
         onSkip={() => {
           markTourCompleted();
           router.replace('/');
