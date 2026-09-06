@@ -369,10 +369,31 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
 ## 8. Smart Workday Alarm & Activity Management Engine
 
 ### Smart Workday Alarm Architecture (`services/smartAlarmService.ts`)
-1. **Android ALARM Audio Stream & MAX Importance**:
-   - Notification channel `smart-workday-alarm` configured with `AndroidAudioUsage.ALARM`, `AndroidAudioContentType.SONIFICATION`, `importance: AndroidImportance.MAX`, and `bypassDnd: true`.
-   - Bypasses Do Not Disturb on Android devices and sounds through the device's alarm stream.
-2. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
+1. **Android ALARM Audio Stream, Custom 34s Tone & MAX Importance**:
+   - Notification channel `smart-workday-alarm` configured with `AndroidAudioUsage.ALARM`, `AndroidAudioContentType.SONIFICATION`, `importance: AndroidImportance.MAX`, `bypassDnd: true`, and custom sound file `alarm.wav`.
+   - Continuous pulse vibration pattern: `[0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000]`.
+   - Notifications scheduled with `sound: 'alarm.wav'`, `priority: AndroidNotificationPriority.MAX`, `sticky: true`, and `autoDismiss: false`.
+2. **Dedicated Alarm Audio Tone (`assets/sounds/alarm.wav`)**:
+   - Dual-tone high-frequency harmonic alarm chime (987.77 Hz - 2093 Hz) running ~34 seconds per loop.
+   - Clean 22,050 Hz 16-bit PCM WAV (1.43 MB) registered in `app.json` under `expo-notifications` `sounds` array, copied to native raw resources during build.
+3. **Full-Screen Alarm Ringing Screen (`components/AlarmRingingModal.tsx`)**:
+   - Full-screen immersive modal with Dark Ambient aesthetic (`#090D16`).
+   - Concentric pulsating radar rings around bell icon powered by animated loops.
+   - Real-time digital clock display (`HH:mm:ss`) updated every second, formatted with Thai Buddhist era dates (*พ.ศ.*).
+   - Workday reason badge (Normal Workday, WFH, Weekend Work - Light Traffic).
+   - **`expo-audio` Integration**: Plays alarm audio with infinite looping via modern SDK 54 `useAudioPlayer` hook and triggers continuous device vibration (`Vibration.vibrate`).
+   - **Snooze 10 Minutes**: Large touch target calling `snoozeSmartAlarm(10, reason)`, cancelling sound/vibration, and scheduling a follow-up alarm in 10 minutes.
+   - **Dismiss Alarm**: Large prominent red button cancelling sound/vibration immediately and closing the screen.
+   - 100% compliant with **Zero-Emoji Directive** (Lucide icons only: `Bell`, `BellOff`, `Clock`, `Briefcase`, `Home`, `Calendar`) and Thai Sarabun font standards.
+4. **App Root Event Listeners (`app/_layout.tsx`)**:
+   - Direct subpath imports (`expo-notifications/build/NotificationsEmitter` and `expo-notifications/build/dismissNotificationAsync`) avoiding `DevicePushTokenAutoRegistration.fx` to eliminate remote push errors in Expo Go.
+   - Cold start detection via `getLastNotificationResponseAsync()`.
+   - Background interaction listener via `addNotificationResponseReceivedListener()`.
+   - Foreground notification listener via `addNotificationReceivedListener()`.
+   - Opens `AlarmRingingModal` over any current screen when the alarm notification is received or tapped.
+5. **In-App Test Trigger (`triggerTestSmartAlarm`)**:
+   - Prominent test card in `components/SmartAlarmModal.tsx` allowing user to tap and immediately test the full-screen ringing UI, 34-second audio loop, vibration, snooze, and dismiss buttons without waiting for the scheduled time.
+6. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
    - Evaluates a rolling 21-day window starting from today:
      - **Calendar-First Truth**: The calendar is the single source of truth (`skipWeekends: false` by default). Saturdays and Sundays ring normally unless marked as holidays/leaves or explicitly configured to skip weekends.
      - **3 Configurable Wake-Up Profiles**:
@@ -382,20 +403,13 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
    - **Public Holidays & Regular Off**: Automatically skips alarms based on calendar entries.
    - **Approved Leaves**: Automatically skips alarms when user logs vacation, sick, or personal leave.
    - **Work From Home (WFH)**: Supports 3 configurable modes: standard alarm time, custom delayed alarm time (e.g. `07:30 น.`), or skip alarm entirely.
-3. **Goodnight Alert (Pre-Holiday 20:00 Notification)**:
-   - On the evening before any public holiday or approved leave, sends a friendly 20:00 reminder: *"🌙 พรุ่งนี้เป็นวันหยุด: [ชื่อ] ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ!"*
-4. **UI Components & Live 7-Day Preview (`components/SmartAlarmModal.tsx`)**:
-   - Pinned footer BottomSheet providing live 7-day schedule preview that dynamically re-computes whenever user adjusts alarm times, toggles weekend work alarm, skip rules, or modifies WFH settings.
-   - Distinct badges in preview: Blue (Normal Workday), Indigo (Weekend Workday - Light Traffic), Emerald (WFH), Amber/Pink/Slate (Skipped days).
-   - Status card embedded at the top of the Calendar tab in `app/leaves.tsx` with quick on/off switch and real-time tomorrow status indicator.
-5. **Hybrid Architecture with System Alarm Clock (`services/systemAlarmService.ts`)**:
-   - Solves the mobile OS limitation where push notifications only chime for a few seconds and background killers silence killed apps.
-   - 1-Tap direct sync to the device's native Clock app (Google Clock / Samsung Clock) using `android.intent.action.SET_ALARM` via `expo-intent-launcher`. Guarantees continuous looping sound, lock-screen full screen dismissal, and 100% reliability even if app is closed or phone is rebooted.
-   - Exact alarm hardening with `USE_EXACT_ALARM`, `WAKE_LOCK`, `USE_FULL_SCREEN_INTENT`, and `com.android.alarm.permission.SET_ALARM` in `app.json`.
-   - Collapsible in-app Battery Optimization guide with direct link to Android App Details settings to set battery to "Unrestricted".
-6. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
-   - Solves the jarring page jump when tapping activities on the Home Dashboard Bento card.
+7. **Pre-Holiday Goodnight Alert (20:00 Notification)**:
+   - On the evening before any public holiday, regular off, or approved leave, sends a friendly 20:00 reminder: *"แจ้งเตือน: พรุ่งนี้วันหยุด ([ชื่อ]) ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ"* (Channel: `smart-alarm-goodnight`).
+8. **Collapsible Android Battery Optimization Guide**:
+   - Direct 1-tap launcher to Android App Settings (`openAppBatterySettings()`) instructing users to set battery optimization to "Unrestricted" so alarms ring on time even if the app is killed.
+9. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
    - Tapping an activity opens a full BottomSheet directly on the Home screen displaying category chip, time, location (tap to open Google Maps), reminder interval, and notes with auto-detected URLs.
    - Direct [Edit], [Delete] (with confirmation), and [View in Calendar] action buttons without leaving the Dashboard.
+
 
 
