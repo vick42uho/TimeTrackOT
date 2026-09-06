@@ -396,8 +396,12 @@ export async function syncSmartAlarmSchedule(
     return { scheduledCount: 0, goodnightCount: 0, schedule: preview };
   }
 
-  // 3. Calculate schedule for next 21 days
-  const fullSchedule = calculateSmartAlarmSchedule(config, holidays, leaves, 21);
+  // 3. Calculate schedule for next 7 days only
+  //    (Android AlarmManager quota = 500 exact alarms per UID — 7 days is safe
+  //     and sufficient for practical use. 21 days was hitting quota in Expo Go
+  //     where all apps share the same UID.)
+  const SCHEDULE_DAYS = 7;
+  const fullSchedule = calculateSmartAlarmSchedule(config, holidays, leaves, SCHEDULE_DAYS);
   const scheduledIds: string[] = [];
   let scheduledCount = 0;
   let goodnightCount = 0;
@@ -541,7 +545,7 @@ export async function syncSmartAlarmSchedule(
   return {
     scheduledCount,
     goodnightCount,
-    schedule: fullSchedule.slice(0, 7),
+    schedule: fullSchedule, // already 7 days — no slice needed
   };
 }
 
