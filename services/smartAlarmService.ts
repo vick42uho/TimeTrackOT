@@ -66,11 +66,11 @@ export async function initSmartAlarmChannels(): Promise<void> {
       name: 'นาฬิกาปลุกวันทำงาน (Smart Workday Alarm)',
       description: 'เสียงปลุกเฉพาะวันทำงานจริง และงดปลุกวันหยุด/วันลาอัตโนมัติ',
       importance: AndroidImportance.MAX,
-      vibrationPattern: [0, 600, 300, 600, 300, 1000],
+      vibrationPattern: [0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000],
       lightColor: '#2563EB',
       lockscreenVisibility: AndroidNotificationVisibility.PUBLIC,
       bypassDnd: true,
-      sound: 'default',
+      sound: 'alarm.wav',
       audioAttributes: {
         usage: AndroidAudioUsage.ALARM,
         contentType: AndroidAudioContentType.SONIFICATION,
@@ -386,13 +386,16 @@ export async function syncSmartAlarmSchedule(
             content: {
               title: notifTitle,
               body: notifBody,
-              sound: 'default',
+              sound: 'alarm.wav',
               priority: AndroidNotificationPriority.MAX,
+              sticky: true,
+              autoDismiss: false,
               color: '#2563EB',
               data: {
                 type: 'smart-alarm',
                 date: item.date,
                 alarmTime: targetTime,
+                reason: item.reason,
               },
             },
             trigger: {
@@ -547,3 +550,93 @@ export function getSmartAlarmSummary(schedule: SmartAlarmScheduleItem[]) {
     isTomorrowWorkday,
   };
 }
+
+/**
+ * Snooze the Smart Alarm by N minutes (defaults to 10 minutes)
+ */
+export async function snoozeSmartAlarm(
+  minutes: number = 10,
+  reason: string = 'วันทำงาน'
+): Promise<string | undefined> {
+  if (Platform.OS === 'web') return undefined;
+
+  try {
+    await initSmartAlarmChannels();
+    const triggerDate = new Date(Date.now() + minutes * 60 * 1000);
+    const timeStr = `${String(triggerDate.getHours()).padStart(2, '0')}:${String(
+      triggerDate.getMinutes()
+    ).padStart(2, '0')}`;
+
+    const notifId = await scheduleNotificationAsync({
+      content: {
+        title: `ถึงเวลาตื่นแล้ว! (${reason} - เลื่อนปลุก ${minutes} นาที)`,
+        body: `ถึงเวลาที่เลื่อนปลุกไว้แล้ว (${timeStr} น.) เริ่มต้นวันใหม่อย่างสดชื่นครับ`,
+        sound: 'alarm.wav',
+        priority: AndroidNotificationPriority.MAX,
+        sticky: true,
+        autoDismiss: false,
+        color: '#2563EB',
+        data: {
+          type: 'smart-alarm',
+          date: triggerDate.toISOString().split('T')[0],
+          alarmTime: timeStr,
+          reason: `${reason} (เลื่อนปลุก)`,
+        },
+      },
+      trigger: {
+        type: SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+        channelId: SMART_ALARM_CHANNEL_ID,
+      },
+    });
+
+    console.log(`Smart alarm snoozed for ${minutes} minutes (ID: ${notifId})`);
+    return notifId;
+  } catch (err) {
+    console.error('Error snoozing smart alarm:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Trigger an immediate test alarm (in 3 seconds) for user to verify sound & UI
+ */
+export async function triggerTestSmartAlarm(): Promise<string | undefined> {
+  if (Platform.OS === 'web') return undefined;
+
+  try {
+    await initSmartAlarmChannels();
+    const triggerDate = new Date(Date.now() + 3000); // 3 seconds from now
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const notifId = await scheduleNotificationAsync({
+      content: {
+        title: 'ทดสอบระบบนาฬิกาปลุก (Smart Alarm Test)',
+        body: 'แตะแถบนี้เพื่อเปิดหน้าต่างปลุกเต็มจอ พร้อมทดสอบเสียงปลุกและระบบสั่น',
+        sound: 'alarm.wav',
+        priority: AndroidNotificationPriority.MAX,
+        sticky: true,
+        autoDismiss: false,
+        color: '#2563EB',
+        data: {
+          type: 'smart-alarm',
+          date: now.toISOString().split('T')[0],
+          alarmTime: timeStr,
+          reason: 'ทดสอบระบบนาฬิกาปลุก',
+        },
+      },
+      trigger: {
+        type: SchedulableTriggerInputTypes.DATE,
+        date: triggerDate,
+        channelId: SMART_ALARM_CHANNEL_ID,
+      },
+    });
+
+    return notifId;
+  } catch (err) {
+    console.error('Error scheduling test smart alarm:', err);
+    return undefined;
+  }
+}
+

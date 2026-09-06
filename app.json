@@ -30,7 +30,7 @@
         "backgroundColor": "#00000000"
       },
       "package": "com.anonymous.timetrackot",
-      "versionCode": 10,
+      "versionCode": 11,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
@@ -57,7 +57,8 @@
         {
           "icon": "./assets/images/timetrack-icon.png",
           "color": "#2563EB",
-          "defaultChannel": "activity-reminders"
+          "defaultChannel": "activity-reminders",
+          "sounds": ["./assets/sounds/alarm.wav"]
         }
       ]
     ],

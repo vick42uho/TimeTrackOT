@@ -27,10 +27,12 @@ import {
   syncSmartAlarmSchedule,
   calculateSmartAlarmSchedule,
   DEFAULT_SMART_ALARM_CONFIG,
+  triggerTestSmartAlarm,
 } from '@/services/smartAlarmService';
 import {
   openAppBatterySettings,
 } from '@/services/systemAlarmService';
+import { AlarmRingingModal } from './AlarmRingingModal';
 import {
   Bell,
   Clock,
@@ -52,6 +54,7 @@ import {
   BatteryCharging,
   ChevronDown,
   ChevronUp,
+  Volume2,
 } from 'lucide-react-native';
 
 interface SmartAlarmModalProps {
@@ -76,6 +79,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showBatteryGuide, setShowBatteryGuide] = useState(false);
+  const [isTestingAlarmModal, setIsTestingAlarmModal] = useState(false);
 
   // Form states
   const [enabled, setEnabled] = useState(false);
@@ -855,6 +859,72 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           </View>
         )}
 
+        {/* Test Alarm Sound & Full-Screen Ringing Card */}
+        <View
+          style={{
+            backgroundColor: isDark ? 'rgba(37, 99, 235, 0.12)' : '#f0f7ff',
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe',
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name={Volume2} size={16} color="#2563eb" />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: colors.text,
+                fontFamily: 'Sarabun_700Bold',
+              }}
+            >
+              ทดสอบเสียงปลุกและหน้าต่างเต็มจอ:
+            </Text>
+          </View>
+          <Text
+            style={{
+              fontSize: 11.5,
+              lineHeight: 18,
+              color: colors.textSecondary,
+              fontFamily: 'Sarabun_400Regular',
+            }}
+          >
+            ทดสอบฟังเสียง Alarm Tone (ความยาว ~34 วินาที) ที่คมชัด สั่นต่อเนื่อง และทดสอบปุ่มปิด/เลื่อนปลุก 10 นาที บนหน้าจอจริงได้ทันที
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('impact-medium');
+              setIsTestingAlarmModal(true);
+              triggerTestSmartAlarm().catch(() => {});
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              backgroundColor: '#2563eb',
+              paddingVertical: 11,
+              paddingHorizontal: 16,
+              borderRadius: 10,
+              marginTop: 2,
+            }}
+          >
+            <Icon name={Volume2} size={15} color="#ffffff" />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: '#ffffff',
+                fontFamily: 'Sarabun_700Bold',
+              }}
+            >
+              กดเพื่อทดสอบหน้าต่างปลุกทันที
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 7-Day Live Preview Section */}
         <View
           style={{
@@ -1003,6 +1073,13 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           </View>
         </View>
       </View>
+
+      <AlarmRingingModal
+        visible={isTestingAlarmModal}
+        alarmTime={alarmTime}
+        reason="ทดสอบระบบนาฬิกาปลุก"
+        onDismiss={() => setIsTestingAlarmModal(false)}
+      />
     </BottomSheet>
   );
 };
