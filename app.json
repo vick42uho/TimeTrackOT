@@ -39,6 +39,8 @@
         "VIBRATE",
         "WAKE_LOCK",
         "USE_FULL_SCREEN_INTENT",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "com.android.alarm.permission.SET_ALARM"
       ]
     },

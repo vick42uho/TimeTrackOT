@@ -1,0 +1,29 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <application>
+        <receiver
+            android:name=".AlarmReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".AlarmActionReceiver"
+            android:exported="false" />
+
+        <!--
+             AlarmRingtoneService: ForegroundService ที่คุม MediaPlayer + Vibrator
+             ทำงานต่อเนื่องแม้แอพถูกปิดหรือหน้าจอล็อค
+        -->
+        <service
+            android:name=".AlarmRingtoneService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+    </application>
+</manifest>
