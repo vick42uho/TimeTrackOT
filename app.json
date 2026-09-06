@@ -58,9 +58,12 @@
           "icon": "./assets/images/timetrack-icon.png",
           "color": "#2563EB",
           "defaultChannel": "activity-reminders",
-          "sounds": ["./assets/sounds/alarm.wav"]
+          "sounds": [
+            "./assets/sounds/alarm.wav"
+          ]
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "scheme": "timetrackot",
     "experiments": {

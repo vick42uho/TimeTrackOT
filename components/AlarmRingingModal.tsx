@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
+import { useAudioPlayer } from 'expo-audio';
 import {
   Bell,
   BellOff,
@@ -48,7 +48,7 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
   onSnooze,
 }) => {
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const player = useAudioPlayer(require('../assets/sounds/alarm.wav'));
 
   // Concentric radar ring animations
   const pulseAnim1 = useRef(new Animated.Value(0)).current;
@@ -115,68 +115,55 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
   // 3. Audio & Vibration playback
   useEffect(() => {
     if (!visible) {
-      stopAudioAndVibration();
+      if (Platform.OS !== 'web') {
+        Vibration.cancel();
+      }
+      try {
+        player.pause();
+      } catch (e) {}
       return;
     }
 
-    startAudioAndVibration();
-
-    return () => {
-      stopAudioAndVibration();
-    };
-  }, [visible]);
-
-  const startAudioAndVibration = async () => {
     try {
-      // Continuous repetitive vibration on device
-      if (Platform.OS !== 'web') {
-        Vibration.vibrate([0, 1000, 500, 1000, 500, 1000], true);
-      }
-
-      // Configure audio session for loud alarm playback
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-      });
-
-      // Play bundled alarm.wav with infinite looping
-      const { sound } = await Audio.Sound.createAsync(
-        require('../assets/sounds/alarm.wav'),
-        {
-          shouldPlay: true,
-          isLooping: true,
-          volume: 1.0,
-        }
-      );
-      soundRef.current = sound;
+      player.loop = true;
+      player.volume = 1.0;
+      player.play();
     } catch (err) {
       console.warn('Alarm audio playback error:', err);
     }
-  };
 
-  const stopAudioAndVibration = async () => {
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate([0, 1000, 500, 1000, 500, 1000], true);
+    }
+
+    return () => {
+      if (Platform.OS !== 'web') {
+        Vibration.cancel();
+      }
+      try {
+        player.pause();
+      } catch (e) {}
+    };
+  }, [visible, player]);
+
+  const stopAudioAndVibration = () => {
     try {
       if (Platform.OS !== 'web') {
         Vibration.cancel();
       }
-      if (soundRef.current) {
-        await soundRef.current.stopAsync().catch(() => {});
-        await soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null;
-      }
+      player.pause();
     } catch (err) {
       console.warn('Error stopping alarm audio/vibration:', err);
     }
   };
 
-  const handleDismiss = async () => {
-    await stopAudioAndVibration();
+  const handleDismiss = () => {
+    stopAudioAndVibration();
     onDismiss();
   };
 
   const handleSnooze = async () => {
-    await stopAudioAndVibration();
+    stopAudioAndVibration();
     try {
       await snoozeSmartAlarm(10, reason);
     } catch (e) {

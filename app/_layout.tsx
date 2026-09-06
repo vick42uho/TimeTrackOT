@@ -22,8 +22,8 @@ import {
   addNotificationResponseReceivedListener,
   addNotificationReceivedListener,
   getLastNotificationResponseAsync,
-  dismissNotificationAsync,
-} from 'expo-notifications';
+} from 'expo-notifications/build/NotificationsEmitter';
+import dismissNotificationAsync from 'expo-notifications/build/dismissNotificationAsync';
 
 const STORAGE_KEY = 'emulated_device';
 
