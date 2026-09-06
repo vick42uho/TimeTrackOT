@@ -51,6 +51,8 @@ import { TaskNoteManagerSheet } from '@/components/TaskNoteManagerSheet';
 import { ActivityDetailSheet } from '@/components/ActivityDetailSheet';
 import { getSmartAlarmConfig, syncSmartAlarmSchedule } from '@/services/smartAlarmService';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { OnboardingModal, HAS_SEEN_ONBOARDING_KEY } from '@/components/OnboardingModal';
 
 const { width } = Dimensions.get('window');
 
@@ -179,6 +181,27 @@ const HomeContent: React.FC = () => {
     monthOTHours: 0,
     monthOTUsed: 0,
   });
+
+  const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(HAS_SEEN_ONBOARDING_KEY)
+      .then((seen) => {
+        if (!seen) {
+          setIsOnboardingVisible(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleCloseOnboarding = async () => {
+    setIsOnboardingVisible(false);
+    try {
+      await AsyncStorage.setItem(HAS_SEEN_ONBOARDING_KEY, 'true');
+    } catch (e) {
+      console.error('Error saving onboarding state:', e);
+    }
+  };
 
   const loadYearlyStats = useCallback(async (currentYear: number) => {
     if (!isReady) return;
@@ -1892,6 +1915,11 @@ const HomeContent: React.FC = () => {
         onNavigateToCalendar={(dateStr) => {
           handleActionPress('/leaves');
         }}
+      />
+
+      <OnboardingModal
+        visible={isOnboardingVisible}
+        onClose={handleCloseOnboarding}
       />
 
       <BottomNavigation />

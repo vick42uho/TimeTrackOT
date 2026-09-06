@@ -36,6 +36,7 @@ import {
   Code2,
   Lock,
   Smartphone,
+  BookOpen,
 } from 'lucide-react-native';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
@@ -43,6 +44,7 @@ import { TimeInput } from '../components/TimeInput';
 import { useDatabase } from '../hooks/useDatabase';
 import { useModeToggle } from '@/hooks/useModeToggle';
 import { BackupPayload } from '../types';
+import { OnboardingModal } from '@/components/OnboardingModal';
 
 const SettingsContent: React.FC = () => {
   const { colors, themeMode } = useThemeContext();
@@ -76,6 +78,7 @@ const SettingsContent: React.FC = () => {
   const [restoreDialogVisible, setRestoreDialogVisible] = useState(false);
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
   const [hapticsEnabled, setHapticsEnabledState] = useState(getGlobalHapticsEnabled());
+  const [isOnboardingGuideVisible, setIsOnboardingGuideVisible] = useState(false);
 
   useEffect(() => {
     setHapticsEnabledState(getGlobalHapticsEnabled());
@@ -1058,6 +1061,48 @@ const SettingsContent: React.FC = () => {
 
           <Separator style={{ marginVertical: 8 }} />
 
+          {/* คู่มือแนะนำการใช้งานแอพ */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => {
+              triggerHaptic('selection');
+              setIsOnboardingGuideVisible(true);
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderRadius: 20,
+              backgroundColor: isDark ? 'rgba(99, 102, 241, 0.12)' : '#eef2ff',
+              borderWidth: 0,
+              marginBottom: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                backgroundColor: isDark ? 'rgba(99, 102, 241, 0.2)' : '#e0e7ff',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Icon name={BookOpen} size={16} color={isDark ? '#818cf8' : '#4f46e5'} />
+              </View>
+              <View>
+                <Text style={{ fontSize: 13, fontFamily: 'Sarabun_600SemiBold', color: isDark ? '#e2e8f0' : '#0f172a' }}>
+                  คู่มือแนะนำการใช้งานแอพ
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular', marginTop: 1 }}>
+                  ดูภาพรวมและจุดเด่นของฟังก์ชันหลักอีกครั้ง
+                </Text>
+              </View>
+            </View>
+            <Icon name={ChevronRight} size={15} color={isDark ? '#818cf8' : '#4f46e5'} />
+          </TouchableOpacity>
+
           {/* แจ้งปัญหา / ข้อเสนอแนะ */}
           <TouchableOpacity
             activeOpacity={0.7}
@@ -1097,6 +1142,12 @@ const SettingsContent: React.FC = () => {
           </TouchableOpacity>
         </Card>
       </ScrollView>
+
+      {/* Onboarding Guide Modal */}
+      <OnboardingModal
+        visible={isOnboardingGuideVisible}
+        onClose={() => setIsOnboardingGuideVisible(false)}
+      />
 
       {/* Restore Confirmation AlertDialog (Column Layout with full options) */}
       <AlertDialog
