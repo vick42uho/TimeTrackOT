@@ -24,7 +24,6 @@ export const ACTIVITY_CHANNEL_ID = 'activity-reminders';
 if (Platform.OS !== 'web') {
   setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
       shouldShowBanner: true,
@@ -168,7 +167,7 @@ export async function scheduleActivityReminder(activity: Activity): Promise<stri
 
     const notificationId = await scheduleNotificationAsync({
       content: {
-        title: `⏰ แจ้งเตือน (${reminderLeadText}): ${activity.title}`,
+        title: `แจ้งเตือน (${reminderLeadText}): ${activity.title}`,
         body: bodyText,
         sound: 'default',
         priority: AndroidNotificationPriority.MAX,
