@@ -44,7 +44,6 @@ import { TimeInput } from '../components/TimeInput';
 import { useDatabase } from '../hooks/useDatabase';
 import { useModeToggle } from '@/hooks/useModeToggle';
 import { BackupPayload } from '../types';
-import { OnboardingModal } from '@/components/OnboardingModal';
 
 const SettingsContent: React.FC = () => {
   const { colors, themeMode } = useThemeContext();
@@ -78,7 +77,6 @@ const SettingsContent: React.FC = () => {
   const [restoreDialogVisible, setRestoreDialogVisible] = useState(false);
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
   const [hapticsEnabled, setHapticsEnabledState] = useState(getGlobalHapticsEnabled());
-  const [isOnboardingGuideVisible, setIsOnboardingGuideVisible] = useState(false);
 
   useEffect(() => {
     setHapticsEnabledState(getGlobalHapticsEnabled());
@@ -1061,12 +1059,12 @@ const SettingsContent: React.FC = () => {
 
           <Separator style={{ marginVertical: 8 }} />
 
-          {/* คู่มือแนะนำการใช้งานแอพ */}
+          {/* คู่มือแนะนำการใช้งานแอพ (ไกด์พาทัวร์) */}
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
               triggerHaptic('selection');
-              setIsOnboardingGuideVisible(true);
+              router.replace('/?startTour=true');
             }}
             style={{
               flexDirection: 'row',
@@ -1093,10 +1091,10 @@ const SettingsContent: React.FC = () => {
               </View>
               <View>
                 <Text style={{ fontSize: 13, fontFamily: 'Sarabun_600SemiBold', color: isDark ? '#e2e8f0' : '#0f172a' }}>
-                  คู่มือแนะนำการใช้งานแอพ
+                  คู่มือแนะนำการใช้งานแอพ (ไกด์พาทัวร์)
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular', marginTop: 1 }}>
-                  ดูภาพรวมและจุดเด่นของฟังก์ชันหลักอีกครั้ง
+                  เริ่มระบบสอนใช้งานและส่องไฟเมนูสำคัญบนหน้าหลัก
                 </Text>
               </View>
             </View>
@@ -1142,12 +1140,6 @@ const SettingsContent: React.FC = () => {
           </TouchableOpacity>
         </Card>
       </ScrollView>
-
-      {/* Onboarding Guide Modal */}
-      <OnboardingModal
-        visible={isOnboardingGuideVisible}
-        onClose={() => setIsOnboardingGuideVisible(false)}
-      />
 
       {/* Restore Confirmation AlertDialog (Column Layout with full options) */}
       <AlertDialog

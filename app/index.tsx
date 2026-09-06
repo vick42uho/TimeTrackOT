@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, Dimensions, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/card';
@@ -52,7 +52,12 @@ import { ActivityDetailSheet } from '@/components/ActivityDetailSheet';
 import { getSmartAlarmConfig, syncSmartAlarmSchedule } from '@/services/smartAlarmService';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { OnboardingModal, HAS_SEEN_ONBOARDING_KEY } from '@/components/OnboardingModal';
+import {
+  InteractiveTourOverlay,
+  TOUR_STORAGE_KEY,
+  TargetLayout,
+  TourStepItem,
+} from '@/components/InteractiveTourOverlay';
 
 const { width } = Dimensions.get('window');
 
@@ -182,24 +187,190 @@ const HomeContent: React.FC = () => {
     monthOTUsed: 0,
   });
 
-  const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
+  const { startTour } = useGlobalSearchParams<{ startTour?: string }>();
+
+  // Interactive Tour Guide State & Element Measurement
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [currentTourStep, setCurrentTourStep] = useState(0);
+  const [targetLayouts, setTargetLayouts] = useState<Record<string, TargetLayout>>({});
+  const [elementYOffsets, setElementYOffsets] = useState<Record<string, number>>({});
+
+  const mainScrollViewRef = useRef<ScrollView>(null);
+  const shiftCardRef = useRef<View>(null);
+  const metricsGridRef = useRef<View>(null);
+  const tasksNotesRef = useRef<View>(null);
+
+  const measureTargetStep = useCallback((stepIndex: number) => {
+    if (stepIndex === 0) {
+      const targetY = elementYOffsets['shift_card'] || 360;
+      mainScrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 70), animated: true });
+      setTimeout(() => {
+        shiftCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTargetLayouts((prev) => ({
+              ...prev,
+              step_0: { x, y, width, height, borderRadius: 24 },
+            }));
+          }
+        });
+      }, 250);
+    } else if (stepIndex === 1) {
+      mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      setTimeout(() => {
+        metricsGridRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTargetLayouts((prev) => ({
+              ...prev,
+              step_1: { x, y, width, height, borderRadius: 24 },
+            }));
+          }
+        });
+      }, 250);
+    } else if (stepIndex === 2) {
+      const targetY = elementYOffsets['tasks_notes'] || 680;
+      mainScrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 70), animated: true });
+      setTimeout(() => {
+        tasksNotesRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTargetLayouts((prev) => ({
+              ...prev,
+              step_2: { x, y, width, height, borderRadius: 24 },
+            }));
+          }
+        });
+      }, 250);
+    } else if (stepIndex === 3) {
+      const tabWidth = width / 5;
+      const tabX = tabWidth * 2;
+      setTargetLayouts((prev) => ({
+        ...prev,
+        step_3: {
+          x: tabX + 4,
+          y: Dimensions.get('window').height - (Platform.OS === 'ios' ? 76 : 60),
+          width: tabWidth - 8,
+          height: 50,
+          borderRadius: 16,
+        },
+      }));
+    } else if (stepIndex === 4) {
+      const tabWidth = width / 5;
+      const tabX = tabWidth * 3;
+      setTargetLayouts((prev) => ({
+        ...prev,
+        step_4: {
+          x: tabX,
+          y: Dimensions.get('window').height - (Platform.OS === 'ios' ? 76 : 60),
+          width: tabWidth * 2 - 8,
+          height: 50,
+          borderRadius: 16,
+        },
+      }));
+    }
+  }, [elementYOffsets]);
+
+  const startInteractiveTour = useCallback(() => {
+    setCurrentTourStep(0);
+    setIsTourActive(true);
+    measureTargetStep(0);
+  }, [measureTargetStep]);
 
   useEffect(() => {
-    AsyncStorage.getItem(HAS_SEEN_ONBOARDING_KEY)
+    if (startTour === 'true') {
+      const timer = setTimeout(() => {
+        startInteractiveTour();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+
+    AsyncStorage.getItem(TOUR_STORAGE_KEY)
       .then((seen) => {
         if (!seen) {
-          setIsOnboardingVisible(true);
+          const timer = setTimeout(() => {
+            startInteractiveTour();
+          }, 800);
+          return () => clearTimeout(timer);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [startTour, startInteractiveTour]);
 
-  const handleCloseOnboarding = async () => {
-    setIsOnboardingVisible(false);
+  const handleFinishTour = async () => {
+    setIsTourActive(false);
     try {
-      await AsyncStorage.setItem(HAS_SEEN_ONBOARDING_KEY, 'true');
+      await AsyncStorage.setItem(TOUR_STORAGE_KEY, 'true');
     } catch (e) {
-      console.error('Error saving onboarding state:', e);
+      console.error('Error saving tour status:', e);
+    }
+  };
+
+  const tourSteps: TourStepItem[] = useMemo(() => [
+    {
+      id: 'step_shift',
+      stepNumber: 1,
+      badge: 'การลงเวลางาน',
+      title: '1. บันทึกเวลาทำงาน & กะวันนี้',
+      description: 'จุดหลักสำหรับการลงเวลางาน! แตะปุ่มนี้เพื่อลงเวลาเข้างาน หรือบันทึกเวลาเลิกงานเมื่อจบวัน ระบบจะคำนวณชั่วโมงทำงานและเงิน OT ให้อัตโนมัติ',
+      icon: Clock,
+      iconColor: '#2563eb',
+      targetLayout: targetLayouts['step_0'] || null,
+    },
+    {
+      id: 'step_metrics',
+      stepNumber: 2,
+      badge: 'สรุปภาพรวม',
+      title: '2. สรุปภาพรวม OT & สถิติ',
+      description: 'กล่องสรุปข้อมูลแบบเรียลไทม์! ดูยอดชั่วโมง OT สะสมทั้งปี, OT รวมประจำเดือน, จำนวนครั้งที่มาสาย และสถานะชั่วโมงทำงานได้ทันที',
+      icon: TrendingUp,
+      iconColor: '#10b981',
+      targetLayout: targetLayouts['step_1'] || null,
+    },
+    {
+      id: 'step_tasks',
+      stepNumber: 3,
+      badge: 'กิจกรรม & โน้ต',
+      title: '3. กิจกรรม & บันทึกช่วยจำ',
+      description: 'ไม่พลาดทุกนัดหมายและสิ่งที่ต้องทำ! สามารถสร้างรายการสิ่งที่ต้องทำ (To-Do List) และบันทึกกิจกรรมระหว่างวันได้สะดวก',
+      icon: CheckSquare,
+      iconColor: '#8b5cf6',
+      targetLayout: targetLayouts['step_2'] || null,
+    },
+    {
+      id: 'step_nav_leaves',
+      stepNumber: 4,
+      badge: 'ปฏิทิน & วันลา',
+      title: '4. ปฏิทินวันหยุด & บันทึกวันลา',
+      description: 'แตะแท็บนี้เพื่อดูปฏิทินวันหยุดราชการไทย พ.ศ. ตรวจสอบโควตาวันลาคงเหลือ และลงบันทึกขอลาพักร้อน/ลาป่วยล่วงหน้าได้ง่ายๆ',
+      icon: Calendar,
+      iconColor: '#f59e0b',
+      targetLayout: targetLayouts['step_3'] || null,
+    },
+    {
+      id: 'step_nav_settings',
+      stepNumber: 5,
+      badge: 'รายงาน & ตั้งค่า',
+      title: '5. สรุปรายงาน & ตั้งค่าระบบ',
+      description: 'ดูรายงานสถิติละเอียด พร้อมส่งออกไฟล์ Excel/PDF ให้ฝ่ายบุคคล และตั้งค่านาฬิกาปลุกวันทำงานอัจฉริยะ (Smart Alarm) ได้ที่นี่',
+      icon: Settings,
+      iconColor: '#0284c7',
+      targetLayout: targetLayouts['step_4'] || null,
+    },
+  ], [targetLayouts]);
+
+  const handleTourNext = () => {
+    if (currentTourStep < tourSteps.length - 1) {
+      const nextStep = currentTourStep + 1;
+      setCurrentTourStep(nextStep);
+      measureTargetStep(nextStep);
+    } else {
+      handleFinishTour();
+    }
+  };
+
+  const handleTourPrev = () => {
+    if (currentTourStep > 0) {
+      const prevStep = currentTourStep - 1;
+      setCurrentTourStep(prevStep);
+      measureTargetStep(prevStep);
     }
   };
 
@@ -828,7 +999,7 @@ const HomeContent: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={mainScrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Dynamic Header with Greeting & Live Status */}
         <View style={styles.header}>
           <View style={styles.greetingRow}>
@@ -910,7 +1081,7 @@ const HomeContent: React.FC = () => {
         </View>
 
         {/* 2x2 High-Density Bento Stats Grid */}
-        <View style={styles.dashboardGrid}>
+        <View ref={metricsGridRef} collapsable={false} style={styles.dashboardGrid}>
           {/* Card 1: OT Balance (Yearly) */}
           <View style={styles.statCardWrapper}>
             <View style={[styles.statCard, styles.otCard]}>
@@ -1104,7 +1275,15 @@ const HomeContent: React.FC = () => {
         )}
 
         {/* Integrated Today's Shift Card */}
-        <Card style={styles.bnaCard}>
+        <View
+          ref={shiftCardRef}
+          collapsable={false}
+          onLayout={(e) => {
+            const y = e.nativeEvent.layout.y;
+            setElementYOffsets((prev) => ({ ...prev, shift_card: y }));
+          }}
+        >
+          <Card style={styles.bnaCard}>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleContainer}>
               <Clock size={16} color={colors.primary} />
@@ -1342,9 +1521,18 @@ const HomeContent: React.FC = () => {
             </View>
           )}
         </Card>
+      </View>
 
-        {/* Row: 1x2 Bento Pair (Left: Activities 50% | Right: Notes & Tasks 50%) */}
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+      {/* Row: 1x2 Bento Pair (Left: Activities 50% | Right: Notes & Tasks 50%) */}
+      <View
+        ref={tasksNotesRef}
+        collapsable={false}
+        onLayout={(e) => {
+          const y = e.nativeEvent.layout.y;
+          setElementYOffsets((prev) => ({ ...prev, tasks_notes: y }));
+        }}
+        style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}
+      >
           {/* Left: Activities & Appointments */}
           <Card style={{ flex: 1, ...styles.bnaCard, marginBottom: 0, padding: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -1917,9 +2105,15 @@ const HomeContent: React.FC = () => {
         }}
       />
 
-      <OnboardingModal
-        visible={isOnboardingVisible}
-        onClose={handleCloseOnboarding}
+      <InteractiveTourOverlay
+        visible={isTourActive}
+        currentStepIndex={currentTourStep}
+        totalSteps={tourSteps.length}
+        stepData={tourSteps[currentTourStep]}
+        onNext={handleTourNext}
+        onPrev={handleTourPrev}
+        onSkip={handleFinishTour}
+        onFinish={handleFinishTour}
       />
 
       <BottomNavigation />
