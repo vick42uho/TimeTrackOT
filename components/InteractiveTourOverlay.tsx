@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Clock,
   TrendingUp,
@@ -20,6 +21,8 @@ import {
   Sparkles,
   Gamepad2,
   X,
+  BarChart3,
+  Home,
 } from 'lucide-react-native';
 import { useThemeContext } from './ThemeProvider';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -35,7 +38,7 @@ export interface TargetLayout {
 }
 
 export interface TourStepItem {
-  id: string;
+  id?: string;
   stepNumber: number;
   badge: string;
   title: string;
@@ -44,6 +47,88 @@ export interface TourStepItem {
   iconColor: string;
   targetLayout: TargetLayout | null;
 }
+
+export interface TourStepConfig {
+  stepIndex: number;
+  stepNumber: number;
+  stepParam: string;
+  route: string;
+  badge: string;
+  title: string;
+  description: string;
+  icon: any;
+  iconColor: string;
+}
+
+export const APP_TOUR_STEPS: TourStepConfig[] = [
+  {
+    stepIndex: 0,
+    stepNumber: 1,
+    stepParam: '1',
+    route: '/settings',
+    badge: 'ตั้งเวลาทำงาน',
+    title: '1. กำหนดเวลาทำงานปกติ',
+    description: 'เริ่มต้นใช้งานต้องตั้งเวลาทำงานก่อน! กำหนดเวลาเข้างาน เลิกงาน และวันทำงานปกติ เพื่อให้ระบบนำไปคำนวณชั่วโมงทำงาน ขาด ลา มาสาย และเงิน OT ได้อย่างแม่นยำ',
+    icon: Clock,
+    iconColor: '#2563eb',
+  },
+  {
+    stepIndex: 1,
+    stepNumber: 2,
+    stepParam: '2',
+    route: '/leaves',
+    badge: 'วันหยุด & วันลา',
+    title: '2. วันหยุด, กิจกรรม, นาฬิกาปลุก & การลา',
+    description: 'จัดการวันหยุดและกิจกรรมครบจบในที่เดียว! เช็ควันหยุดราชการไทย พ.ศ., กำหนดวันหยุดบริษัท, เพิ่มกิจกรรม/นัดหมาย, ตั้งนาฬิกาปลุกวันทำงาน และลงบันทึกการลาพร้อมเช็คโควต้า',
+    icon: Calendar,
+    iconColor: '#f59e0b',
+  },
+  {
+    stepIndex: 2,
+    stepNumber: 3,
+    stepParam: '3',
+    route: '/time-entry',
+    badge: 'บันทึกเวลาทำงาน',
+    title: '3. บันทึกเวลาทำงาน & OT',
+    description: 'บันทึกเวลาทำงานประจำวันได้ง่ายๆ! ลงเวลาเข้างาน-ออกงานจริง พร้อมบันทึก OT เช้า/เย็น ระบุเหตุผล ถ่ายรูปสลิป/หลักฐาน และระบบจะสรุปยอดให้อัตโนมัติ',
+    icon: Clock,
+    iconColor: '#10b981',
+  },
+  {
+    stepIndex: 3,
+    stepNumber: 4,
+    stepParam: '4',
+    route: '/reports',
+    badge: 'รายงานเวลาทำงาน',
+    title: '4. สรุปรายงานเวลาทำงาน',
+    description: 'ดูรายงานสถิติการทำงานแบบละเอียด! เช็คชั่วโมง OT รวม, กราฟสรุปประจำเดือน และสามารถส่งออกรายงานเป็นไฟล์ Excel หรือ PDF เพื่อส่งฝ่ายบุคคล (HR) ได้ทันที',
+    icon: BarChart3,
+    iconColor: '#0284c7',
+  },
+  {
+    stepIndex: 4,
+    stepNumber: 5,
+    stepParam: '5',
+    route: '/',
+    badge: 'หน้าหลัก & แดชบอร์ด',
+    title: '5. แดชบอร์ดหน้าหลัก & โน้ต/งาน',
+    description: 'ศูนย์รวมข้อมูลประจำวันของคุณ! ดูยอด OT และสถิติสะสมแบบเรียลไทม์ กดลงเวลางานกะวันนี้ พร้อมจดโน้ตและรายการสิ่งที่ต้องทำ (To-Do List)... พร้อมเริ่มต้นใช้งานเลย!',
+    icon: Home,
+    iconColor: '#8b5cf6',
+  },
+];
+
+export const markTourCompleted = async () => {
+  try {
+    await AsyncStorage.setItem(TOUR_STORAGE_KEY, 'true');
+  } catch (e) {
+    console.error('Error saving tour status:', e);
+  }
+};
+
+export const restartTour = (router: any) => {
+  router.replace('/settings?tourStep=1');
+};
 
 export interface InteractiveTourOverlayProps {
   visible: boolean;

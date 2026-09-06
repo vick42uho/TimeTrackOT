@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -8,8 +8,14 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import {
+  InteractiveTourOverlay,
+  APP_TOUR_STEPS,
+  TargetLayout,
+  markTourCompleted,
+} from '@/components/InteractiveTourOverlay';
 
 // Lucide Icons
 import {
@@ -145,6 +151,7 @@ const REMINDER_OPTIONS = [
 ];
 
 const LeavesContent: React.FC = () => {
+  const router = useRouter();
   const { colors, themeMode } = useThemeContext();
   const isDark = themeMode === 'dark';
   const { toast, success, error, warning } = useToast();
@@ -172,6 +179,26 @@ const LeavesContent: React.FC = () => {
   // Selected Month & Year
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Tour State
+  const { tourStep } = useLocalSearchParams<{ tourStep?: string }>();
+  const [tourLayout, setTourLayout] = useState<TargetLayout | null>(null);
+  const calendarCardRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (tourStep === '2') {
+      const timer = setTimeout(() => {
+        calendarCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 20 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else {
+      setTourLayout(null);
+    }
+  }, [tourStep]);
 
   // Data State
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -1075,7 +1102,8 @@ const LeavesContent: React.FC = () => {
           <TabsContent value="calendar" style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
               {/* Smart Workday Alarm Card */}
-              <Card
+              <View ref={calendarCardRef} collapsable={false}>
+                <Card
                 style={{
                   marginBottom: 10,
                   padding: 12,
@@ -1171,6 +1199,7 @@ const LeavesContent: React.FC = () => {
                   </View>
                 </View>
               </Card>
+            </View>
 
               {/* Calendar Container with ViewShot for Sharing */}
               <ViewShot
@@ -2741,6 +2770,27 @@ const LeavesContent: React.FC = () => {
         holidays={holidays}
         leaves={leaves}
         onSaved={loadAllData}
+      />
+
+      {/* Interactive Tour Overlay for Step 2 */}
+      <InteractiveTourOverlay
+        visible={tourStep === '2'}
+        currentStepIndex={1}
+        totalSteps={5}
+        stepData={{
+          ...APP_TOUR_STEPS[1],
+          targetLayout: tourLayout,
+        }}
+        onNext={() => router.replace('/time-entry?tourStep=3')}
+        onPrev={() => router.replace('/settings?tourStep=1')}
+        onSkip={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+        onFinish={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
       />
 
       {/* Bottom Navigation */}

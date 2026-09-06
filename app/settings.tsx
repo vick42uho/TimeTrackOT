@@ -1,13 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, Linking, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { getGlobalHapticsEnabled, setGlobalHapticsEnabled, triggerHaptic } from '@/hooks/useHaptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
+import {
+  InteractiveTourOverlay,
+  APP_TOUR_STEPS,
+  TargetLayout,
+  markTourCompleted,
+  restartTour,
+} from '@/components/InteractiveTourOverlay';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +84,25 @@ const SettingsContent: React.FC = () => {
   const [restoreDialogVisible, setRestoreDialogVisible] = useState(false);
   const [clearDialogVisible, setClearDialogVisible] = useState(false);
   const [hapticsEnabled, setHapticsEnabledState] = useState(getGlobalHapticsEnabled());
+  // Tour State
+  const { tourStep } = useLocalSearchParams<{ tourStep?: string }>();
+  const [tourLayout, setTourLayout] = useState<TargetLayout | null>(null);
+  const scheduleCardRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (tourStep === '1') {
+      const timer = setTimeout(() => {
+        scheduleCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 24 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else {
+      setTourLayout(null);
+    }
+  }, [tourStep]);
 
   useEffect(() => {
     setHapticsEnabledState(getGlobalHapticsEnabled());
@@ -542,7 +568,8 @@ const SettingsContent: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* Work Schedule Settings */}
-        <Card style={styles.bnaCard}>
+        <View ref={scheduleCardRef} collapsable={false}>
+          <Card style={styles.bnaCard}>
           <View
             style={{
               flexDirection: 'row',
@@ -738,6 +765,7 @@ const SettingsContent: React.FC = () => {
             </Button>
           </View>
         </Card>
+      </View>
 
         {/* Backup & Restore Card */}
         <Card style={styles.bnaCard}>
@@ -1064,7 +1092,7 @@ const SettingsContent: React.FC = () => {
             activeOpacity={0.7}
             onPress={() => {
               triggerHaptic('selection');
-              router.replace('/?startTour=true');
+              restartTour(router);
             }}
             style={{
               flexDirection: 'row',
@@ -1246,6 +1274,26 @@ const SettingsContent: React.FC = () => {
         cancelVariant="outline"
         buttonLayout="row"
         onConfirm={handleConfirmClearAll}
+      />
+
+      <InteractiveTourOverlay
+        visible={tourStep === '1'}
+        currentStepIndex={0}
+        totalSteps={5}
+        stepData={{
+          ...APP_TOUR_STEPS[0],
+          targetLayout: tourLayout,
+        }}
+        onNext={() => router.replace('/leaves?tourStep=2')}
+        onPrev={() => {}}
+        onSkip={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+        onFinish={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
       />
 
       <BottomNavigation />

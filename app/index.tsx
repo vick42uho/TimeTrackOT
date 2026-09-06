@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, Dimensions, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useGlobalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/card';
@@ -55,8 +54,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   InteractiveTourOverlay,
   TOUR_STORAGE_KEY,
+  APP_TOUR_STEPS,
   TargetLayout,
-  TourStepItem,
+  markTourCompleted,
 } from '@/components/InteractiveTourOverlay';
 
 const { width } = Dimensions.get('window');
@@ -187,192 +187,51 @@ const HomeContent: React.FC = () => {
     monthOTUsed: 0,
   });
 
-  const { startTour } = useGlobalSearchParams<{ startTour?: string }>();
+  const { tourStep, startTour } = useLocalSearchParams<{ tourStep?: string; startTour?: string }>();
 
-  // Interactive Tour Guide State & Element Measurement
+  // Interactive Tour Guide State (Step 5 of 5: Dashboard & Notes/Tasks)
   const [isTourActive, setIsTourActive] = useState(false);
-  const [currentTourStep, setCurrentTourStep] = useState(0);
-  const [targetLayouts, setTargetLayouts] = useState<Record<string, TargetLayout>>({});
-  const [elementYOffsets, setElementYOffsets] = useState<Record<string, number>>({});
+  const [tourLayout, setTourLayout] = useState<TargetLayout | null>(null);
 
   const mainScrollViewRef = useRef<ScrollView>(null);
   const shiftCardRef = useRef<View>(null);
   const metricsGridRef = useRef<View>(null);
   const tasksNotesRef = useRef<View>(null);
 
-  const measureTargetStep = useCallback((stepIndex: number) => {
-    if (stepIndex === 0) {
-      const targetY = elementYOffsets['shift_card'] || 360;
-      mainScrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 70), animated: true });
-      setTimeout(() => {
-        shiftCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-          if (width > 0 && height > 0) {
-            setTargetLayouts((prev) => ({
-              ...prev,
-              step_0: { x, y, width, height, borderRadius: 24 },
-            }));
-          }
-        });
-      }, 250);
-    } else if (stepIndex === 1) {
+  useEffect(() => {
+    if (tourStep === '5') {
+      setIsTourActive(true);
       mainScrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         metricsGridRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
           if (width > 0 && height > 0) {
-            setTargetLayouts((prev) => ({
-              ...prev,
-              step_1: { x, y, width, height, borderRadius: 24 },
-            }));
+            setTourLayout({ x, y, width, height, borderRadius: 24 });
           }
         });
-      }, 250);
-    } else if (stepIndex === 2) {
-      const targetY = elementYOffsets['tasks_notes'] || 680;
-      mainScrollViewRef.current?.scrollTo({ y: Math.max(0, targetY - 70), animated: true });
-      setTimeout(() => {
-        tasksNotesRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
-          if (width > 0 && height > 0) {
-            setTargetLayouts((prev) => ({
-              ...prev,
-              step_2: { x, y, width, height, borderRadius: 24 },
-            }));
-          }
-        });
-      }, 250);
-    } else if (stepIndex === 3) {
-      const tabWidth = width / 5;
-      const tabX = tabWidth * 2;
-      setTargetLayouts((prev) => ({
-        ...prev,
-        step_3: {
-          x: tabX + 4,
-          y: Dimensions.get('window').height - (Platform.OS === 'ios' ? 76 : 60),
-          width: tabWidth - 8,
-          height: 50,
-          borderRadius: 16,
-        },
-      }));
-    } else if (stepIndex === 4) {
-      const tabWidth = width / 5;
-      const tabX = tabWidth * 3;
-      setTargetLayouts((prev) => ({
-        ...prev,
-        step_4: {
-          x: tabX,
-          y: Dimensions.get('window').height - (Platform.OS === 'ios' ? 76 : 60),
-          width: tabWidth * 2 - 8,
-          height: 50,
-          borderRadius: 16,
-        },
-      }));
-    }
-  }, [elementYOffsets]);
-
-  const startInteractiveTour = useCallback(() => {
-    setCurrentTourStep(0);
-    setIsTourActive(true);
-    measureTargetStep(0);
-  }, [measureTargetStep]);
-
-  useEffect(() => {
-    if (startTour === 'true') {
-      const timer = setTimeout(() => {
-        startInteractiveTour();
-      }, 400);
+      }, 350);
       return () => clearTimeout(timer);
+    } else {
+      setIsTourActive(false);
+      setTourLayout(null);
     }
 
+    if (startTour === 'true') {
+      router.replace('/settings?tourStep=1');
+      return;
+    }
+
+    // First time install: Start guided tour at Step 1 (Settings -> Work Schedule)
     AsyncStorage.getItem(TOUR_STORAGE_KEY)
       .then((seen) => {
         if (!seen) {
           const timer = setTimeout(() => {
-            startInteractiveTour();
-          }, 800);
+            router.replace('/settings?tourStep=1');
+          }, 600);
           return () => clearTimeout(timer);
         }
       })
       .catch(() => {});
-  }, [startTour, startInteractiveTour]);
-
-  const handleFinishTour = async () => {
-    setIsTourActive(false);
-    try {
-      await AsyncStorage.setItem(TOUR_STORAGE_KEY, 'true');
-    } catch (e) {
-      console.error('Error saving tour status:', e);
-    }
-  };
-
-  const tourSteps: TourStepItem[] = useMemo(() => [
-    {
-      id: 'step_shift',
-      stepNumber: 1,
-      badge: 'การลงเวลางาน',
-      title: '1. บันทึกเวลาทำงาน & กะวันนี้',
-      description: 'จุดหลักสำหรับการลงเวลางาน! แตะปุ่มนี้เพื่อลงเวลาเข้างาน หรือบันทึกเวลาเลิกงานเมื่อจบวัน ระบบจะคำนวณชั่วโมงทำงานและเงิน OT ให้อัตโนมัติ',
-      icon: Clock,
-      iconColor: '#2563eb',
-      targetLayout: targetLayouts['step_0'] || null,
-    },
-    {
-      id: 'step_metrics',
-      stepNumber: 2,
-      badge: 'สรุปภาพรวม',
-      title: '2. สรุปภาพรวม OT & สถิติ',
-      description: 'กล่องสรุปข้อมูลแบบเรียลไทม์! ดูยอดชั่วโมง OT สะสมทั้งปี, OT รวมประจำเดือน, จำนวนครั้งที่มาสาย และสถานะชั่วโมงทำงานได้ทันที',
-      icon: TrendingUp,
-      iconColor: '#10b981',
-      targetLayout: targetLayouts['step_1'] || null,
-    },
-    {
-      id: 'step_tasks',
-      stepNumber: 3,
-      badge: 'กิจกรรม & โน้ต',
-      title: '3. กิจกรรม & บันทึกช่วยจำ',
-      description: 'ไม่พลาดทุกนัดหมายและสิ่งที่ต้องทำ! สามารถสร้างรายการสิ่งที่ต้องทำ (To-Do List) และบันทึกกิจกรรมระหว่างวันได้สะดวก',
-      icon: CheckSquare,
-      iconColor: '#8b5cf6',
-      targetLayout: targetLayouts['step_2'] || null,
-    },
-    {
-      id: 'step_nav_leaves',
-      stepNumber: 4,
-      badge: 'ปฏิทิน & วันลา',
-      title: '4. ปฏิทินวันหยุด & บันทึกวันลา',
-      description: 'แตะแท็บนี้เพื่อดูปฏิทินวันหยุดราชการไทย พ.ศ. ตรวจสอบโควตาวันลาคงเหลือ และลงบันทึกขอลาพักร้อน/ลาป่วยล่วงหน้าได้ง่ายๆ',
-      icon: Calendar,
-      iconColor: '#f59e0b',
-      targetLayout: targetLayouts['step_3'] || null,
-    },
-    {
-      id: 'step_nav_settings',
-      stepNumber: 5,
-      badge: 'รายงาน & ตั้งค่า',
-      title: '5. สรุปรายงาน & ตั้งค่าระบบ',
-      description: 'ดูรายงานสถิติละเอียด พร้อมส่งออกไฟล์ Excel/PDF ให้ฝ่ายบุคคล และตั้งค่านาฬิกาปลุกวันทำงานอัจฉริยะ (Smart Alarm) ได้ที่นี่',
-      icon: Settings,
-      iconColor: '#0284c7',
-      targetLayout: targetLayouts['step_4'] || null,
-    },
-  ], [targetLayouts]);
-
-  const handleTourNext = () => {
-    if (currentTourStep < tourSteps.length - 1) {
-      const nextStep = currentTourStep + 1;
-      setCurrentTourStep(nextStep);
-      measureTargetStep(nextStep);
-    } else {
-      handleFinishTour();
-    }
-  };
-
-  const handleTourPrev = () => {
-    if (currentTourStep > 0) {
-      const prevStep = currentTourStep - 1;
-      setCurrentTourStep(prevStep);
-      measureTargetStep(prevStep);
-    }
-  };
+  }, [tourStep, startTour, router]);
 
   const loadYearlyStats = useCallback(async (currentYear: number) => {
     if (!isReady) return;
@@ -1278,10 +1137,6 @@ const HomeContent: React.FC = () => {
         <View
           ref={shiftCardRef}
           collapsable={false}
-          onLayout={(e) => {
-            const y = e.nativeEvent.layout.y;
-            setElementYOffsets((prev) => ({ ...prev, shift_card: y }));
-          }}
         >
           <Card style={styles.bnaCard}>
           <View style={styles.cardHeader}>
@@ -1527,10 +1382,6 @@ const HomeContent: React.FC = () => {
       <View
         ref={tasksNotesRef}
         collapsable={false}
-        onLayout={(e) => {
-          const y = e.nativeEvent.layout.y;
-          setElementYOffsets((prev) => ({ ...prev, tasks_notes: y }));
-        }}
         style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}
       >
           {/* Left: Activities & Appointments */}
@@ -2106,14 +1957,26 @@ const HomeContent: React.FC = () => {
       />
 
       <InteractiveTourOverlay
-        visible={isTourActive}
-        currentStepIndex={currentTourStep}
-        totalSteps={tourSteps.length}
-        stepData={tourSteps[currentTourStep]}
-        onNext={handleTourNext}
-        onPrev={handleTourPrev}
-        onSkip={handleFinishTour}
-        onFinish={handleFinishTour}
+        visible={tourStep === '5' && isTourActive}
+        currentStepIndex={4}
+        totalSteps={5}
+        stepData={{
+          ...APP_TOUR_STEPS[4],
+          targetLayout: tourLayout,
+        }}
+        onNext={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+        onPrev={() => router.replace('/reports?tourStep=4')}
+        onSkip={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+        onFinish={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
       />
 
       <BottomNavigation />

@@ -27,6 +27,12 @@ import {
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { TimeInput } from '../components/TimeInput';
+import {
+  InteractiveTourOverlay,
+  APP_TOUR_STEPS,
+  TargetLayout,
+  markTourCompleted,
+} from '@/components/InteractiveTourOverlay';
 import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
 
@@ -34,7 +40,26 @@ const TimeEntryContent: React.FC = () => {
   const { colors, themeMode } = useThemeContext();
   const isDark = themeMode === 'dark';
   const router = useRouter();
-  const params = useLocalSearchParams<{ date?: string }>();
+  const params = useLocalSearchParams<{ date?: string; tourStep?: string }>();
+
+  // Tour State
+  const [tourLayout, setTourLayout] = useState<TargetLayout | null>(null);
+  const timeCardRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (params.tourStep === '3') {
+      const timer = setTimeout(() => {
+        timeCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 24 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else {
+      setTourLayout(null);
+    }
+  }, [params.tourStep]);
   const { isReady, getWorkSchedule, getTimeEntry, saveTimeEntry, deleteTimeEntry, updateTimeEntry } = useDatabase();
   const {
     calculateWorkHours,
@@ -677,7 +702,8 @@ const TimeEntryContent: React.FC = () => {
         )}
 
         {/* Working Hours Card (High Density 2-Column Side-by-Side) */}
-        <Card style={styles.bnaCard}>
+        <View ref={timeCardRef} collapsable={false}>
+          <Card style={styles.bnaCard}>
           <View
             style={{
               flexDirection: 'row',
@@ -837,8 +863,9 @@ const TimeEntryContent: React.FC = () => {
               onChangeText={setReason}
               icon={FileText}
             />
-          </View>
-        </Card>
+            </View>
+          </Card>
+        </View>
 
         {/* Live Calculation Preview Card */}
         {detailedPreview && (
@@ -1032,6 +1059,27 @@ const TimeEntryContent: React.FC = () => {
         confirmVariant="destructive"
         cancelText="ยกเลิก"
         onConfirm={confirmDelete}
+      />
+
+      {/* Interactive Tour Overlay for Step 3 */}
+      <InteractiveTourOverlay
+        visible={params.tourStep === '3'}
+        currentStepIndex={2}
+        totalSteps={5}
+        stepData={{
+          ...APP_TOUR_STEPS[2],
+          targetLayout: tourLayout,
+        }}
+        onNext={() => router.replace('/reports?tourStep=4')}
+        onPrev={() => router.replace('/leaves?tourStep=2')}
+        onSkip={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+        onFinish={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
       />
 
       <BottomNavigation />

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import {
+  InteractiveTourOverlay,
+  APP_TOUR_STEPS,
+  TargetLayout,
+  markTourCompleted,
+} from '@/components/InteractiveTourOverlay';
 import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +71,26 @@ const ReportsContent: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  // Tour State
+  const { tourStep } = useLocalSearchParams<{ tourStep?: string }>();
+  const [tourLayout, setTourLayout] = useState<TargetLayout | null>(null);
+  const summaryCardRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (tourStep === '4') {
+      const timer = setTimeout(() => {
+        summaryCardRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+          if (width > 0 && height > 0) {
+            setTourLayout({ x, y, width, height, borderRadius: 28 });
+          }
+        });
+      }, 350);
+      return () => clearTimeout(timer);
+    } else {
+      setTourLayout(null);
+    }
+  }, [tourStep]);
 
   // Share Summary ViewShot Ref & State
   const summaryViewShotRef = React.useRef<any>(null);
@@ -748,7 +774,8 @@ const ReportsContent: React.FC = () => {
         </View>
 
         {/* Monthly Summary Container with ViewShot */}
-        <ViewShot
+        <View ref={summaryCardRef} collapsable={false}>
+          <ViewShot
           ref={summaryViewShotRef}
           options={{ format: 'png', quality: 1.0 }}
           style={{
@@ -994,6 +1021,7 @@ const ReportsContent: React.FC = () => {
             </View>
           </LinearGradient>
         </ViewShot>
+      </View>
 
         {/* Compact Share Summary Pill Button */}
         <TouchableOpacity
@@ -1522,6 +1550,27 @@ const ReportsContent: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Interactive Tour Overlay for Step 4 */}
+      <InteractiveTourOverlay
+        visible={tourStep === '4'}
+        currentStepIndex={3}
+        totalSteps={5}
+        stepData={{
+          ...APP_TOUR_STEPS[3],
+          targetLayout: tourLayout,
+        }}
+        onNext={() => router.replace('/?tourStep=5')}
+        onPrev={() => router.replace('/time-entry?tourStep=3')}
+        onSkip={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+        onFinish={() => {
+          markTourCompleted();
+          router.replace('/');
+        }}
+      />
 
       <BottomNavigation />
     </View>
