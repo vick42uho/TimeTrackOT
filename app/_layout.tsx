@@ -16,7 +16,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useThemeContext } from '../components/ThemeProvider';
 import { initNotificationService } from '../services/notificationService';
-import { initSmartAlarmChannels } from '../services/smartAlarmService';
+import { initSmartAlarmChannels, snoozeSmartAlarm } from '../services/smartAlarmService';
 import { AlarmRingingModal } from '../components/AlarmRingingModal';
 import {
   addNotificationResponseReceivedListener,
@@ -44,14 +44,18 @@ function RootLayoutContent() {
   });
 
   useEffect(() => {
-    // Set up global error logging
     setupErrorLogging();
+    initNotificationService();
+    initSmartAlarmChannels();
 
     if (Platform.OS === 'web') {
-      // If there's a new emulate parameter, store it
       if (emulate) {
-        localStorage.setItem(STORAGE_KEY, emulate);
         setStoredEmulate(emulate);
+        try {
+          localStorage.setItem(STORAGE_KEY, emulate);
+        } catch (e) {
+          console.error('Failed to save emulated device to localStorage:', e);
+        }
       } else {
         // If no emulate parameter, try to get from localStorage
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -60,32 +64,43 @@ function RootLayoutContent() {
         }
       }
     } else {
-      // 1. Check if launched from cold start via smart alarm notification tap
-      getLastNotificationResponseAsync().then((response) => {
+      const handleAlarmResponse = (response: any) => {
         if (response?.notification?.request?.content?.data?.type === 'smart-alarm') {
+          const actionId = response.actionIdentifier;
           const data = response.notification.request.content.data;
+          const notifId = response.notification.request.identifier;
+
+          dismissNotificationAsync(notifId).catch(() => {});
+
+          if (actionId === 'snooze') {
+            snoozeSmartAlarm(10, (data.reason as string) || 'วันทำงาน');
+            return;
+          }
+
+          if (actionId === 'dismiss') {
+            return;
+          }
+
+          // Default tap on the notification card -> open full-screen alarm modal
           setAlarmRingingData({
             visible: true,
             alarmTime: (data.alarmTime as string) || '06:30',
             alarmDate: (data.date as string) || undefined,
             reason: (data.reason as string) || 'วันทำงานปกติ',
           });
-          dismissNotificationAsync(response.notification.request.identifier).catch(() => {});
+        }
+      };
+
+      // 1. Check if launched from cold start via smart alarm notification tap
+      getLastNotificationResponseAsync().then((response) => {
+        if (response) {
+          handleAlarmResponse(response);
         }
       });
 
       // 2. Listen for notification taps when app is in background / foreground
       const responseSub = addNotificationResponseReceivedListener((response) => {
-        if (response?.notification?.request?.content?.data?.type === 'smart-alarm') {
-          const data = response.notification.request.content.data;
-          setAlarmRingingData({
-            visible: true,
-            alarmTime: (data.alarmTime as string) || '06:30',
-            alarmDate: (data.date as string) || undefined,
-            reason: (data.reason as string) || 'วันทำงานปกติ',
-          });
-          dismissNotificationAsync(response.notification.request.identifier).catch(() => {});
-        }
+        handleAlarmResponse(response);
       });
 
       // 3. Listen for notification triggers while app is actively foregrounded

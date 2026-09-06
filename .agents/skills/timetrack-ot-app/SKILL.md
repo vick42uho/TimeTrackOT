@@ -370,13 +370,19 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
 
 ### Smart Workday Alarm Architecture (`services/smartAlarmService.ts`)
 1. **Android ALARM Audio Stream, Custom 34s Tone & MAX Importance**:
-   - Notification channel `smart-workday-alarm` configured with `AndroidAudioUsage.ALARM`, `AndroidAudioContentType.SONIFICATION`, `importance: AndroidImportance.MAX`, `bypassDnd: true`, and custom sound file `alarm.wav`.
+   - Notification channel `smart_workday_alarm_v4` configured with `AndroidAudioUsage.ALARM`, `AndroidAudioContentType.SONIFICATION`, `importance: AndroidImportance.MAX`, `bypassDnd: true`, and custom sound file `alarm.wav`.
+   - Automatic cache purge on initialization: deletes legacy channels (`smart-workday-alarm`, `smart-workday-alarm-v2`, `smart-workday-alarm-v3`) via `deleteNotificationChannelAsync` to bypass Android OS notification channel immutability caching bugs.
    - Continuous pulse vibration pattern: `[0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000]`.
-   - Notifications scheduled with `sound: 'alarm.wav'`, `priority: AndroidNotificationPriority.MAX`, `sticky: true`, and `autoDismiss: false`.
+   - Notifications scheduled with `sound: 'alarm.wav'`, `priority: AndroidNotificationPriority.MAX`, `sticky: true`, `autoDismiss: false`, and `categoryIdentifier: 'smart_alarm_actions'`.
 2. **Dedicated Alarm Audio Tone (`assets/sounds/alarm.wav`)**:
    - Dual-tone high-frequency harmonic alarm chime (987.77 Hz - 2093 Hz) running ~34 seconds per loop.
    - Clean 22,050 Hz 16-bit PCM WAV (1.43 MB) registered in `app.json` under `expo-notifications` `sounds` array, copied to native raw resources during build.
-3. **Full-Screen Alarm Ringing Screen (`components/AlarmRingingModal.tsx`)**:
+3. **Interactive Notification Action Buttons & Lockscreen Support**:
+   - Registered category `smart_alarm_actions` via `setNotificationCategoryAsync`:
+     - Action 1: **"เลื่อนปลุก 10 นาที" (Snooze)** (`actionIdentifier: 'snooze'`)
+     - Action 2: **"ปิดนาฬิกาปลุก" (Dismiss)** (`actionIdentifier: 'dismiss'`)
+   - Expo Config Plugin `plugins/withShowWhenLocked.js` sets `android:showWhenLocked="true"` and `android:turnScreenOn="true"` on `MainActivity`, allowing the device to turn screen on and show the app over keyguard/lock screen when tapped.
+4. **Full-Screen Alarm Ringing Screen (`components/AlarmRingingModal.tsx`)**:
    - Full-screen immersive modal with Dark Ambient aesthetic (`#090D16`).
    - Concentric pulsating radar rings around bell icon powered by animated loops.
    - Real-time digital clock display (`HH:mm:ss`) updated every second, formatted with Thai Buddhist era dates (*พ.ศ.*).
@@ -385,13 +391,13 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
    - **Snooze 10 Minutes**: Large touch target calling `snoozeSmartAlarm(10, reason)`, cancelling sound/vibration, and scheduling a follow-up alarm in 10 minutes.
    - **Dismiss Alarm**: Large prominent red button cancelling sound/vibration immediately and closing the screen.
    - 100% compliant with **Zero-Emoji Directive** (Lucide icons only: `Bell`, `BellOff`, `Clock`, `Briefcase`, `Home`, `Calendar`) and Thai Sarabun font standards.
-4. **App Root Event Listeners (`app/_layout.tsx`)**:
+5. **App Root Event Listeners (`app/_layout.tsx`)**:
    - Direct subpath imports (`expo-notifications/build/NotificationsEmitter` and `expo-notifications/build/dismissNotificationAsync`) avoiding `DevicePushTokenAutoRegistration.fx` to eliminate remote push errors in Expo Go.
    - Cold start detection via `getLastNotificationResponseAsync()`.
    - Background interaction listener via `addNotificationResponseReceivedListener()`.
    - Foreground notification listener via `addNotificationReceivedListener()`.
-   - Opens `AlarmRingingModal` over any current screen when the alarm notification is received or tapped.
-5. **In-App Test Trigger (`triggerTestSmartAlarm`)**:
+   - Intercepts action button responses (`snooze`, `dismiss`) or opens `AlarmRingingModal` when notification card is tapped.
+6. **In-App Test Trigger (`triggerTestSmartAlarm`)**:
    - Prominent test card in `components/SmartAlarmModal.tsx` allowing user to tap and immediately test the full-screen ringing UI, 34-second audio loop, vibration, snooze, and dismiss buttons without waiting for the scheduled time.
 6. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
    - Evaluates a rolling 21-day window starting from today:

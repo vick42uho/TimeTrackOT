@@ -30,7 +30,7 @@
         "backgroundColor": "#00000000"
       },
       "package": "com.anonymous.timetrackot",
-      "versionCode": 13,
+      "versionCode": 14,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
@@ -47,6 +47,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "./plugins/withShowWhenLocked",
       "expo-font",
       "expo-router",
       "expo-web-browser",

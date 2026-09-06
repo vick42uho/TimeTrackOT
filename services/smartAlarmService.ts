@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import scheduleNotificationAsync from 'expo-notifications/build/scheduleNotificationAsync';
 import cancelScheduledNotificationAsync from 'expo-notifications/build/cancelScheduledNotificationAsync';
 import setNotificationChannelAsync from 'expo-notifications/build/setNotificationChannelAsync';
+import deleteNotificationChannelAsync from 'expo-notifications/build/deleteNotificationChannelAsync';
+import setNotificationCategoryAsync from 'expo-notifications/build/setNotificationCategoryAsync';
 import {
   AndroidImportance,
   AndroidNotificationVisibility,
@@ -24,8 +26,9 @@ import { requestNotificationPermissions } from './notificationService';
 export const SMART_ALARM_CONFIG_KEY = '@timetrack_smart_alarm_config';
 export const SMART_ALARM_SCHEDULED_IDS_KEY = '@timetrack_smart_alarm_scheduled_ids';
 
-export const SMART_ALARM_CHANNEL_ID = 'smart-workday-alarm';
+export const SMART_ALARM_CHANNEL_ID = 'smart_workday_alarm_v4';
 export const SMART_ALARM_PRE_REMINDER_CHANNEL_ID = 'smart-alarm-goodnight';
+export const SMART_ALARM_CATEGORY = 'smart_alarm_actions';
 
 export const DEFAULT_SMART_ALARM_CONFIG: SmartAlarmConfig = {
   enabled: false,
@@ -61,6 +64,17 @@ export async function initSmartAlarmChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
   try {
+    // 0. Clean up legacy/cached channels to prevent Android OS notification caching bugs
+    const legacyChannels = [
+      'smart-workday-alarm',
+      'smart-workday-alarm-v2',
+      'smart-workday-alarm-v3',
+      'smart_workday_alarm_v3',
+    ];
+    for (const chId of legacyChannels) {
+      await deleteNotificationChannelAsync(chId).catch(() => {});
+    }
+
     // 1. High Priority Alarm Channel with ALARM audio stream
     await setNotificationChannelAsync(SMART_ALARM_CHANNEL_ID, {
       name: 'นาฬิกาปลุกวันทำงาน (Smart Workday Alarm)',
@@ -84,7 +98,30 @@ export async function initSmartAlarmChannels(): Promise<void> {
       showBadge: true,
     });
 
-    // 2. Pre-holiday evening Goodnight Alert Channel
+    // 2. Register Interactive Action Category for Alarm (Snooze & Dismiss buttons)
+    try {
+      await setNotificationCategoryAsync(SMART_ALARM_CATEGORY, [
+        {
+          identifier: 'snooze',
+          buttonTitle: 'เลื่อนปลุก 10 นาที',
+          options: {
+            opensAppToForeground: true,
+          },
+        },
+        {
+          identifier: 'dismiss',
+          buttonTitle: 'ปิดนาฬิกาปลุก',
+          options: {
+            opensAppToForeground: true,
+            isDestructive: true,
+          },
+        },
+      ]);
+    } catch (catErr) {
+      console.warn('Failed to set notification category for smart alarm:', catErr);
+    }
+
+    // 3. Pre-holiday evening Goodnight Alert Channel
     await setNotificationChannelAsync(SMART_ALARM_PRE_REMINDER_CHANNEL_ID, {
       name: 'แจ้งเตือนคืนก่อนวันหยุด (Goodnight Alert)',
       description: 'แจ้งเตือนเวลา 20:00 น. ก่อนถึงวันหยุดว่าปิดนาฬิกาปลุกให้แล้ว',
@@ -391,6 +428,7 @@ export async function syncSmartAlarmSchedule(
               sticky: true,
               autoDismiss: false,
               color: '#2563EB',
+              categoryIdentifier: SMART_ALARM_CATEGORY,
               data: {
                 type: 'smart-alarm',
                 date: item.date,
@@ -576,6 +614,7 @@ export async function snoozeSmartAlarm(
         sticky: true,
         autoDismiss: false,
         color: '#2563EB',
+        categoryIdentifier: SMART_ALARM_CATEGORY,
         data: {
           type: 'smart-alarm',
           date: triggerDate.toISOString().split('T')[0],
@@ -613,12 +652,13 @@ export async function triggerTestSmartAlarm(): Promise<string | undefined> {
     const notifId = await scheduleNotificationAsync({
       content: {
         title: 'ทดสอบระบบนาฬิกาปลุก (Smart Alarm Test)',
-        body: 'แตะแถบนี้เพื่อเปิดหน้าต่างปลุกเต็มจอ พร้อมทดสอบเสียงปลุกและระบบสั่น',
+        body: 'แตะแถบนี้เพื่อเปิดหน้าต่างปลุกเต็มจอ หรือกดเลื่อน/ปิดได้ทันที',
         sound: 'alarm.wav',
         priority: AndroidNotificationPriority.MAX,
         sticky: true,
         autoDismiss: false,
         color: '#2563EB',
+        categoryIdentifier: SMART_ALARM_CATEGORY,
         data: {
           type: 'smart-alarm',
           date: now.toISOString().split('T')[0],
