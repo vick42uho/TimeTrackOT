@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
 
     <application>
         <receiver
@@ -25,5 +26,19 @@
             android:name=".AlarmRingtoneService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!--
+             AlarmActivity: Native Full-Screen Activity
+             แสดงผลทับหน้าจอล็อกได้ทันที (0 วินาที) โดยไม่ต้องรอ React Native
+        -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
     </application>
 </manifest>

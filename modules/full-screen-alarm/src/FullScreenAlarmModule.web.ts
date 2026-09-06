@@ -23,6 +23,9 @@ class FullScreenAlarmModuleWeb extends NativeModule implements FullScreenAlarmMo
   async openFullScreenIntentSettings(): Promise<boolean> {
     return false;
   }
+  async openLockScreenPermissionSettings(): Promise<boolean> {
+    return false;
+  }
   getInitialAlarm(): InitialAlarmData | null {
     return null;
   }

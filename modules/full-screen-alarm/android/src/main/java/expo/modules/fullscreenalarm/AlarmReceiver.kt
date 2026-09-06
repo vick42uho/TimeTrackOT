@@ -85,17 +85,24 @@ class AlarmReceiver : BroadcastReceiver() {
       systemNotifManager?.createNotificationChannel(channel)
     }
 
-    // 5. Create Full-Screen Intent pointing to MainActivity
-    val launchIntent = (context.packageManager.getLaunchIntentForPackage(context.packageName)
-      ?: Intent(context, Class.forName("${context.packageName}.MainActivity"))).apply {
+    // 5. Create Full-Screen Intent pointing to native AlarmActivity
+    val launchIntent = Intent(context, AlarmActivity::class.java).apply {
       action = "expo.modules.fullscreenalarm.ALARM_TRIGGER"
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or
               Intent.FLAG_ACTIVITY_CLEAR_TOP or
-              Intent.FLAG_ACTIVITY_SINGLE_TOP
+              Intent.FLAG_ACTIVITY_SINGLE_TOP or
+              Intent.FLAG_ACTIVITY_NO_USER_ACTION
       putExtra("isAlarmTriggered", true)
       putExtra("alarmId", alarmId)
       putExtra("alarmTime", alarmTime)
       putExtra("reason", reason)
+    }
+
+    // Directly attempt to pop up the full-screen AlarmActivity immediately
+    try {
+      context.startActivity(launchIntent)
+    } catch (e: Exception) {
+      e.printStackTrace()
     }
 
     val fullScreenPendingIntent = PendingIntent.getActivity(

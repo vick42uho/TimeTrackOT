@@ -55,7 +55,9 @@ import {
   ChevronDown,
   ChevronUp,
   Volume2,
+  ShieldCheck,
 } from 'lucide-react-native';
+import FullScreenAlarm, { isFullScreenAlarmAvailable } from '@/modules/full-screen-alarm';
 
 interface SmartAlarmModalProps {
   visible: boolean;
@@ -79,6 +81,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showBatteryGuide, setShowBatteryGuide] = useState(false);
+  const [showLockScreenGuide, setShowLockScreenGuide] = useState(false);
   const [isTestingAlarmModal, setIsTestingAlarmModal] = useState(false);
 
   // Form states
@@ -852,6 +855,137 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                     }}
                   >
                     เปิดหน้าตั้งค่าแอพใน Android
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Section 5.5: Lock Screen & Pop-up Permission Guide (Xiaomi / Oppo / Vivo / Android 14) */}
+        {Platform.OS === 'android' && (
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: colors.border,
+              overflow: 'hidden',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => {
+                triggerHaptic('selection');
+                setShowLockScreenGuide((prev) => !prev);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 14,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Icon name={ShieldCheck} size={16} color="#3b82f6" />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '700',
+                      color: colors.text,
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    การตั้งค่าให้เด้งเต็มจอ (Xiaomi / Vivo / Oppo)
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: colors.textSecondary,
+                      fontFamily: 'Sarabun_400Regular',
+                    }}
+                  >
+                    เปิดสิทธิ์แสดงหน้าต่างปลุกบนหน้าจอล็อกทันที
+                  </Text>
+                </View>
+              </View>
+              <Icon
+                name={showLockScreenGuide ? ChevronUp : ChevronDown}
+                size={16}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+
+            {showLockScreenGuide && (
+              <View
+                style={{
+                  paddingHorizontal: 14,
+                  paddingBottom: 14,
+                  gap: 10,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border,
+                  paddingTop: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    lineHeight: 18,
+                    color: colors.textSecondary,
+                    fontFamily: 'Sarabun_400Regular',
+                  }}
+                >
+                  บนมือถือเช่น <Text style={{ fontWeight: '700', color: colors.text }}>Xiaomi (HyperOS / MIUI), Vivo, Oppo</Text> ระบบจะบล็อกไม่ให้แอพเปิดหน้าต่างเด้งขึ้นมาเองขณะล็อกหน้าจอเป็นค่าเริ่มต้น (ทำให้เห็นเป็นแค่แถบการแจ้งเตือน) หากต้องการให้เด้งเต็มจออัตโนมัติ:
+                </Text>
+
+                <View style={{ gap: 5, paddingLeft: 6 }}>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    1. กดปุ่ม <Text style={{ fontWeight: '700' }}>"เปิดหน้าตั้งค่าสิทธิ์บนหน้าจอล็อก"</Text> ด้านล่าง
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    2. ไปที่เมนู <Text style={{ fontWeight: '700', color: '#2563eb' }}>"สิทธิ์อื่นๆ (Other permissions)"</Text>
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    3. ติ๊กเปิด <Text style={{ fontWeight: '700', color: '#16a34a' }}>"แสดงบนหน้าจอล็อก (Show on Lock screen)"</Text> ให้เป็นสีเขียว
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
+                    4. ติ๊กเปิด <Text style={{ fontWeight: '700', color: '#16a34a' }}>"แสดงหน้าต่างป๊อปอัปขณะทำงานในเบื้องหลัง"</Text> ให้เป็นสีเขียว
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  onPress={async () => {
+                    triggerHaptic('impact-light');
+                    if (isFullScreenAlarmAvailable) {
+                      await FullScreenAlarm.openLockScreenPermissionSettings();
+                    } else {
+                      openAppBatterySettings();
+                    }
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff',
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe',
+                    marginTop: 4,
+                  }}
+                >
+                  <Icon name={ExternalLink} size={14} color="#2563eb" />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#2563eb',
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    เปิดหน้าตั้งค่าสิทธิ์บนหน้าจอล็อก
                   </Text>
                 </TouchableOpacity>
               </View>

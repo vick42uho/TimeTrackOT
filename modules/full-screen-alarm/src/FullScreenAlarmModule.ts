@@ -20,6 +20,7 @@ declare class FullScreenAlarmNativeModule extends NativeModule<FullScreenAlarmEv
   canUseFullScreenIntent(): boolean;
   openExactAlarmSettings(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
+  openLockScreenPermissionSettings(): Promise<boolean>;
   getInitialAlarm(): InitialAlarmData | null;
 }
 
@@ -35,6 +36,7 @@ const FallbackModule: FullScreenAlarmModuleType = {
   canUseFullScreenIntent: () => false,
   openExactAlarmSettings: async () => false,
   openFullScreenIntentSettings: async () => false,
+  openLockScreenPermissionSettings: async () => false,
   getInitialAlarm: () => null,
   addListener: () => ({ remove: () => {} }),
   removeListener: () => {},

@@ -28,6 +28,7 @@ export interface FullScreenAlarmModuleType {
   canUseFullScreenIntent(): boolean;
   openExactAlarmSettings(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
+  openLockScreenPermissionSettings(): Promise<boolean>;
   getInitialAlarm(): InitialAlarmData | null;
   addListener(
     eventName: string,
