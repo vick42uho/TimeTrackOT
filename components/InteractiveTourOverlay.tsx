@@ -19,7 +19,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Sparkles,
-  Gamepad2,
+  BookOpen,
   X,
   BarChart3,
   Home,
@@ -409,9 +409,9 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
                   { backgroundColor: isDark ? '#1e3a8a' : '#dbeafe' },
                 ]}
               >
-                <Gamepad2 size={13} color="#2563eb" />
+                <BookOpen size={13} color="#2563eb" />
                 <Text style={styles.gameBadgeText}>
-                  คู่มือสอนเล่น ({currentStepIndex + 1}/{totalSteps})
+                  คู่มือ ({currentStepIndex + 1}/{totalSteps})
                 </Text>
               </View>
             </View>
