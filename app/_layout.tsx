@@ -16,6 +16,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useThemeContext } from '../components/ThemeProvider';
 import { initNotificationService } from '../services/notificationService';
+import { initSmartAlarmChannels } from '../services/smartAlarmService';
 
 const STORAGE_KEY = 'emulated_device';
 
@@ -93,8 +94,9 @@ export default function RootLayout() {
         setFontsLoaded(true); // Continue even if fonts fail to load
       }
 
-      // Initialize background notification channel for Android (API 26+)
+      // Initialize background notification channels for Android (API 26+)
       initNotificationService().catch((e) => console.warn('Failed to init notifications:', e));
+      initSmartAlarmChannels().catch((e) => console.warn('Failed to init smart alarm channels:', e));
     };
 
     loadFonts();
