@@ -893,36 +893,70 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           >
             ทดสอบฟังเสียง Alarm Tone (ความยาว ~34 วินาที) ที่คมชัด สั่นต่อเนื่อง และทดสอบปุ่มปิด/เลื่อนปลุก 10 นาที บนหน้าจอจริงได้ทันที
           </Text>
-          <TouchableOpacity
-            onPress={() => {
-              triggerHaptic('impact-medium');
-              setIsTestingAlarmModal(true);
-              triggerTestSmartAlarm().catch(() => {});
-            }}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              backgroundColor: '#2563eb',
-              paddingVertical: 11,
-              paddingHorizontal: 16,
-              borderRadius: 10,
-              marginTop: 2,
-            }}
-          >
-            <Icon name={Volume2} size={15} color="#ffffff" />
-            <Text
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <TouchableOpacity
+              onPress={() => {
+                triggerHaptic('impact-medium');
+                setIsTestingAlarmModal(true);
+              }}
               style={{
-                fontSize: 13,
-                fontWeight: '700',
-                color: '#ffffff',
-                fontFamily: 'Sarabun_700Bold',
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: '#2563eb',
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderRadius: 10,
               }}
             >
-              กดเพื่อทดสอบหน้าต่างปลุกทันที
-            </Text>
-          </TouchableOpacity>
+              <Icon name={Volume2} size={15} color="#ffffff" />
+              <Text
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                เปิดหน้าต่างปลุกทันที
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={async () => {
+                triggerHaptic('impact-light');
+                await triggerTestSmartAlarm();
+                success('ส่งการแจ้งเตือนแล้ว', 'ระบบจะส่งแถบเตือนมาที่หน้าจอใน 3 วินาที');
+              }}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Icon name={Bell} size={14} color={colors.text} />
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: colors.text,
+                  fontFamily: 'Sarabun_600SemiBold',
+                }}
+              >
+                ยิงแถบเตือน (3 วิ)
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 7-Day Live Preview Section */}

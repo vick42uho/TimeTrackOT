@@ -127,6 +127,7 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
     try {
       player.loop = true;
       player.volume = 1.0;
+      player.seekTo(0);
       player.play();
     } catch (err) {
       console.warn('Alarm audio playback error:', err);
@@ -142,6 +143,7 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
       }
       try {
         player.pause();
+        player.seekTo(0);
       } catch (e) {}
     };
   }, [visible, player]);
@@ -152,6 +154,7 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
         Vibration.cancel();
       }
       player.pause();
+      player.seekTo(0);
     } catch (err) {
       console.warn('Error stopping alarm audio/vibration:', err);
     }
