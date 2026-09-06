@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -229,6 +229,7 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const tooltipSlideAnim = useRef(new Animated.Value(10)).current;
+  const [cardHeight, setCardHeight] = useState(180);
 
   useEffect(() => {
     if (visible) {
@@ -288,43 +289,34 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
   // Safe margins for notch and navigation bars
   const SAFE_TOP = Platform.OS === 'android' ? 36 : 50;
   const SAFE_BOTTOM = Platform.OS === 'android' ? 24 : 36;
-  const ESTIMATED_CARD_HEIGHT = 190;
 
   // Space available above and below the hole
   const spaceAbove = holeY - SAFE_TOP;
   const spaceBelow = SCREEN_HEIGHT - (holeY + holeH) - SAFE_BOTTOM;
 
   let isTooltipAbove = false;
-  let tooltipPositionStyle: any = {};
+  let calculatedTop = 0;
   let showArrow = true;
 
-  if (spaceBelow >= ESTIMATED_CARD_HEIGHT) {
+  if (spaceBelow >= cardHeight + 10) {
     // Fits comfortably below hole
     isTooltipAbove = false;
     showArrow = true;
-    tooltipPositionStyle = {
-      top: Math.min(holeY + holeH + 10, SCREEN_HEIGHT - SAFE_BOTTOM - ESTIMATED_CARD_HEIGHT),
-    };
-  } else if (spaceAbove >= ESTIMATED_CARD_HEIGHT) {
-    // Fits comfortably above hole
+    calculatedTop = Math.min(holeY + holeH + 8, SCREEN_HEIGHT - SAFE_BOTTOM - cardHeight);
+  } else if (spaceAbove >= cardHeight + 10) {
+    // Fits comfortably above hole -> place it right above the hole (ขยับลงมาชิดกับกรอบด้านบน)
     isTooltipAbove = true;
     showArrow = true;
-    tooltipPositionStyle = {
-      bottom: Math.max(SAFE_BOTTOM, SCREEN_HEIGHT - holeY + 10),
-    };
+    calculatedTop = Math.max(SAFE_TOP, holeY - cardHeight - 6);
   } else {
-    // Large target: place where there is more room, pinned safely to edge
+    // Large target: whichever has more space, pin to edge safely
     showArrow = false;
     if (spaceAbove >= spaceBelow) {
       isTooltipAbove = true;
-      tooltipPositionStyle = {
-        top: SAFE_TOP,
-      };
+      calculatedTop = SAFE_TOP;
     } else {
       isTooltipAbove = false;
-      tooltipPositionStyle = {
-        bottom: SAFE_BOTTOM,
-      };
+      calculatedTop = SCREEN_HEIGHT - SAFE_BOTTOM - cardHeight;
     }
   }
 
@@ -439,14 +431,20 @@ export const InteractiveTourOverlay: React.FC<InteractiveTourOverlayProps> = ({
 
         {/* Floating Coach Tooltip Box */}
         <Animated.View
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 50 && Math.abs(h - cardHeight) > 4) {
+              setCardHeight(h);
+            }
+          }}
           style={[
             styles.tooltipCard,
             {
+              top: calculatedTop,
               backgroundColor: isDark ? '#1e293b' : '#ffffff',
               borderColor: isDark ? '#3b82f6' : '#2563eb',
               opacity: fadeAnim,
               transform: [{ translateY: tooltipSlideAnim }],
-              ...tooltipPositionStyle,
             },
           ]}
         >
@@ -704,12 +702,12 @@ const styles = StyleSheet.create({
   },
   arrowUp: {
     position: 'absolute',
-    top: -10,
+    top: -8,
     width: 0,
     height: 0,
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderBottomWidth: 10,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
     borderStyle: 'solid',
     backgroundColor: 'transparent',
     borderLeftColor: 'transparent',
@@ -717,12 +715,12 @@ const styles = StyleSheet.create({
   },
   arrowDown: {
     position: 'absolute',
-    bottom: -10,
+    bottom: -8,
     width: 0,
     height: 0,
-    borderLeftWidth: 10,
-    borderRightWidth: 10,
-    borderTopWidth: 10,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 8,
     borderStyle: 'solid',
     backgroundColor: 'transparent',
     borderLeftColor: 'transparent',
