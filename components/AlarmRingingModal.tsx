@@ -19,13 +19,14 @@ import {
   Home,
   Calendar,
 } from 'lucide-react-native';
-import { snoozeSmartAlarm } from '@/services/smartAlarmService';
+import { snoozeSmartAlarm, getSmartAlarmConfig } from '@/services/smartAlarmService';
 
 export interface AlarmRingingModalProps {
   visible: boolean;
   alarmTime?: string;
   alarmDate?: string;
   reason?: string;
+  customSoundUri?: string;
   onDismiss: () => void;
   onSnooze?: (minutes: number) => void;
 }
@@ -44,11 +45,33 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
   alarmTime,
   alarmDate,
   reason = 'วันทำงานปกติ',
+  customSoundUri,
   onDismiss,
   onSnooze,
 }) => {
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
-  const player = useAudioPlayer(require('../assets/sounds/alarm.wav'));
+  const [activeSoundUri, setActiveSoundUri] = useState<string | undefined>(customSoundUri);
+
+  useEffect(() => {
+    if (visible) {
+      if (customSoundUri) {
+        setActiveSoundUri(customSoundUri);
+      } else {
+        getSmartAlarmConfig()
+          .then((cfg) => {
+            if (cfg.customSoundUri) {
+              setActiveSoundUri(cfg.customSoundUri);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [visible, customSoundUri]);
+
+  const soundSource = activeSoundUri
+    ? { uri: activeSoundUri }
+    : require('../assets/sounds/alarm.wav');
+  const player = useAudioPlayer(soundSource);
 
   // Concentric radar ring animations
   const pulseAnim1 = useRef(new Animated.Value(0)).current;

@@ -228,6 +228,26 @@ class FullScreenAlarmModule : Module() {
       false
     }
 
+    AsyncFunction("setCustomAlarmSound") { soundPath: String? ->
+      val context = appContext.reactContext ?: return@AsyncFunction false
+      val prefs = context.getSharedPreferences("TimeTrackAlarmPrefs", Context.MODE_PRIVATE)
+      prefs.edit().apply {
+        if (soundPath.isNullOrEmpty()) {
+          remove("custom_alarm_sound_path")
+        } else {
+          putString("custom_alarm_sound_path", soundPath)
+        }
+        apply()
+      }
+      true
+    }
+
+    Function("getCustomAlarmSound") {
+      val context = appContext.reactContext ?: return@Function null
+      val prefs = context.getSharedPreferences("TimeTrackAlarmPrefs", Context.MODE_PRIVATE)
+      prefs.getString("custom_alarm_sound_path", null)
+    }
+
     Function("getInitialAlarm") {
       val activity = appContext.currentActivity ?: return@Function null
       val intent = activity.intent ?: return@Function null

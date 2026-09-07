@@ -22,6 +22,7 @@ import {
   SmartAlarmScheduleItem,
 } from '../types';
 import { requestNotificationPermissions } from './notificationService';
+import * as FileSystem from 'expo-file-system/legacy';
 import FullScreenAlarm, { isFullScreenAlarmAvailable } from '../modules/full-screen-alarm';
 
 export const SMART_ALARM_CONFIG_KEY = '@timetrack_smart_alarm_config';
@@ -46,6 +47,8 @@ export const DEFAULT_SMART_ALARM_CONFIG: SmartAlarmConfig = {
   snoozeMinutes: 10,
   vibrate: true,
   soundEnabled: true,
+  customSoundUri: undefined,
+  customSoundName: undefined,
   configVersion: 2,
 };
 
@@ -160,6 +163,8 @@ export async function getSmartAlarmConfig(): Promise<SmartAlarmConfig> {
       weekendWorkAlarmTime: parsed.weekendWorkAlarmTime || '07:00',
       skipRegularOff: parsed.skipRegularOff !== undefined ? parsed.skipRegularOff : true,
       wfhAlarmTime: parsed.wfhAlarmTime || '07:30',
+      customSoundUri: parsed.customSoundUri,
+      customSoundName: parsed.customSoundName,
     };
   } catch (error) {
     console.error('Error loading smart alarm config:', error);
@@ -168,15 +173,89 @@ export async function getSmartAlarmConfig(): Promise<SmartAlarmConfig> {
 }
 
 /**
- * Save Smart Alarm configuration to AsyncStorage
+ * Save Smart Alarm configuration to AsyncStorage and sync custom sound to native Android
  */
 export async function saveSmartAlarmConfig(config: SmartAlarmConfig): Promise<boolean> {
   try {
     await AsyncStorage.setItem(SMART_ALARM_CONFIG_KEY, JSON.stringify(config));
+
+    // Sync custom sound path to Android native SharedPreferences
+    if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
+      const rawPath = config.customSoundUri ? config.customSoundUri.replace('file://', '') : null;
+      await FullScreenAlarm.setCustomAlarmSound(rawPath).catch(() => {});
+    }
+
     return true;
   } catch (error) {
     console.error('Error saving smart alarm config:', error);
     return false;
+  }
+}
+
+/**
+ * Save custom audio file to permanent app document directory and sync to native Android
+ */
+export async function saveCustomAlarmSound(
+  sourceUri: string,
+  fileName: string
+): Promise<{ uri: string; name: string }> {
+  if (Platform.OS === 'web') {
+    return { uri: sourceUri, name: fileName };
+  }
+
+  try {
+    const extMatch = fileName.match(/\.([a-zA-Z0-9]+)$/);
+    const ext = extMatch ? extMatch[1].toLowerCase() : 'mp3';
+    const targetUri = `${FileSystem.documentDirectory}custom_alarm_sound.${ext}`;
+
+    // Clean up any existing file
+    const fileInfo = await FileSystem.getInfoAsync(targetUri);
+    if (fileInfo.exists) {
+      await FileSystem.deleteAsync(targetUri, { idempotent: true });
+    }
+
+    // Copy to permanent app documents directory
+    await FileSystem.copyAsync({
+      from: sourceUri,
+      to: targetUri,
+    });
+
+    // Sync raw file path to native Android
+    if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
+      const rawPath = targetUri.replace('file://', '');
+      await FullScreenAlarm.setCustomAlarmSound(rawPath).catch(() => {});
+    }
+
+    return { uri: targetUri, name: fileName };
+  } catch (err) {
+    console.error('Error saving custom alarm sound:', err);
+    throw err;
+  }
+}
+
+/**
+ * Reset custom audio to default alarm.wav
+ */
+export async function resetCustomAlarmSound(): Promise<void> {
+  try {
+    if (Platform.OS !== 'web') {
+      const dir = FileSystem.documentDirectory;
+      if (dir) {
+        for (const ext of ['mp3', 'wav', 'm4a', 'aac', 'ogg']) {
+          const target = `${dir}custom_alarm_sound.${ext}`;
+          const info = await FileSystem.getInfoAsync(target).catch(() => null);
+          if (info?.exists) {
+            await FileSystem.deleteAsync(target, { idempotent: true }).catch(() => {});
+          }
+        }
+      }
+
+      if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
+        await FullScreenAlarm.setCustomAlarmSound(null).catch(() => {});
+      }
+    }
+  } catch (err) {
+    console.warn('Error resetting custom alarm sound:', err);
   }
 }
 

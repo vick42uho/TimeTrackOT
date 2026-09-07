@@ -21,6 +21,8 @@ declare class FullScreenAlarmNativeModule extends NativeModule<FullScreenAlarmEv
   openExactAlarmSettings(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
   openLockScreenPermissionSettings(): Promise<boolean>;
+  setCustomAlarmSound(soundPath: string | null): Promise<boolean>;
+  getCustomAlarmSound(): string | null;
   getInitialAlarm(): InitialAlarmData | null;
 }
 
@@ -37,6 +39,8 @@ const FallbackModule: FullScreenAlarmModuleType = {
   openExactAlarmSettings: async () => false,
   openFullScreenIntentSettings: async () => false,
   openLockScreenPermissionSettings: async () => false,
+  setCustomAlarmSound: async () => false,
+  getCustomAlarmSound: () => null,
   getInitialAlarm: () => null,
   addListener: () => ({ remove: () => {} }),
   removeListener: () => {},

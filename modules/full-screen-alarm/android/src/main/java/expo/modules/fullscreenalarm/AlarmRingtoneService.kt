@@ -148,8 +148,27 @@ class AlarmRingtoneService : Service() {
 
     private fun startAudio() {
         try {
-            val soundUri = Uri.parse("android.resource://${packageName}/raw/alarm")
-            mediaPlayer = MediaPlayer().apply {
+            // 1. ตรวจสอบระดับเสียงช่องสัญญาณ STREAM_ALARM
+            //    ถ้าผู้ใช้หรี่เสียงไว้ต่ำกว่า 70% ให้ปรับขึ้นมาเป็น 85% ของระดับสูงสุด
+            //    เพื่อให้มั่นใจว่าเสียงจะดังแน่นอน แม้เครื่องจะเปิดโหมดเงียบ (Silent) หรือหรี่เสียงไว้
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.let { am ->
+                try {
+                    val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                    val currentVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
+                    if (currentVol < (maxVol * 0.7).toInt()) {
+                        am.setStreamVolume(AudioManager.STREAM_ALARM, (maxVol * 0.85).toInt(), 0)
+                    }
+                } catch (volErr: Exception) {
+                    volErr.printStackTrace()
+                }
+            }
+
+            // 2. ตรวจสอบว่ามีการตั้งค่าไฟล์เสียงแบบกำหนดเอง (Custom Alarm Sound) ไว้หรือไม่
+            val prefs = getSharedPreferences("TimeTrackAlarmPrefs", Context.MODE_PRIVATE)
+            val customSoundPath = prefs.getString("custom_alarm_sound_path", null)
+
+            val player = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -157,11 +176,61 @@ class AlarmRingtoneService : Service() {
                         .setLegacyStreamType(AudioManager.STREAM_ALARM)
                         .build()
                 )
-                setDataSource(applicationContext, soundUri)
                 isLooping = true
                 setVolume(1.0f, 1.0f)
-                prepare()
-                start()
+            }
+
+            var loaded = false
+
+            // A. ลองโหลด Custom sound ถ้ามีและไฟล์ยังมีอยู่จริงในเครื่อง
+            if (!customSoundPath.isNullOrEmpty()) {
+                try {
+                    val customFile = java.io.File(customSoundPath)
+                    if (customFile.exists() && customFile.canRead()) {
+                        player.setDataSource(customFile.absolutePath)
+                        player.prepare()
+                        loaded = true
+                    }
+                } catch (eCustom: Exception) {
+                    eCustom.printStackTrace()
+                }
+            }
+
+            // B. ถ้าไม่มี Custom sound หรือโหลดไม่สำเร็จ ให้โหลด res/raw/alarm.wav ผ่าน openRawResourceFd
+            if (!loaded) {
+                try {
+                    val resId = resources.getIdentifier("alarm", "raw", packageName)
+                    if (resId != 0) {
+                        val afd = resources.openRawResourceFd(resId)
+                        if (afd != null) {
+                            player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                            afd.close()
+                            player.prepare()
+                            loaded = true
+                        }
+                    }
+                } catch (eRaw: Exception) {
+                    eRaw.printStackTrace()
+                }
+            }
+
+            // C. Fallback สุดท้าย: ระบบเริ่มต้นของ Android (System Default Alarm Ringtone)
+            if (!loaded) {
+                try {
+                    val defaultAlarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                    player.setDataSource(applicationContext, defaultAlarmUri)
+                    player.prepare()
+                    loaded = true
+                } catch (eDefault: Exception) {
+                    eDefault.printStackTrace()
+                }
+            }
+
+            if (loaded) {
+                player.start()
+                mediaPlayer = player
+            } else {
+                player.release()
             }
         } catch (e: Exception) {
             e.printStackTrace()

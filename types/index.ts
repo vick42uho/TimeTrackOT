@@ -198,6 +198,8 @@ export interface SmartAlarmConfig {
   snoozeMinutes: number; // e.g. 5, 10, 15
   vibrate: boolean;
   soundEnabled: boolean;
+  customSoundUri?: string; // local file path to custom uploaded audio file (.mp3, .wav, .m4a)
+  customSoundName?: string; // display name e.g. "my_song.mp3"
   configVersion?: number;
 }
 

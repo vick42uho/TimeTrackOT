@@ -28,7 +28,11 @@ import {
   calculateSmartAlarmSchedule,
   DEFAULT_SMART_ALARM_CONFIG,
   triggerTestSmartAlarm,
+  saveCustomAlarmSound,
+  resetCustomAlarmSound,
 } from '@/services/smartAlarmService';
+import * as DocumentPicker from 'expo-document-picker';
+import { useAudioPlayer } from 'expo-audio';
 import {
   openAppBatterySettings,
 } from '@/services/systemAlarmService';
@@ -56,6 +60,11 @@ import {
   ChevronUp,
   Volume2,
   ShieldCheck,
+  Music,
+  Play,
+  Square,
+  RotateCcw,
+  Upload,
 } from 'lucide-react-native';
 import FullScreenAlarm, { isFullScreenAlarmAvailable } from '@/modules/full-screen-alarm';
 
@@ -96,6 +105,41 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   const [wfhMode, setWfhMode] = useState<SmartAlarmWfhMode>('custom');
   const [wfhAlarmTime, setWfhAlarmTime] = useState('07:30');
   const [preHolidayReminder, setPreHolidayReminder] = useState(true);
+  const [customSoundUri, setCustomSoundUri] = useState<string | undefined>(undefined);
+  const [customSoundName, setCustomSoundName] = useState<string | undefined>(undefined);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  // Audio Preview Player
+  const previewSource = customSoundUri
+    ? { uri: customSoundUri }
+    : require('../assets/sounds/alarm.wav');
+  const previewPlayer = useAudioPlayer(previewSource);
+
+  const togglePlayPreview = () => {
+    try {
+      if (isPlayingPreview) {
+        previewPlayer.pause();
+        previewPlayer.seekTo(0);
+        setIsPlayingPreview(false);
+      } else {
+        previewPlayer.seekTo(0);
+        previewPlayer.play();
+        setIsPlayingPreview(true);
+      }
+    } catch (e) {
+      console.warn('Error toggling preview player:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!visible && isPlayingPreview) {
+      try {
+        previewPlayer.pause();
+        previewPlayer.seekTo(0);
+      } catch (e) {}
+      setIsPlayingPreview(false);
+    }
+  }, [visible, isPlayingPreview, previewPlayer]);
 
   // Load config on open
   useEffect(() => {
@@ -119,10 +163,53 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
       setWfhMode(cfg.wfhMode || 'custom');
       setWfhAlarmTime(cfg.wfhAlarmTime || '07:30');
       setPreHolidayReminder(cfg.preHolidayReminder);
+      setCustomSoundUri(cfg.customSoundUri);
+      setCustomSoundName(cfg.customSoundName);
     } catch (err) {
       console.error('Error loading smart alarm config in modal:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePickCustomSound = async () => {
+    try {
+      triggerHaptic('impact-light');
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['audio/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const saved = await saveCustomAlarmSound(asset.uri, asset.name);
+        setCustomSoundUri(saved.uri);
+        setCustomSoundName(saved.name);
+        triggerHaptic('success');
+        success('เลือกไฟล์เสียงสำเร็จ', `ใช้เสียง: ${saved.name}`);
+      }
+    } catch (err) {
+      console.error('Error picking custom sound:', err);
+      error('ไม่สามารถเลือกไฟล์เสียงได้', 'โปรดตรวจสอบไฟล์และลองใหม่อีกครั้ง');
+    }
+  };
+
+  const handleResetToDefaultSound = async () => {
+    try {
+      triggerHaptic('impact-light');
+      if (isPlayingPreview) {
+        try {
+          previewPlayer.pause();
+          previewPlayer.seekTo(0);
+        } catch (e) {}
+        setIsPlayingPreview(false);
+      }
+      await resetCustomAlarmSound();
+      setCustomSoundUri(undefined);
+      setCustomSoundName(undefined);
+      success('คืนค่าสำเร็จ', 'กลับไปใช้เสียงเริ่มต้น (alarm.wav)');
+    } catch (err) {
+      console.error('Error resetting custom sound:', err);
     }
   };
 
@@ -143,6 +230,8 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
       snoozeMinutes: 10,
       vibrate: true,
       soundEnabled: true,
+      customSoundUri,
+      customSoundName,
     };
   }, [
     enabled,
@@ -156,6 +245,8 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
     wfhMode,
     wfhAlarmTime,
     preHolidayReminder,
+    customSoundUri,
+    customSoundName,
   ]);
 
   // Compute 7-day preview in real-time
@@ -993,6 +1084,161 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
           </View>
         )}
 
+        {/* Section 5.6: เสียงนาฬิกาปลุก & อัปโหลดเสียงเอง (Alarm Sound Selection) */}
+        <View
+          style={{
+            backgroundColor: colors.card,
+            borderRadius: 14,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              <Icon name={Music} size={16} color="#8b5cf6" />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color: colors.text,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  เสียงนาฬิกาปลุก (Alarm Sound)
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: colors.textSecondary,
+                    fontFamily: 'Sarabun_400Regular',
+                  }}
+                >
+                  ดังแม้เปิดโหมดเงียบ / สั่น (Bypass Silent Mode)
+                </Text>
+              </View>
+            </View>
+
+            {/* Current Sound Badge */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: customSoundName
+                  ? (isDark ? 'rgba(139, 92, 246, 0.2)' : '#f3e8ff')
+                  : (isDark ? 'rgba(37, 99, 235, 0.15)' : '#eff6ff'),
+                paddingHorizontal: 9,
+                paddingVertical: 4,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: customSoundName
+                  ? (isDark ? 'rgba(139, 92, 246, 0.4)' : '#d8b4fe')
+                  : (isDark ? 'rgba(59, 130, 246, 0.3)' : '#bfdbfe'),
+              }}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: customSoundName ? '#8b5cf6' : '#2563eb',
+                  fontFamily: 'Sarabun_700Bold',
+                  maxWidth: 130,
+                }}
+              >
+                {customSoundName || 'เสียงเริ่มต้น (alarm.wav)'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Action Buttons: Pick Audio File & Preview Audio */}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={handlePickCustomSound}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                paddingVertical: 9,
+                paddingHorizontal: 12,
+                borderRadius: 9,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <Icon name={Upload} size={14} color={colors.text} />
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color: colors.text,
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                เลือกไฟล์เสียง (.mp3 / .wav)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={togglePlayPreview}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                backgroundColor: isPlayingPreview ? '#ef4444' : '#8b5cf6',
+                paddingVertical: 9,
+                paddingHorizontal: 14,
+                borderRadius: 9,
+              }}
+            >
+              <Icon name={isPlayingPreview ? Square : Play} size={13} color="#ffffff" />
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color: '#ffffff',
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                {isPlayingPreview ? 'หยุดฟัง' : 'ทดลองฟัง'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Reset to default sound if custom sound is active */}
+          {!!customSoundName && (
+            <TouchableOpacity
+              onPress={handleResetToDefaultSound}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+                paddingVertical: 6,
+              }}
+            >
+              <Icon name={RotateCcw} size={12} color={colors.textSecondary} />
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_500Medium',
+                  textDecorationLine: 'underline',
+                }}
+              >
+                เปลี่ยนกลับเป็นเสียงเริ่มต้น (alarm.wav)
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Test Alarm Sound & Full-Screen Ringing Card */}
         <View
           style={{
@@ -1246,6 +1492,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
         visible={isTestingAlarmModal}
         alarmTime={alarmTime}
         reason="ทดสอบระบบนาฬิกาปลุก"
+        customSoundUri={customSoundUri}
         onDismiss={() => setIsTestingAlarmModal(false)}
       />
     </BottomSheet>

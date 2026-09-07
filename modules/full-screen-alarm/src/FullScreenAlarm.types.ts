@@ -29,6 +29,8 @@ export interface FullScreenAlarmModuleType {
   openExactAlarmSettings(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
   openLockScreenPermissionSettings(): Promise<boolean>;
+  setCustomAlarmSound(soundPath: string | null): Promise<boolean>;
+  getCustomAlarmSound(): string | null;
   getInitialAlarm(): InitialAlarmData | null;
   addListener(
     eventName: string,
