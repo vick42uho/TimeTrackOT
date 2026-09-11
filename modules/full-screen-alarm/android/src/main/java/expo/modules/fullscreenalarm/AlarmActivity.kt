@@ -13,10 +13,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationManagerCompat
@@ -85,16 +87,14 @@ class AlarmActivity : Activity() {
             setTurnScreenOn(true)
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             keyguardManager?.requestDismissKeyguard(this, null)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            )
         }
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
 
         // ซ่อน Status Bar และ Navigation Bar ชั่วคราวเพื่อให้แสดงผลเต็มจอแบบสมบูรณ์
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -121,7 +121,7 @@ class AlarmActivity : Activity() {
 
         // Top Badge
         val topBadge = TextView(this).apply {
-            text = "⏰ นาฬิกาปลุก TimeTrack OT"
+            text = "นาฬิกาปลุก TimeTrack OT"
             setTextColor(Color.parseColor("#93C5FD"))
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
@@ -200,9 +200,9 @@ class AlarmActivity : Activity() {
 
         // Snooze Button (10 Minutes)
         val snoozeButton = Button(this).apply {
-            text = "💤 เลื่อนปลุก 10 นาที"
+            text = "เลื่อนปลุก 10 นาที"
             setTextColor(Color.parseColor("#E2E8F0"))
-            textSize = 16f
+            textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             val btnBg = GradientDrawable().apply {
                 setColor(Color.parseColor("#1E293B"))
@@ -212,9 +212,9 @@ class AlarmActivity : Activity() {
             background = btnBg
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(54)
+                dp(50)
             ).apply {
-                bottomMargin = dp(12)
+                bottomMargin = dp(14)
             }
             setOnClickListener {
                 handleSnooze()
@@ -222,28 +222,97 @@ class AlarmActivity : Activity() {
         }
         bottomLayout.addView(snoozeButton)
 
-        // Dismiss Button (Stop Alarm)
-        val dismissButton = Button(this).apply {
-            text = "🔔 ปิดนาฬิกาปลุก"
-            setTextColor(Color.WHITE)
-            textSize = 17f
-            typeface = Typeface.DEFAULT_BOLD
-            val btnBg = GradientDrawable().apply {
-                setColor(Color.parseColor("#DC2626")) // Alert Red
-                cornerRadius = dp(14).toFloat()
-            }
-            background = btnBg
+        // Slide to Stop Container (Remimo & iOS Style)
+        val sliderHeight = dp(58)
+        val sliderContainer = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(56)
+                sliderHeight
             ).apply {
-                bottomMargin = dp(10)
+                bottomMargin = dp(14)
             }
-            setOnClickListener {
-                handleDismiss()
+            val trackBg = GradientDrawable().apply {
+                setColor(Color.parseColor("#172033"))
+                cornerRadius = dp(29).toFloat()
+                setStroke(dp(1), Color.parseColor("#334155"))
+            }
+            background = trackBg
+        }
+
+        val sliderHintText = TextView(this).apply {
+            text = "slide to stop  >>>"
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+        sliderContainer.addView(sliderHintText)
+
+        val thumbSize = dp(50)
+        val thumbMargin = dp(4)
+        val thumbView = View(this).apply {
+            layoutParams = FrameLayout.LayoutParams(thumbSize, thumbSize).apply {
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                leftMargin = thumbMargin
+            }
+            val thumbBg = GradientDrawable().apply {
+                setColor(Color.parseColor("#EF4444")) // Vibrant Red
+                cornerRadius = dp(25).toFloat()
+            }
+            background = thumbBg
+        }
+        sliderContainer.addView(thumbView)
+
+        var dX = 0f
+        var isDismissTriggered = false
+
+        thumbView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    dX = v.x - event.rawX
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (isDismissTriggered) return@setOnTouchListener true
+                    val maxTravel = (sliderContainer.width - thumbSize - thumbMargin).toFloat()
+                    val minTravel = thumbMargin.toFloat()
+                    var newX = event.rawX + dX
+                    if (newX < minTravel) newX = minTravel
+                    if (newX > maxTravel) newX = maxTravel
+                    v.x = newX
+
+                    val progress = if (maxTravel > minTravel) {
+                        ((newX - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
+                    } else 0f
+                    sliderHintText.alpha = (1f - progress * 1.5f).coerceAtLeast(0f)
+
+                    if (progress >= 0.82f) {
+                        isDismissTriggered = true
+                        handleDismiss()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!isDismissTriggered) {
+                        v.animate()
+                            .x(thumbMargin.toFloat())
+                            .setDuration(200)
+                            .start()
+                        sliderHintText.animate()
+                            .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    true
+                }
+                else -> false
             }
         }
-        bottomLayout.addView(dismissButton)
+        bottomLayout.addView(sliderContainer)
 
         // Open App Link Button
         val openAppButton = TextView(this).apply {

@@ -17,6 +17,7 @@ import {
 } from 'expo-notifications/build/Notifications.types';
 import { IosAuthorizationStatus } from 'expo-notifications/build/NotificationPermissions.types';
 import { Activity } from '../types';
+import FullScreenAlarm, { isFullScreenAlarmAvailable } from '../modules/full-screen-alarm';
 
 export const ACTIVITY_CHANNEL_ID = 'activity-reminders';
 
@@ -165,24 +166,45 @@ export async function scheduleActivityReminder(activity: Activity): Promise<stri
         ? 'วันพรุ่งนี้'
         : `อีก ${activity.reminderMinutes} นาที`;
 
-    const notificationId = await scheduleNotificationAsync({
-      content: {
-        title: `แจ้งเตือน (${reminderLeadText}): ${activity.title}`,
-        body: bodyText,
-        sound: 'default',
-        priority: AndroidNotificationPriority.MAX,
-        color: '#2563EB',
-        data: { activityId: activity.id, date: activity.date },
-      },
-      trigger: {
-        type: SchedulableTriggerInputTypes.DATE,
-        date: new Date(triggerTimestamp),
-        channelId: ACTIVITY_CHANNEL_ID,
-      },
-    });
+    let notificationId: string | undefined;
+
+    // If marked as full-screen alarm, schedule via native Android FullScreenAlarm module
+    if (activity.isAlarm && Platform.OS === 'android' && isFullScreenAlarmAvailable) {
+      const alarmId = `act_alarm_${activity.id || Date.now()}`;
+      const timeDisplay = activity.startTime || '09:00';
+      const ok = await FullScreenAlarm.scheduleAlarm(
+        alarmId,
+        triggerTimestamp,
+        `ถึงเวลากิจกรรม: ${activity.title}`,
+        bodyText || `ถึงเวลาที่กำหนดไว้ (${timeDisplay} น.)`,
+        timeDisplay,
+        activity.title
+      );
+      if (ok) {
+        notificationId = alarmId;
+      }
+    }
+
+    if (!notificationId) {
+      notificationId = await scheduleNotificationAsync({
+        content: {
+          title: `แจ้งเตือน (${reminderLeadText}): ${activity.title}`,
+          body: bodyText,
+          sound: activity.isAlarm ? 'alarm.wav' : 'default',
+          priority: AndroidNotificationPriority.MAX,
+          color: '#2563EB',
+          data: { activityId: activity.id, date: activity.date, isAlarm: !!activity.isAlarm },
+        },
+        trigger: {
+          type: SchedulableTriggerInputTypes.DATE,
+          date: new Date(triggerTimestamp),
+          channelId: ACTIVITY_CHANNEL_ID,
+        },
+      });
+    }
 
     console.log(
-      `Scheduled notification ${notificationId} for activity "${activity.title}" at ${new Date(
+      `Scheduled ${activity.isAlarm ? 'full-screen alarm' : 'notification'} ${notificationId} for activity "${activity.title}" at ${new Date(
         triggerTimestamp
       ).toISOString()}`
     );
@@ -200,6 +222,9 @@ export async function cancelActivityReminder(notificationId?: string): Promise<v
   if (Platform.OS === 'web' || !notificationId) return;
 
   try {
+    if (Platform.OS === 'android' && isFullScreenAlarmAvailable && notificationId.startsWith('act_alarm_')) {
+      await FullScreenAlarm.cancelAlarm(notificationId).catch(() => {});
+    }
     await cancelScheduledNotificationAsync(notificationId);
     console.log(`Cancelled notification ${notificationId}`);
   } catch (error) {

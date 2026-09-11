@@ -117,6 +117,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
             location TEXT,
             note TEXT,
             reminder_minutes INTEGER DEFAULT NULL,
+            is_alarm INTEGER DEFAULT 0,
             notification_id TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -167,6 +168,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN duration_type TEXT NOT NULL DEFAULT 'full_day';`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN reason TEXT;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN status TEXT NOT NULL DEFAULT 'approved';`); } catch (e) {}
+        try { await database.execAsync(`ALTER TABLE activities ADD COLUMN is_alarm INTEGER DEFAULT 0;`); } catch (e) {}
 
         console.log('Singleton database initialized successfully');
         globalDb = database;
@@ -931,6 +933,7 @@ export const useDatabase = () => {
           r.reminder_minutes !== null && r.reminder_minutes !== undefined
             ? Number(r.reminder_minutes)
             : null,
+        isAlarm: r.is_alarm === 1,
         notificationId: r.notification_id || undefined,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -963,6 +966,7 @@ export const useDatabase = () => {
           r.reminder_minutes !== null && r.reminder_minutes !== undefined
             ? Number(r.reminder_minutes)
             : null,
+        isAlarm: r.is_alarm === 1,
         notificationId: r.notification_id || undefined,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
@@ -980,8 +984,8 @@ export const useDatabase = () => {
       const db = await getOrInitDb();
       const result = await db.runAsync(
         `INSERT INTO activities 
-         (title, date, start_time, end_time, is_all_day, category, location, note, reminder_minutes, notification_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+         (title, date, start_time, end_time, is_all_day, category, location, note, reminder_minutes, is_alarm, notification_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
         [
           activity.title,
           activity.date,
@@ -994,6 +998,7 @@ export const useDatabase = () => {
           activity.reminderMinutes !== undefined && activity.reminderMinutes !== null
             ? activity.reminderMinutes
             : null,
+          activity.isAlarm ? 1 : 0,
           activity.notificationId || null,
         ]
       );
@@ -1045,6 +1050,10 @@ export const useDatabase = () => {
       if (activity.reminderMinutes !== undefined) {
         fields.push('reminder_minutes = ?');
         values.push(activity.reminderMinutes);
+      }
+      if (activity.isAlarm !== undefined) {
+        fields.push('is_alarm = ?');
+        values.push(activity.isAlarm ? 1 : 0);
       }
       if (activity.notificationId !== undefined) {
         fields.push('notification_id = ?');

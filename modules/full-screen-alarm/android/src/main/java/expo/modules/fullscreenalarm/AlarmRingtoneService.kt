@@ -77,7 +77,21 @@ class AlarmRingtoneService : Service() {
             ACTION_START_RINGTONE -> {
                 // Start as Foreground with a silent/minimal notification so Android
                 // lets this service keep running while screen is locked / app is killed
-                startForeground(SERVICE_NOTIF_ID, buildForegroundNotification())
+                try {
+                    val notif = buildForegroundNotification()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        startForeground(SERVICE_NOTIF_ID, notif, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                    } else {
+                        startForeground(SERVICE_NOTIF_ID, notif)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    try {
+                        startForeground(SERVICE_NOTIF_ID, buildForegroundNotification())
+                    } catch (e2: Exception) {
+                        e2.printStackTrace()
+                    }
+                }
                 startRingtone()
             }
         }

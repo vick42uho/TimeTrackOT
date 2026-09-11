@@ -8,6 +8,7 @@ import {
   Animated,
   Vibration,
   Platform,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAudioPlayer } from 'expo-audio';
@@ -18,8 +19,11 @@ import {
   Briefcase,
   Home,
   Calendar,
+  ChevronRight,
+  Square,
 } from 'lucide-react-native';
 import { snoozeSmartAlarm, getSmartAlarmConfig } from '@/services/smartAlarmService';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 export interface AlarmRingingModalProps {
   visible: boolean;
@@ -39,6 +43,88 @@ const THAI_MONTHS = [
 const THAI_DAYS = [
   'วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์',
 ];
+
+const SLIDER_HEIGHT = 60;
+const THUMB_SIZE = 50;
+const THUMB_MARGIN = 5;
+
+const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const panX = useRef(new Animated.Value(0)).current;
+  const isTriggered = useRef(false);
+
+  const maxSlide = Math.max(0, trackWidth - THUMB_SIZE - THUMB_MARGIN * 2);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gestureState) => {
+        if (isTriggered.current) return;
+        const newX = Math.max(0, Math.min(gestureState.dx, maxSlide));
+        panX.setValue(newX);
+
+        if (maxSlide > 0 && newX >= maxSlide * 0.82) {
+          isTriggered.current = true;
+          triggerHaptic('success');
+          onStop();
+        }
+      },
+      onPanResponderRelease: () => {
+        if (!isTriggered.current) {
+          Animated.spring(panX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        if (!isTriggered.current) {
+          Animated.spring(panX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const hintOpacity = panX.interpolate({
+    inputRange: [0, Math.max(1, maxSlide * 0.6)],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View
+      style={sliderStyles.track}
+      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+    >
+      <Animated.View style={[sliderStyles.hintContainer, { opacity: hintOpacity }]}>
+        <Text style={sliderStyles.hintText}>slide to stop</Text>
+        <View style={sliderStyles.chevronsRow}>
+          <ChevronRight size={18} color="#94A3B8" />
+          <ChevronRight size={18} color="#94A3B8" style={{ marginLeft: -10 }} />
+          <ChevronRight size={18} color="#94A3B8" style={{ marginLeft: -10 }} />
+        </View>
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          sliderStyles.thumb,
+          {
+            transform: [{ translateX: panX }],
+          },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <Square size={20} color="#FFFFFF" fill="#FFFFFF" />
+      </Animated.View>
+    </View>
+  );
+};
 
 export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
   visible,
@@ -316,18 +402,8 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
               </View>
             </TouchableOpacity>
 
-            {/* Dismiss Alarm */}
-            <TouchableOpacity
-              style={styles.dismissButton}
-              activeOpacity={0.8}
-              onPress={handleDismiss}
-            >
-              <BellOff size={26} color="#FFFFFF" />
-              <View style={styles.buttonTextCol}>
-                <Text style={styles.dismissButtonText}>ปิดนาฬิกาปลุก</Text>
-                <Text style={styles.dismissButtonSubText}>ตื่นแล้ว เริ่มต้นวันใหม่อย่างสดชื่น</Text>
-              </View>
-            </TouchableOpacity>
+            {/* Slide to Stop (Remimo & iOS Style) */}
+            <SlideToStopButton onStop={handleDismiss} />
           </View>
         </SafeAreaView>
       </View>
@@ -483,14 +559,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94A3B8',
   },
-  dismissButtonText: {
-    fontFamily: 'Sarabun_700Bold',
-    fontSize: 20,
-    color: '#FFFFFF',
+});
+
+const sliderStyles = StyleSheet.create({
+  track: {
+    height: SLIDER_HEIGHT,
+    backgroundColor: '#172033',
+    borderRadius: SLIDER_HEIGHT / 2,
+    borderWidth: 1,
+    borderColor: '#334155',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  dismissButtonSubText: {
-    fontFamily: 'Sarabun_400Regular',
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.85)',
+  hintContainer: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  hintText: {
+    fontFamily: 'Sarabun_600SemiBold',
+    fontSize: 16,
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  chevronsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  thumb: {
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: THUMB_SIZE / 2,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: THUMB_MARGIN,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

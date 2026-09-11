@@ -28,14 +28,26 @@ class AlarmReceiver : BroadcastReceiver() {
     val alarmTime = intent.getStringExtra("alarmTime") ?: ""
     val reason = intent.getStringExtra("reason") ?: "วันทำงานปกติ"
 
-    // 1. Acquire WakeLock to wake up CPU + turn screen on
+    // 1. Acquire WakeLock to wake up CPU + turn screen on safely
     //    Hold for 3.5 minutes to cover full ring duration
-    val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-    val wakeLock = powerManager?.newWakeLock(
-      PowerManager.PARTIAL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-      "TimeTrackOT:AlarmReceiverWakeLock"
-    )
-    wakeLock?.acquire(210_000L) // 3.5 minutes — covers full ring + some buffer
+    try {
+      val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+      @Suppress("DEPRECATION")
+      val wakeLock = try {
+        powerManager?.newWakeLock(
+          PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+          "TimeTrackOT:AlarmReceiverScreenWakeLock"
+        )
+      } catch (_: Exception) {
+        powerManager?.newWakeLock(
+          PowerManager.PARTIAL_WAKE_LOCK,
+          "TimeTrackOT:AlarmReceiverPartialWakeLock"
+        )
+      }
+      wakeLock?.acquire(210_000L) // 3.5 minutes — covers full ring + some buffer
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
 
     // 2. Start AlarmRingtoneService (ForegroundService) for continuous vibration + audio
     //    This works even if the app is killed or the screen is locked
@@ -91,6 +103,7 @@ class AlarmReceiver : BroadcastReceiver() {
       flags = Intent.FLAG_ACTIVITY_NEW_TASK or
               Intent.FLAG_ACTIVITY_CLEAR_TOP or
               Intent.FLAG_ACTIVITY_SINGLE_TOP or
+              Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
               Intent.FLAG_ACTIVITY_NO_USER_ACTION
       putExtra("isAlarmTriggered", true)
       putExtra("alarmId", alarmId)

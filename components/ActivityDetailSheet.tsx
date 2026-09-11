@@ -111,6 +111,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(15);
+  const [isAlarm, setIsAlarm] = useState<boolean>(false);
   const [location, setLocation] = useState('');
   const [note, setNote] = useState('');
 
@@ -138,6 +139,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
         setReminderMinutes(
           activity.reminderMinutes !== undefined ? activity.reminderMinutes : null
         );
+        setIsAlarm(!!activity.isAlarm);
         setLocation(activity.location || '');
         setNote(activity.note || '');
       } else {
@@ -149,6 +151,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
         setStartTime('09:00');
         setEndTime('10:00');
         setReminderMinutes(15);
+        setIsAlarm(false);
         setLocation('');
         setNote('');
       }
@@ -226,6 +229,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
           startTime: isAllDay ? undefined : startTime,
           endTime: isAllDay ? undefined : endTime,
           reminderMinutes,
+          isAlarm,
           location: location.trim() || undefined,
           note: note.trim() || undefined,
         };
@@ -256,6 +260,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
           startTime: isAllDay ? undefined : startTime,
           endTime: isAllDay ? undefined : endTime,
           reminderMinutes,
+          isAlarm,
           location: location.trim() || undefined,
           note: note.trim() || undefined,
         };
@@ -583,6 +588,62 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
             </View>
           </View>
 
+          {/* Full-Screen Alarm Toggle (Remimo Style) */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: isAlarm
+                ? isDark
+                  ? 'rgba(239, 68, 68, 0.12)'
+                  : '#fef2f2'
+                : isDark
+                ? 'rgba(255, 255, 255, 0.03)'
+                : '#f8fafc',
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: isAlarm ? 'rgba(239, 68, 68, 0.4)' : colors.border,
+            }}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                <Icon name={Bell} size={15} color={isAlarm ? '#ef4444' : colors.text} />
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '700',
+                    color: isAlarm ? '#ef4444' : colors.text,
+                    fontFamily: 'Sarabun_700Bold',
+                  }}
+                >
+                  เปิดเป็นนาฬิกาปลุกเต็มจอ (Alarm)
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_400Regular',
+                }}
+              >
+                ปลุกเต็มจอและส่งเสียงดังต่อเนื่อง แม้หน้าจอดับหรือเปิดโหมดเงียบ
+              </Text>
+            </View>
+            <Switch
+              value={isAlarm}
+              onValueChange={(val: boolean) => {
+                triggerHaptic('impact-light');
+                setIsAlarm(val);
+                if (val && reminderMinutes === null) {
+                  setReminderMinutes(0); // Default to on-time alert when alarm is enabled
+                }
+              }}
+            />
+          </View>
+
           {/* Location */}
           <View>
             <Text
@@ -881,16 +942,41 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
                 >
                   การแจ้งเตือน
                 </Text>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '600',
-                    color: colors.text,
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  {reminderText}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: '600',
+                      color: colors.text,
+                      fontFamily: 'Sarabun_600SemiBold',
+                    }}
+                  >
+                    {reminderText}
+                  </Text>
+                  {activity?.isAlarm && (
+                    <View
+                      style={{
+                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2',
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#fca5a5',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: '#ef4444',
+                          fontFamily: 'Sarabun_700Bold',
+                        }}
+                      >
+                        ปลุกเต็มจอ (Alarm)
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
             </View>
 

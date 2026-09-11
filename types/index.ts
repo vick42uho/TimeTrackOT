@@ -111,6 +111,7 @@ export interface Activity {
   location?: string;
   note?: string;
   reminderMinutes?: number | null; // null = no reminder, 0 = at time, 15 = 15 mins before, 30 = 30 mins before, 60 = 1 hour before, 1440 = 1 day before
+  isAlarm?: boolean; // When true, triggers a full-screen alarm with sound (Remimo style)
   notificationId?: string;
   createdAt?: string;
   updatedAt?: string;
