@@ -2,7 +2,7 @@
 
 แอปพลิเคชันบันทึกเวลาทำงาน, คำนวณค่าล่วงเวลา (OT เช้า-เย็น), บันทึกกิจกรรม & แจ้งเตือนนัดหมาย, จัดการวันหยุด & วันลา และรายงานสรุปชั่วโมงทำงาน สร้างด้วย **React Native 0.81**, **Expo SDK 54**, **Expo SQLite (WAL Mode)**, **Expo Notifications** และระบบ UI ดีไซน์ **BNA UI** พร้อมสัญลักษณ์เวกเตอร์ไอคอนมาตรฐานระดับสากล
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)
 ![Database](https://img.shields.io/badge/database-Expo%20SQLite%20(WAL)-green.svg)
 ![Design](https://img.shields.io/badge/UI-BNA%20UI%20%2B%20Sarabun-orange.svg)
@@ -115,6 +115,7 @@
 ## ระบบแจ้งเตือนกิจกรรม & นัดหมาย
 
 - **แจ้งเตือนล่วงหน้าได้ตามต้องการ**: ตรงเวลา, ล่วงหน้า 15 นาที, 30 นาที, 1 ชั่วโมง หรือ 1 วัน
+- **สวิตช์เปิดเสียงปลุกเตือนแบบเต็มจอ (Activity Alarm)**: สามารถเลือกเปิดฟังก์ชัน *"เปิดเสียงปลุกเตือนแบบเต็มจอ (เหมือนนาฬิกาปลุก)"* สำหรับนัดหมายหรือกิจกรรมสำคัญ เพื่อให้ระบบส่งสัญญาณปลุกเต็มหน้าจอพร้อมเสียง Alarm และระบบสั่นต่อเนื่อง แทนการส่งเพียงการแจ้งเตือนทั่วไป
 - **ทำงานได้แม้ปิดแอป (Background Alarm)**:
   - ใช้สิทธิ์ `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`, `POST_NOTIFICATIONS`
   - สร้าง Notification Channel `activity-reminders` ใน Android ระดับ `AndroidImportance.MAX` พร้อมเสียงและการปลุกหน้าจอ
@@ -127,11 +128,20 @@
 - **ปลุกเฉพาะวันทำงานจริง (Automatic Skip Rules)**:
   - เชื่อมโยงกับฐานข้อมูล SQLite ปฏิทินวันหยุดไทยและวันลาโดยตรง
   - คำนวณล่วงหน้า 21 วันอัตโนมัติ: ปลุกเฉพาะวันทำงานจริง และ**งดปลุกในวันหยุดนักขัตฤกษ์, วันหยุดชดเชย, วันหยุดประจำสัปดาห์ (เสาร์-อาทิตย์), และวันลาที่บันทึกไว้**
-- **Android ALARM Audio Stream & Custom Tone**:
-  - กำหนด Channel `smart_workday_alarm_v4` ให้มี Audio Stream ระดับ `ALARM` ความสำคัญ `AndroidImportance.MAX`, รูปแบบสั่นต่อเนื่อง 16 จังหวะ, และ `bypassDnd: true` ทำให้เสียงปลุก `alarm.wav` ดังชัดเจนแม้ปิดเสียงหรือเปิดโหมดห้ามรบกวน
-- **Action Buttons & Show When Locked**:
-  - ปุ่ม Action บนแถบแจ้งเตือนหน้าจอล็อค: กด **"เลื่อนปลุก 10 นาที"** หรือ **"ปิดนาฬิกาปลุก"** ได้ทันทีโดยไม่ต้องเปิดแอพ
-  - ระบบ `withShowWhenLocked` Plugin: เมื่อแตะการ์ดแจ้งเตือน แอพจะปลุกหน้าจอสว่างและเปิดหน้าต่างปลุกเต็มจอ `AlarmRingingModal` ทับหน้าจอล็อคทันทีโดยไม่ต้องปลดล็อคเครื่องก่อน
+- **Native Android Full-Screen Activity & Background Execution**:
+  - พัฒนาโมดูล Native ภาษา Kotlin (`modules/full-screen-alarm`) ทำงานร่วมกับ `AlarmManager.setExactAndAllowWhileIdle(RTC_WAKEUP)`
+  - ปลุกหน้าจอสว่างอัตโนมัติและแสดงผลแบบเต็มจอเหนือหน้าจอล็อคทันทีผ่าน `AlarmActivity` (`FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`)
+  - เล่นเสียงปลุก `alarm.wav` วนซ้ำต่อเนื่องผ่าน `AlarmRingtoneService` (Foreground Service แบบ `mediaPlayback` บน Android 14+) ด้วย Audio Stream ชนิด `ALARM` ที่สามารถเจาะผ่านโหมดเงียบและ DND ได้อย่างแน่นอน
+- **อินเทอร์เฟซ Dynamic Island สไตล์ Remimo & ระบบปิดปลุก 3 ชั้น (3-Tier Dismiss Engine)**:
+  - **ชั้นที่ 1 (Remimo Dynamic Island [✕])**: แถบแคปซูลด้านบนหัวเรื่อง แสดงข้อมูลแอพและเหตุผลการปลุก พร้อมปุ่มวงกลม `[✕]` แตะ 1 ครั้งปิดการปลุกได้ทันที
+  - **ชั้นที่ 2 (แถบเลื่อนหรือแตะเพื่อปิดปลุก - Slide or Tap to Stop)**:
+    - รองรับการสัมผัสเต็มความกว้างแถบ (Full-Track Width)
+    - **ตรวจจับการแตะ (Tap to Stop)**: เพียงแค่แตะแถบเบาๆ ก็ปิดปลุกได้ทันทีโดยไม่ต้องรูด
+    - **ผ่อนปรนระยะเลื่อน**: รูดเพียง 45% ของแถบเพื่อสั่งปิดปลุกได้อย่างรวดเร็วและเป็นธรรมชาติ
+    - แสดงข้อความแนะนำ: *"เลื่อนหรือแตะเพื่อปิดปลุก"*
+  - **ชั้นที่ 3 (ปุ่มแตะปิดทันทีสำรอง - Fallback Button)**: ปุ่ม *"แตะที่นี่เพื่อปิดนาฬิกาปลุกทันที"* ด้านล่างแถบเลื่อน เพื่อความมั่นใจ 100% ว่าปิดเสียงได้เสมอ
+- **Action Buttons & Lockscreen Notification**:
+  - ปุ่ม Action บนแถบแจ้งเตือนหน้าจอล็อค: กด **"เลื่อนปลุก 10 นาที"** หรือ **"ปิดนาฬิกาปลุก"** ได้ทันที
 - **โหมดวันทำงานที่บ้าน (WFH)**:
   - เลือกระหว่าง: ปลุกเวลาปกติ, ปลุกช้าลง (ตั้งเวลาแยกได้ เช่น `07:30 น.`), หรือไม่ต้องปลุกในวัน WFH
 - **Goodnight Alert (คืนก่อนวันหยุด)**:
@@ -230,8 +240,19 @@ TimeTrackOT/
 │   ├── useHaptics.ts                # Configurable Haptic Feedback Hook
 │   └── useTheme.ts                  # Light/Dark Theme Tokens
 │
+├── modules/                         # Local Native Modules
+│   └── full-screen-alarm/           # Native Android Full-Screen Alarm Module (Kotlin)
+│       ├── android/src/main/java/expo/modules/fullscreenalarm/
+│       │   ├── FullScreenAlarmModule.kt
+│       │   ├── AlarmActivity.kt     # Full-Screen Lockscreen UI & Dynamic Island
+│       │   ├── AlarmReceiver.kt     # Exact Alarm BroadcastReceiver & WakeLock
+│       │   ├── AlarmActionReceiver.kt
+│       │   └── AlarmRingtoneService.kt # Foreground Media Service (Looping Audio)
+│       └── android/src/main/res/raw/alarm.wav # Native Alarm Ringtone
+│
 ├── services/                        # Core Background Services
-│   └── notificationService.ts       # Local Push Notification & Android Channel Engine
+│   ├── notificationService.ts       # Local Push Notification & Android Channel Engine
+│   └── smartAlarmService.ts         # Smart Alarm Scheduling & Dynamic Lookahead Engine
 │
 ├── types/                           # TypeScript Definitions
 │   └── index.ts                     # TimeEntry, WorkSchedule, Leave, Holiday, Activity types
@@ -268,8 +289,8 @@ npm run web       # สำหรับ Web Browser
 ## วิธี Build APK (Android)
 
 ```bash
-# Build APK ด้วย EAS Cloud (Preview Profile สำหรับทดสอบติดตั้งบนเครื่องจริง)
-npx eas-cli@latest build -p android --profile preview
+# Build APK ด้วย EAS Cloud (Production Profile สำหรับติดตั้งไฟล์ Standalone APK บนเครื่องจริง)
+npx eas-cli@latest build -p android --profile production
 ```
 
 ---
@@ -277,6 +298,6 @@ npx eas-cli@latest build -p android --profile preview
 ## ข้อมูลผู้พัฒนา & ข้อเสนอแนะ
 
 - **ผู้พัฒนา (Developer)**: Wick
-- **เวอร์ชัน**: 1.3.0 (กันยายน 2569)
+- **เวอร์ชัน**: 1.4.0 (กันยายน 2569 - Build 23)
 - **การจัดเก็บข้อมูล**: ออฟไลน์ 100% ภายในเครื่อง ปลอดภัย เป็นส่วนตัวสูงสุด
 - **แจ้งปัญหาและข้อเสนอแนะ**: [แบบฟอร์มรับฟังข้อเสนอแนะ](https://forms.gle/BKx4Pz6VB65kdaka8)

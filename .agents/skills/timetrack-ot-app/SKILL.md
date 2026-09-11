@@ -373,58 +373,79 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
    - Custom Local Expo Module written in Kotlin utilizing `AlarmManager.setExactAndAllowWhileIdle(RTC_WAKEUP, ...)` for sub-second precision wakeups even in Android Doze Mode.
    - **`AlarmReceiver` (BroadcastReceiver)**:
      - Acquires `WakeLock` (`PARTIAL_WAKE_LOCK | ACQUIRE_CAUSES_WAKEUP | ON_AFTER_RELEASE`).
-     - Builds high-priority notification with **`.setFullScreenIntent(fullScreenPendingIntent, true)`** attached to `MainActivity`.
-     - When device screen is off/locked, Android OS automatically launches `MainActivity` full-screen over the keyguard without requiring user tap or unlock.
-     - Custom notification channel `smart_workday_alarm_v4` with `USAGE_ALARM`, `enforceAudibility: true`, sound `alarm.wav`, and 16-pulse vibration pattern.
+     - Starts `AlarmRingtoneService` as a Foreground Service (`FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK`) to play continuous alarm audio.
+     - Launches `AlarmActivity` with `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_REORDER_TO_FRONT`.
+     - Builds high-priority notification with **`.setFullScreenIntent(fullScreenPendingIntent, true)`** on custom channel `smart_workday_alarm_v4` with `USAGE_ALARM`.
+   - **`AlarmActivity` (Native Kotlin Activity)**:
+     - Implements true full-screen lock screen bypass with `FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, and `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`.
+     - Renders real-time digital clock (`HH:mm:ss`), Thai Buddhist date (*พ.ศ.*), and reason badge.
+     - Features Remimo-style top Dynamic Island pill with circular `[✕]` close button.
+     - Embeds full-width "เลื่อนหรือแตะเพื่อปิดปลุก" slider and direct fallback tap-to-stop button.
+     - Handles dismissal cleanly by stopping `AlarmRingtoneService`, releasing wake locks, and calling `finishAndRemoveTask()`.
+   - **`AlarmRingtoneService` (Foreground Service)**:
+     - Runs with `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK` on Android 14+.
+     - Streams `alarm.wav` continuously via `MediaPlayer` configured with `AudioAttributes.USAGE_ALARM` and `USAGE_ALARM` audio attributes to pierce DND and silent mode.
+     - Coordinates synchronized vibration patterns with `Vibrator` service.
    - **`AlarmActionReceiver` (BroadcastReceiver)**:
-     - Handles native lock screen button actions directly in Kotlin:
-       - `ACTION_SNOOZE`: cancels notification and reschedules exact alarm 10 minutes later via `AlarmManager`.
-       - `ACTION_DISMISS`: cancels notification and silences alarm immediately.
+     - Handles native lock screen notification actions directly in Kotlin:
+       - `ACTION_SNOOZE`: Stops ringtone service, cancels notification, and reschedules exact alarm 10 minutes later via `AlarmManager`.
+       - `ACTION_DISMISS`: Stops ringtone service, cancels notification, and silences alarm immediately.
    - **`FullScreenAlarmModule` (Kotlin)**:
-     - Lifecycle hooks `OnActivityEntersForeground` and `OnNewIntent` ensuring `setShowWhenLocked(true)` and `setTurnScreenOn(true)` are dynamically applied to `MainActivity`.
+     - Lifecycle hooks ensuring `setShowWhenLocked(true)` and `setTurnScreenOn(true)` are dynamically applied.
      - Sends `onAlarmTriggered` event to React Native runtime and provides `getInitialAlarm()` for cold-start launches.
-2. **Dedicated Alarm Audio Tone (`assets/sounds/alarm.wav`)**:
+
+2. **Dedicated Alarm Audio Tone (`assets/sounds/alarm.wav` & `res/raw/alarm.wav`)**:
    - Dual-tone high-frequency harmonic alarm chime (987.77 Hz - 2093 Hz) running ~34 seconds per loop.
-   - Clean 22,050 Hz 16-bit PCM WAV (1.43 MB) registered in `app.json` under `expo-notifications` `sounds` array, copied to native raw resources during build.
-3. **Interactive Notification Action Buttons & Lockscreen Support**:
-   - Registered category `smart_alarm_actions` via `setNotificationCategoryAsync`:
-     - Action 1: **"เลื่อนปลุก 10 นาที" (Snooze)** (`actionIdentifier: 'snooze'`)
-     - Action 2: **"ปิดนาฬิกาปลุก" (Dismiss)** (`actionIdentifier: 'dismiss'`)
-   - Expo Config Plugin `plugins/withShowWhenLocked.js` sets `android:showWhenLocked="true"` and `android:turnScreenOn="true"` on `MainActivity`, allowing the device to turn screen on and show the app over keyguard/lock screen when tapped.
-4. **Full-Screen Alarm Ringing Screen (`components/AlarmRingingModal.tsx`)**:
+   - Clean 22,050 Hz 16-bit PCM WAV bundled in both React Native assets and native Android raw resources (`modules/full-screen-alarm/android/src/main/res/raw/alarm.wav`).
+
+3. **Remimo-Inspired Dynamic Island & 3-Tier Dismiss Engine**:
+   - Both in React Native (`AlarmRingingModal.tsx`) and Native Kotlin (`AlarmActivity.kt`), the alarm dismissal is engineered across 3 intuitive, foolproof tiers:
+     - **Tier 1 (Remimo Dynamic Island Top Bar with [✕] Button)**: Capsule pill at the top with alarm icon, title, reason, and an explicit circular `[✕]` close button for instant 1-tap dismissal.
+     - **Tier 2 (Ergonomic Slide or Tap to Stop)**:
+       - Touch listener bound to the **entire track width** (never restricted to the thumb circle).
+       - **Tap-to-Stop Detection**: Tapping anywhere on the slider without sliding (`movement < 20-25px`) triggers instant dismissal.
+       - **Relaxed Slide Threshold**: Dragging past **45%** of the track triggers dismissal immediately.
+       - Clear instruction: *"เลื่อนหรือแตะเพื่อปิดปลุก"* (Slide or Tap to Stop).
+     - **Tier 3 (Direct Tap-to-Stop Fallback Button)**: High-contrast button (*"แตะที่นี่เพื่อปิดนาฬิกาปลุกทันที"*) placed below the slider guaranteeing 100% fail-safe dismissal under all conditions.
+
+4. **Activity & Reminder Alarm Integration (`isAlarm`)**:
+   - Database schema support: `is_alarm INTEGER DEFAULT 0` on `activities` table.
+   - Allows users to designate critical appointments, medication times, or meetings as **Alarms** (triggering the full-screen ringing modal, alarm stream audio, and lockscreen takeover) rather than standard push notifications.
+
+5. **Full-Screen Alarm Ringing Screen (`components/AlarmRingingModal.tsx`)**:
    - Full-screen immersive modal with Dark Ambient aesthetic (`#090D16`).
    - Concentric pulsating radar rings around bell icon powered by animated loops.
    - Real-time digital clock display (`HH:mm:ss`) updated every second, formatted with Thai Buddhist era dates (*พ.ศ.*).
    - Workday reason badge (Normal Workday, WFH, Weekend Work - Light Traffic).
-   - **`expo-audio` Integration**: Plays alarm audio with infinite looping via modern SDK 54 `useAudioPlayer` hook and triggers continuous device vibration (`Vibration.vibrate`).
-   - **Snooze 10 Minutes**: Large touch target calling `snoozeSmartAlarm(10, reason)`, cancelling sound/vibration, and scheduling a follow-up alarm in 10 minutes.
-   - **Dismiss Alarm**: Large prominent red button cancelling sound/vibration immediately and closing the screen.
-   - 100% compliant with **Zero-Emoji Directive** (Lucide icons only: `Bell`, `BellOff`, `Clock`, `Briefcase`, `Home`, `Calendar`) and Thai Sarabun font standards.
-5. **App Root Event Listeners (`app/_layout.tsx`)**:
-   - Direct subpath imports (`expo-notifications/build/NotificationsEmitter` and `expo-notifications/build/dismissNotificationAsync`) avoiding `DevicePushTokenAutoRegistration.fx` to eliminate remote push errors in Expo Go.
+   - `expo-audio` integration for in-app ringing and synchronized device vibration (`Vibration.vibrate`).
+   - Snooze 10 Minutes: Large touch target calling `snoozeSmartAlarm(10, reason)`.
+   - 100% compliant with **Zero-Emoji Directive** (Lucide icons only: `Bell`, `BellOff`, `Clock`, `Briefcase`, `Home`, `Calendar`, `X`) and Thai Sarabun font standards.
+
+6. **App Root Event Listeners (`app/_layout.tsx`)**:
+   - Direct subpath imports (`expo-notifications/build/NotificationsEmitter` and `expo-notifications/build/dismissNotificationAsync`) avoiding `DevicePushTokenAutoRegistration.fx`.
    - Cold start detection via `getLastNotificationResponseAsync()`.
-   - Background interaction listener via `addNotificationResponseReceivedListener()`.
-   - Foreground notification listener via `addNotificationReceivedListener()`.
-   - Intercepts action button responses (`snooze`, `dismiss`) or opens `AlarmRingingModal` when notification card is tapped.
-6. **In-App Test Trigger (`triggerTestSmartAlarm`)**:
-   - Prominent test card in `components/SmartAlarmModal.tsx` allowing user to tap and immediately test the full-screen ringing UI, 34-second audio loop, vibration, snooze, and dismiss buttons without waiting for the scheduled time.
-6. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
+   - Background and foreground interaction listeners.
+   - Native module event listener via `FullScreenAlarm.addAlarmListener`.
+
+7. **Dynamic Lookahead Calculation Engine (`calculateSmartAlarmSchedule`)**:
    - Evaluates a rolling 21-day window starting from today:
-     - **Calendar-First Truth**: The calendar is the single source of truth (`skipWeekends: false` by default). Saturdays and Sundays ring normally unless marked as holidays/leaves or explicitly configured to skip weekends.
+     - **Calendar-First Truth**: Calendar entries dictate alarm rules (`skipWeekends: false` by default).
      - **3 Configurable Wake-Up Profiles**:
-       1. `alarmTime` (e.g. `05:10 น.`): Weekday on-site work (Mon-Fri) with normal morning traffic.
-       2. `weekendWorkAlarmTime` (e.g. `07:00 น.`): Weekend on-site work (Sat-Sun) when roads are clear/light traffic (`useWeekendWorkAlarm: true`).
-       3. `wfhAlarmTime` (e.g. `07:30 น.`): Remote work from home without commuting (`wfhMode: 'custom'`).
-   - **Public Holidays & Regular Off**: Automatically skips alarms based on calendar entries.
-   - **Approved Leaves**: Automatically skips alarms when user logs vacation, sick, or personal leave.
-   - **Work From Home (WFH)**: Supports 3 configurable modes: standard alarm time, custom delayed alarm time (e.g. `07:30 น.`), or skip alarm entirely.
-7. **Pre-Holiday Goodnight Alert (20:00 Notification)**:
-   - On the evening before any public holiday, regular off, or approved leave, sends a friendly 20:00 reminder: *"แจ้งเตือน: พรุ่งนี้วันหยุด ([ชื่อ]) ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ"* (Channel: `smart-alarm-goodnight`).
-8. **Collapsible Android Battery Optimization Guide**:
-   - Direct 1-tap launcher to Android App Settings (`openAppBatterySettings()`) instructing users to set battery optimization to "Unrestricted" so alarms ring on time even if the app is killed.
-9. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
-   - Tapping an activity opens a full BottomSheet directly on the Home screen displaying category chip, time, location (tap to open Google Maps), reminder interval, and notes with auto-detected URLs.
-   - Direct [Edit], [Delete] (with confirmation), and [View in Calendar] action buttons without leaving the Dashboard.
+       1. `alarmTime` (e.g. `05:10 น.`): Weekday on-site work (Mon-Fri).
+       2. `weekendWorkAlarmTime` (e.g. `07:00 น.`): Weekend on-site work (`useWeekendWorkAlarm: true`).
+       3. `wfhAlarmTime` (e.g. `07:30 น.`): Remote work from home (`wfhMode: 'custom'`).
+   - **Public Holidays & Leaves**: Automatically skips alarms based on calendar entries.
+   - **Work From Home (WFH)**: Standard alarm time, custom delayed alarm, or skip alarm entirely.
+
+8. **Pre-Holiday Goodnight Alert (20:00 Notification)**:
+   - Friendly 20:00 reminder before holidays/leaves: *"แจ้งเตือน: พรุ่งนี้วันหยุด ([ชื่อ]) ระบบปิดนาฬิกาปลุกให้แล้ว พักผ่อนให้เต็มที่นะครับ"*.
+
+9. **Collapsible Android Battery Optimization Guide**:
+   - 1-tap launcher to Android App Settings (`openAppBatterySettings()`) for "Unrestricted" background execution.
+
+10. **Activity Detail & Quick Manage Sheet (`components/ActivityDetailSheet.tsx`)**:
+    - BottomSheet displaying category chip, time, location (tap to open Google Maps), alarm toggle, and notes with auto-detected URLs.
+    - Direct [Edit], [Delete], and [View in Calendar] actions from Dashboard.
 
 
 
