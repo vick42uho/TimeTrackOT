@@ -21,6 +21,7 @@ import {
   Calendar,
   ChevronRight,
   Square,
+  X,
 } from 'lucide-react-native';
 import { snoozeSmartAlarm, getSmartAlarmConfig } from '@/services/smartAlarmService';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -59,19 +60,33 @@ const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        // Touch started
+      },
       onPanResponderMove: (_, gestureState) => {
         if (isTriggered.current) return;
         const newX = Math.max(0, Math.min(gestureState.dx, maxSlide));
         panX.setValue(newX);
 
-        if (maxSlide > 0 && newX >= maxSlide * 0.82) {
+        // Relaxed threshold: 45% slide triggers stop
+        if (maxSlide > 0 && newX >= maxSlide * 0.45) {
           isTriggered.current = true;
           triggerHaptic('success');
           onStop();
         }
       },
-      onPanResponderRelease: () => {
-        if (!isTriggered.current) {
+      onPanResponderRelease: (_, gestureState) => {
+        if (isTriggered.current) return;
+
+        // If tap (movement < 20px) OR slid >= 45%: STOP IMMEDIATELY
+        if (
+          (Math.abs(gestureState.dx) < 20 && Math.abs(gestureState.dy) < 20) ||
+          (maxSlide > 0 && gestureState.dx >= maxSlide * 0.45)
+        ) {
+          isTriggered.current = true;
+          triggerHaptic('success');
+          onStop();
+        } else {
           Animated.spring(panX, {
             toValue: 0,
             useNativeDriver: true,
@@ -92,7 +107,7 @@ const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
   ).current;
 
   const hintOpacity = panX.interpolate({
-    inputRange: [0, Math.max(1, maxSlide * 0.6)],
+    inputRange: [0, Math.max(1, maxSlide * 0.4)],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
@@ -101,9 +116,13 @@ const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
     <View
       style={sliderStyles.track}
       onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+      {...panResponder.panHandlers}
     >
-      <Animated.View style={[sliderStyles.hintContainer, { opacity: hintOpacity }]}>
-        <Text style={sliderStyles.hintText}>slide to stop</Text>
+      <Animated.View
+        pointerEvents="none"
+        style={[sliderStyles.hintContainer, { opacity: hintOpacity }]}
+      >
+        <Text style={sliderStyles.hintText}>เลื่อนหรือแตะเพื่อปิดปลุก</Text>
         <View style={sliderStyles.chevronsRow}>
           <ChevronRight size={18} color="#94A3B8" />
           <ChevronRight size={18} color="#94A3B8" style={{ marginLeft: -10 }} />
@@ -112,13 +131,13 @@ const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
       </Animated.View>
 
       <Animated.View
+        pointerEvents="none"
         style={[
           sliderStyles.thumb,
           {
             transform: [{ translateX: panX }],
           },
         ]}
-        {...panResponder.panHandlers}
       >
         <Square size={20} color="#FFFFFF" fill="#FFFFFF" />
       </Animated.View>
@@ -331,12 +350,27 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
     >
       <View style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
-          {/* Top Status Header */}
-          <View style={styles.topBar}>
-            <View style={styles.alarmBadge}>
-              <Bell size={16} color="#93C5FD" />
-              <Text style={styles.alarmBadgeText}>นาฬิกาปลุก TimeTrack OT</Text>
+          {/* Top Dynamic Island Header (Remimo Style) */}
+          <View style={styles.topIslandBar}>
+            <View style={styles.islandLeft}>
+              <View style={styles.bellIconBox}>
+                <Bell size={18} color="#38BDF8" />
+              </View>
+              <View style={styles.islandTitleCol}>
+                <Text style={styles.islandTitleText}>TimeTrack OT</Text>
+                <Text style={styles.islandSubText} numberOfLines={1}>
+                  {reason}
+                </Text>
+              </View>
             </View>
+            <TouchableOpacity
+              style={styles.closeButtonCircle}
+              activeOpacity={0.7}
+              onPress={handleDismiss}
+              accessibilityLabel="ปิดการปลุก"
+            >
+              <X size={18} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
 
           {/* Center Pulsating Glow & Digital Clock */}
@@ -404,6 +438,16 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
 
             {/* Slide to Stop (Remimo & iOS Style) */}
             <SlideToStopButton onStop={handleDismiss} />
+
+            {/* Direct Tap to Stop Button */}
+            <TouchableOpacity
+              style={styles.tapToStopButton}
+              activeOpacity={0.7}
+              onPress={handleDismiss}
+            >
+              <BellOff size={18} color="#EF4444" />
+              <Text style={styles.tapToStopText}>แตะที่นี่เพื่อปิดนาฬิกาปลุกทันที</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -422,25 +466,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  topBar: {
-    alignItems: 'center',
-    paddingTop: 12,
-  },
-  alarmBadge: {
+  topIslandBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(23, 32, 51, 0.95)',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.4)',
+    borderColor: 'rgba(51, 65, 85, 0.8)',
+    marginTop: 8,
   },
-  alarmBadgeText: {
-    fontFamily: 'Sarabun_600SemiBold',
+  islandLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    marginRight: 12,
+  },
+  bellIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  islandTitleCol: {
+    flex: 1,
+  },
+  islandTitleText: {
+    fontFamily: 'Sarabun_700Bold',
     fontSize: 14,
-    color: '#93C5FD',
+    color: '#F1F5F9',
+  },
+  islandSubText: {
+    fontFamily: 'Sarabun_400Regular',
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  closeButtonCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centerContainer: {
     alignItems: 'center',
@@ -558,6 +630,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Sarabun_400Regular',
     fontSize: 13,
     color: '#94A3B8',
+  },
+  tapToStopButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1C1917',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+  },
+  tapToStopText: {
+    fontFamily: 'Sarabun_600SemiBold',
+    fontSize: 15,
+    color: '#F87171',
   },
 });
 

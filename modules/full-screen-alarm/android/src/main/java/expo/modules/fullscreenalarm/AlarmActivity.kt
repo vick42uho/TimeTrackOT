@@ -119,22 +119,80 @@ class AlarmActivity : Activity() {
             gravity = Gravity.CENTER_HORIZONTAL
         }
 
-        // Top Badge
-        val topBadge = TextView(this).apply {
-            text = "นาฬิกาปลุก TimeTrack OT"
-            setTextColor(Color.parseColor("#93C5FD"))
-            textSize = 13f
+        // Top Dynamic Island Pill (Remimo Style with [✕] Close Button)
+        val topIsland = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(8), dp(12), dp(8))
+            val islandBg = GradientDrawable().apply {
+                setColor(Color.parseColor("#172033"))
+                cornerRadius = dp(24).toFloat()
+                setStroke(dp(1), Color.parseColor("#334155"))
+            }
+            background = islandBg
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // Left Bell / Alarm Indicator
+        val bellIndicator = TextView(this).apply {
+            text = "●"
+            setTextColor(Color.parseColor("#38BDF8"))
+            textSize = 14f
+            setPadding(0, 0, dp(10), 0)
+        }
+        topIsland.addView(bellIndicator)
+
+        // Center Title & Reason
+        val islandTitleCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        }
+        val islandAppTitle = TextView(this).apply {
+            text = "TimeTrack OT"
+            setTextColor(Color.parseColor("#E2E8F0"))
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        islandTitleCol.addView(islandAppTitle)
+
+        val islandSubTitle = TextView(this).apply {
+            text = reason
+            setTextColor(Color.parseColor("#94A3B8"))
+            textSize = 12f
+            maxLines = 1
+        }
+        islandTitleCol.addView(islandSubTitle)
+        topIsland.addView(islandTitleCol)
+
+        // Right Circular [✕] Close Button
+        val closeBtn = TextView(this).apply {
+            text = "✕"
+            setTextColor(Color.WHITE)
+            textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-            val badgeBg = GradientDrawable().apply {
-                setColor(Color.parseColor("#1E293B"))
-                cornerRadius = dp(20).toFloat()
-                setStroke(dp(1), Color.parseColor("#3B82F6"))
+            val closeBg = GradientDrawable().apply {
+                setColor(Color.parseColor("#334155"))
+                cornerRadius = dp(18).toFloat()
             }
-            background = badgeBg
+            background = closeBg
+            layoutParams = LinearLayout.LayoutParams(dp(36), dp(36))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                handleDismiss()
+            }
         }
-        root.addView(topBadge)
+        topIsland.addView(closeBtn)
+
+        root.addView(topIsland)
 
         // Center Content Area (Weights 1 to push buttons to bottom)
         val centerLayout = LinearLayout(this).apply {
@@ -224,12 +282,15 @@ class AlarmActivity : Activity() {
 
         // Slide to Stop Container (Remimo & iOS Style)
         val sliderHeight = dp(58)
+        val thumbSize = dp(50)
+        val thumbMargin = dp(4)
+
         val sliderContainer = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 sliderHeight
             ).apply {
-                bottomMargin = dp(14)
+                bottomMargin = dp(12)
             }
             val trackBg = GradientDrawable().apply {
                 setColor(Color.parseColor("#172033"))
@@ -237,14 +298,18 @@ class AlarmActivity : Activity() {
                 setStroke(dp(1), Color.parseColor("#334155"))
             }
             background = trackBg
+            isClickable = true
+            isFocusable = true
         }
 
         val sliderHintText = TextView(this).apply {
-            text = "slide to stop  >>>"
+            text = "เลื่อนหรือแตะเพื่อปิดปลุก  >>>"
             setTextColor(Color.parseColor("#94A3B8"))
             textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
+            isClickable = false
+            isFocusable = false
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -252,8 +317,6 @@ class AlarmActivity : Activity() {
         }
         sliderContainer.addView(sliderHintText)
 
-        val thumbSize = dp(50)
-        val thumbMargin = dp(4)
         val thumbView = View(this).apply {
             layoutParams = FrameLayout.LayoutParams(thumbSize, thumbSize).apply {
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
@@ -264,42 +327,76 @@ class AlarmActivity : Activity() {
                 cornerRadius = dp(25).toFloat()
             }
             background = thumbBg
+            isClickable = false
+            isFocusable = false
         }
         sliderContainer.addView(thumbView)
 
-        var dX = 0f
+        var startTouchX = 0f
+        var startTouchY = 0f
         var isDismissTriggered = false
 
-        thumbView.setOnTouchListener { v, event ->
+        sliderContainer.setOnTouchListener { _, event ->
+            val maxTravel = (sliderContainer.width - thumbSize - thumbMargin).toFloat()
+            val minTravel = thumbMargin.toFloat()
+
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    dX = v.x - event.rawX
+                    startTouchX = event.x
+                    startTouchY = event.y
+                    if (maxTravel > minTravel) {
+                        val targetX = (event.x - thumbSize / 2).coerceIn(minTravel, maxTravel)
+                        thumbView.x = targetX
+                        val progress = ((targetX - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
+                        sliderHintText.alpha = (1f - progress * 1.5f).coerceAtLeast(0f)
+                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (isDismissTriggered) return@setOnTouchListener true
-                    val maxTravel = (sliderContainer.width - thumbSize - thumbMargin).toFloat()
-                    val minTravel = thumbMargin.toFloat()
-                    var newX = event.rawX + dX
-                    if (newX < minTravel) newX = minTravel
-                    if (newX > maxTravel) newX = maxTravel
-                    v.x = newX
+                    if (maxTravel > minTravel) {
+                        val targetX = (event.x - thumbSize / 2).coerceIn(minTravel, maxTravel)
+                        thumbView.x = targetX
+                        val progress = ((targetX - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
+                        sliderHintText.alpha = (1f - progress * 1.5f).coerceAtLeast(0f)
 
-                    val progress = if (maxTravel > minTravel) {
-                        ((newX - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
-                    } else 0f
-                    sliderHintText.alpha = (1f - progress * 1.5f).coerceAtLeast(0f)
-
-                    if (progress >= 0.82f) {
-                        isDismissTriggered = true
-                        handleDismiss()
+                        // 45% slide triggers dismiss
+                        if (progress >= 0.45f) {
+                            isDismissTriggered = true
+                            handleDismiss()
+                        }
                     }
                     true
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                MotionEvent.ACTION_UP -> {
                     if (!isDismissTriggered) {
-                        v.animate()
-                            .x(thumbMargin.toFloat())
+                        val dx = Math.abs(event.x - startTouchX)
+                        val dy = Math.abs(event.y - startTouchY)
+                        val progress = if (maxTravel > minTravel) {
+                            ((thumbView.x - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
+                        } else 0f
+
+                        // If user tapped (< 25dp movement) OR reached >= 45% slide: DISMISS!
+                        if ((dx < dp(25) && dy < dp(25)) || progress >= 0.45f) {
+                            isDismissTriggered = true
+                            handleDismiss()
+                        } else {
+                            thumbView.animate()
+                                .x(minTravel)
+                                .setDuration(200)
+                                .start()
+                            sliderHintText.animate()
+                                .alpha(1f)
+                                .setDuration(200)
+                                .start()
+                        }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (!isDismissTriggered) {
+                        thumbView.animate()
+                            .x(minTravel)
                             .setDuration(200)
                             .start()
                         sliderHintText.animate()
@@ -313,6 +410,34 @@ class AlarmActivity : Activity() {
             }
         }
         bottomLayout.addView(sliderContainer)
+
+        // Direct Tap to Stop Button
+        val tapToStopButton = TextView(this).apply {
+            text = "แตะที่นี่เพื่อปิดนาฬิกาปลุกทันที"
+            setTextColor(Color.parseColor("#F87171"))
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            val tapBg = GradientDrawable().apply {
+                setColor(Color.parseColor("#1C1917"))
+                cornerRadius = dp(14).toFloat()
+                setStroke(dp(1), Color.parseColor("#7F1D1D"))
+            }
+            background = tapBg
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(10)
+            }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                handleDismiss()
+            }
+        }
+        bottomLayout.addView(tapToStopButton)
 
         // Open App Link Button
         val openAppButton = TextView(this).apply {
