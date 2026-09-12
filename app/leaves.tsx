@@ -1316,114 +1316,86 @@ const LeavesContent: React.FC = () => {
                         <TouchableOpacity
                           key={item.dateStr}
                           onPress={() => handleDayPress(item.dateStr)}
+                          activeOpacity={0.7}
                           style={[
                             styles.dayCell,
-                            item.isWeekend && { backgroundColor: isDark ? '#ffffff05' : '#f8fafc' },
-                            isSelected && {
-                              borderColor: colors.primary,
-                              borderWidth: 1.5,
-                              backgroundColor: isDark ? `${colors.primary}25` : '#eff6ff',
-                            },
-                            item.isToday && !isSelected && {
-                              borderWidth: 1,
-                              borderColor: colors.primary,
+                            item.isWeekend && !isSelected && {
+                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc',
                             },
                           ]}
                         >
-                          {/* Day Number */}
-                          <Text
+                          {/* Day Number Circle */}
+                          <View
                             style={[
-                              styles.dayNumberText,
-                              {
-                                color: item.isToday
-                                  ? colors.primary
-                                  : item.isWeekend
-                                    ? colors.textSecondary
-                                    : colors.text,
-                                fontWeight: item.isToday || isSelected ? '700' : '500',
+                              styles.dateNumberCircle,
+                              isSelected && {
+                                backgroundColor: colors.primary,
+                                shadowColor: colors.primary,
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 3.84,
+                                elevation: 3,
+                              },
+                              item.isToday && !isSelected && {
+                                borderColor: colors.primary,
+                                borderWidth: 1.5,
+                                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
                               },
                             ]}
                           >
-                            {item.dayNumber}
-                          </Text>
-
-                          {/* Status Badges on Calendar Day */}
-                          {hasHoliday && (
-                            <View
+                            <Text
                               style={[
-                                styles.calendarMiniTag,
+                                styles.dayNumberText,
                                 {
-                                  backgroundColor: isDark
-                                    ? `${HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6'}40`
-                                    : `${HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6'}20`,
+                                  color: isSelected
+                                    ? '#ffffff'
+                                    : item.isToday
+                                      ? colors.primary
+                                      : item.isWeekend
+                                        ? colors.textSecondary
+                                        : colors.text,
+                                  fontWeight: isSelected || item.isToday ? '700' : '500',
                                 },
                               ]}
                             >
-                              <Text
-                                numberOfLines={1}
-                                style={[
-                                  styles.calendarMiniTagText,
-                                  { color: HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || colors.primary },
-                                ]}
-                              >
-                                {HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.shortLabel || 'หยุด'}
-                              </Text>
-                            </View>
-                          )}
+                              {item.dayNumber}
+                            </Text>
+                          </View>
 
-                          {hasLeave && (
-                            <View
-                              style={[
-                                styles.calendarMiniTag,
-                                {
-                                  backgroundColor: isDark
-                                    ? `${LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color || '#f59e0b'}40`
-                                    : `${LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color || '#f59e0b'}20`,
-                                },
-                              ]}
-                            >
-                              <Text
-                                numberOfLines={1}
+                          {/* Status Dots Row (Remimo Style) */}
+                          <View style={styles.statusDotsRow}>
+                            {hasHoliday && (
+                              <View
                                 style={[
-                                  styles.calendarMiniTagText,
+                                  styles.statusDot,
                                   {
-                                    color:
+                                    backgroundColor:
+                                      HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6',
+                                  },
+                                ]}
+                              />
+                            )}
+                            {hasLeave && (
+                              <View
+                                style={[
+                                  styles.statusDot,
+                                  {
+                                    backgroundColor:
                                       LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color ||
                                       '#f59e0b',
                                   },
                                 ]}
-                              >
-                                {LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา'}
-                              </Text>
-                            </View>
-                          )}
-
-                          {/* Activity Dot on Calendar Day */}
-                          {hasActivities && (
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 2,
-                                marginTop: 1,
-                              }}
-                            >
-                              <View
-                                style={{
-                                  width: 5,
-                                  height: 5,
-                                  borderRadius: 2.5,
-                                  backgroundColor: '#8b5cf6',
-                                }}
                               />
-                              {item.activities && item.activities.length > 1 && (
-                                <Text style={{ fontSize: 8, color: '#8b5cf6', fontWeight: '700' }}>
-                                  {item.activities.length}
-                                </Text>
-                              )}
-                            </View>
-                          )}
+                            )}
+                            {hasActivities && (
+                              <View
+                                style={[
+                                  styles.statusDot,
+                                  { backgroundColor: '#8b5cf6' },
+                                ]}
+                              />
+                            )}
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
@@ -1536,31 +1508,90 @@ const LeavesContent: React.FC = () => {
                     </Text>
                   </View>
 
-                  {/* Day Status Badge */}
-                  {selectedDateHoliday ? (
-                    getHolidayBadge(selectedDateHoliday.type)
-                  ) : selectedDateLeave ? (
-                    getLeaveTypeBadge(selectedDateLeave.leaveType)
-                  ) : (
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 5,
-                        paddingVertical: 4,
-                        paddingHorizontal: 10,
-                        borderRadius: 999,
-                        borderWidth: 0,
-                        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9',
-                      }}
-                    >
-                      <Briefcase size={12} color={colors.textSecondary} />
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
-                        วันทำงานปกติ
-                      </Text>
-                    </View>
-                  )}
+                  {/* Day Status Badges (Supports multiple statuses simultaneously) */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {selectedDateHoliday && getHolidayBadge(selectedDateHoliday.type)}
+                    {selectedDateLeave && getLeaveTypeBadge(selectedDateLeave.leaveType)}
+                    {!selectedDateHoliday && !selectedDateLeave && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 5,
+                          paddingVertical: 4,
+                          paddingHorizontal: 10,
+                          borderRadius: 999,
+                          borderWidth: 0,
+                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9',
+                        }}
+                      >
+                        <Briefcase size={12} color={colors.textSecondary} />
+                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
+                          วันทำงานปกติ
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
+
+                {/* Holiday / Leave Detailed Info if present */}
+                {(selectedDateHoliday || selectedDateLeave) && (
+                  <View style={{ gap: 6, marginBottom: 12 }}>
+                    {selectedDateHoliday && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: 10,
+                          borderRadius: 12,
+                          backgroundColor: isDark
+                            ? `${HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || '#3b82f6'}15`
+                            : `${HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || '#3b82f6'}10`,
+                          borderLeftWidth: 3,
+                          borderLeftColor: HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || colors.primary,
+                        }}
+                      >
+                        <CalendarIcon size={14} color={HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || colors.primary} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                            {selectedDateHoliday.name}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                            {HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.label || 'วันหยุด'}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    {selectedDateLeave && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: 10,
+                          borderRadius: 12,
+                          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fffbeb',
+                          borderLeftWidth: 3,
+                          borderLeftColor: LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.color || '#f59e0b',
+                        }}
+                      >
+                        <Briefcase size={14} color={LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.color || '#f59e0b'} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                            {LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.label || 'การลา'}: {selectedDateLeave.durationDays} วัน
+                          </Text>
+                          {selectedDateLeave.reason ? (
+                            <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                              เหตุผล: {selectedDateLeave.reason}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {/* Activities List for Selected Day */}
                 {selectedDayActivities.length > 0 ? (
@@ -2942,27 +2973,35 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: `${100 / 7}%`,
-    height: 52,
+    height: 48,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 4,
-    borderRadius: 8,
-    marginVertical: 1,
+    justifyContent: 'center',
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  dateNumberCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dayNumberText: {
     fontSize: 13,
+    fontFamily: 'Sarabun_600SemiBold',
   },
-  calendarMiniTag: {
-    marginTop: 2,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 4,
-    maxWidth: '90%',
+  statusDotsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    height: 6,
+    marginTop: 2,
   },
-  calendarMiniTagText: {
-    fontSize: 9,
-    fontWeight: '700',
+  statusDot: {
+    width: 5.5,
+    height: 5.5,
+    borderRadius: 3,
   },
   calendarLegendRow: {
     flexDirection: 'row',
