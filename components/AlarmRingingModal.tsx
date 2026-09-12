@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -9,6 +9,7 @@ import {
   Vibration,
   Platform,
   PanResponder,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAudioPlayer } from 'expo-audio';
@@ -50,64 +51,85 @@ const THUMB_SIZE = 50;
 const THUMB_MARGIN = 5;
 
 const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
-  const [trackWidth, setTrackWidth] = useState(0);
+  const screenWidth = Dimensions.get('window').width;
+  const initialTrackWidth = Math.max(280, screenWidth - 48);
+  const [trackWidth, setTrackWidth] = useState(initialTrackWidth);
   const panX = useRef(new Animated.Value(0)).current;
   const isTriggered = useRef(false);
+  const maxSlideRef = useRef(initialTrackWidth - THUMB_SIZE - THUMB_MARGIN * 2);
+  const onStopRef = useRef(onStop);
+  onStopRef.current = onStop;
 
-  const maxSlide = Math.max(0, trackWidth - THUMB_SIZE - THUMB_MARGIN * 2);
+  const updateTrackWidth = (w: number) => {
+    if (w > 0) {
+      setTrackWidth(w);
+      maxSlideRef.current = Math.max(0, w - THUMB_SIZE - THUMB_MARGIN * 2);
+    }
+  };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        // Touch started
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (isTriggered.current) return;
-        const newX = Math.max(0, Math.min(gestureState.dx, maxSlide));
-        panX.setValue(newX);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return Math.abs(gestureState.dx) > 3;
+        },
+        onPanResponderGrant: () => {
+          panX.stopAnimation();
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (isTriggered.current) return;
+          const limit = maxSlideRef.current;
+          if (limit <= 0) return;
 
-        // Relaxed threshold: 45% slide triggers stop
-        if (maxSlide > 0 && newX >= maxSlide * 0.45) {
-          isTriggered.current = true;
-          triggerHaptic('success');
-          onStop();
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (isTriggered.current) return;
+          // Slide thumb smoothly to the right with finger
+          const newX = Math.max(0, Math.min(gestureState.dx, limit));
+          panX.setValue(newX);
 
-        // If tap (movement < 20px) OR slid >= 45%: STOP IMMEDIATELY
-        if (
-          (Math.abs(gestureState.dx) < 20 && Math.abs(gestureState.dy) < 20) ||
-          (maxSlide > 0 && gestureState.dx >= maxSlide * 0.45)
-        ) {
-          isTriggered.current = true;
-          triggerHaptic('success');
-          onStop();
-        } else {
-          Animated.spring(panX, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 6,
-          }).start();
-        }
-      },
-      onPanResponderTerminate: () => {
-        if (!isTriggered.current) {
-          Animated.spring(panX, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 6,
-          }).start();
-        }
-      },
-    })
-  ).current;
+          // Slid past 40% -> Stop alarm immediately
+          if (newX >= limit * 0.4) {
+            isTriggered.current = true;
+            triggerHaptic('success');
+            onStopRef.current();
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (isTriggered.current) return;
+          const limit = maxSlideRef.current;
+
+          // If tapped (< 15px) OR slid past 35% -> Stop alarm
+          if (
+            (Math.abs(gestureState.dx) < 15 && Math.abs(gestureState.dy) < 15) ||
+            (limit > 0 && gestureState.dx >= limit * 0.35)
+          ) {
+            isTriggered.current = true;
+            triggerHaptic('success');
+            onStopRef.current();
+          } else {
+            Animated.spring(panX, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+              speed: 14,
+            }).start();
+          }
+        },
+        onPanResponderTerminate: () => {
+          if (!isTriggered.current) {
+            Animated.spring(panX, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+              speed: 14,
+            }).start();
+          }
+        },
+      }),
+    []
+  );
 
   const hintOpacity = panX.interpolate({
-    inputRange: [0, Math.max(1, maxSlide * 0.4)],
+    inputRange: [0, Math.max(1, (trackWidth - THUMB_SIZE) * 0.4)],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
@@ -115,7 +137,7 @@ const SlideToStopButton: React.FC<{ onStop: () => void }> = ({ onStop }) => {
   return (
     <View
       style={sliderStyles.track}
-      onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+      onLayout={(e) => updateTrackWidth(e.nativeEvent.layout.width)}
       {...panResponder.panHandlers}
     >
       <Animated.View
@@ -438,16 +460,6 @@ export const AlarmRingingModal: React.FC<AlarmRingingModalProps> = ({
 
             {/* Slide to Stop (Remimo & iOS Style) */}
             <SlideToStopButton onStop={handleDismiss} />
-
-            {/* Direct Tap to Stop Button */}
-            <TouchableOpacity
-              style={styles.tapToStopButton}
-              activeOpacity={0.7}
-              onPress={handleDismiss}
-            >
-              <BellOff size={18} color="#EF4444" />
-              <Text style={styles.tapToStopText}>แตะที่นี่เพื่อปิดนาฬิกาปลุกทันที</Text>
-            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -630,23 +642,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Sarabun_400Regular',
     fontSize: 13,
     color: '#94A3B8',
-  },
-  tapToStopButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1C1917',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#7F1D1D',
-  },
-  tapToStopText: {
-    fontFamily: 'Sarabun_600SemiBold',
-    fontSize: 15,
-    color: '#F87171',
   },
 });
 

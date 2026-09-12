@@ -344,24 +344,19 @@ class AlarmActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> {
                     startTouchX = event.x
                     startTouchY = event.y
-                    if (maxTravel > minTravel) {
-                        val targetX = (event.x - thumbSize / 2).coerceIn(minTravel, maxTravel)
-                        thumbView.x = targetX
-                        val progress = ((targetX - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
-                        sliderHintText.alpha = (1f - progress * 1.5f).coerceAtLeast(0f)
-                    }
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (isDismissTriggered) return@setOnTouchListener true
                     if (maxTravel > minTravel) {
-                        val targetX = (event.x - thumbSize / 2).coerceIn(minTravel, maxTravel)
+                        val deltaX = event.x - startTouchX
+                        val targetX = (minTravel + deltaX).coerceIn(minTravel, maxTravel)
                         thumbView.x = targetX
                         val progress = ((targetX - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
                         sliderHintText.alpha = (1f - progress * 1.5f).coerceAtLeast(0f)
 
-                        // 45% slide triggers dismiss
-                        if (progress >= 0.45f) {
+                        // 40% slide triggers dismiss
+                        if (progress >= 0.40f) {
                             isDismissTriggered = true
                             handleDismiss()
                         }
@@ -376,8 +371,8 @@ class AlarmActivity : Activity() {
                             ((thumbView.x - minTravel) / (maxTravel - minTravel)).coerceIn(0f, 1f)
                         } else 0f
 
-                        // If user tapped (< 25dp movement) OR reached >= 45% slide: DISMISS!
-                        if ((dx < dp(25) && dy < dp(25)) || progress >= 0.45f) {
+                        // If user tapped (< 20dp movement) OR reached >= 35% slide: DISMISS!
+                        if ((dx < dp(20) && dy < dp(20)) || progress >= 0.35f) {
                             isDismissTriggered = true
                             handleDismiss()
                         } else {
@@ -410,34 +405,6 @@ class AlarmActivity : Activity() {
             }
         }
         bottomLayout.addView(sliderContainer)
-
-        // Direct Tap to Stop Button
-        val tapToStopButton = TextView(this).apply {
-            text = "แตะที่นี่เพื่อปิดนาฬิกาปลุกทันที"
-            setTextColor(Color.parseColor("#F87171"))
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-            val tapBg = GradientDrawable().apply {
-                setColor(Color.parseColor("#1C1917"))
-                cornerRadius = dp(14).toFloat()
-                setStroke(dp(1), Color.parseColor("#7F1D1D"))
-            }
-            background = tapBg
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = dp(10)
-            }
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                handleDismiss()
-            }
-        }
-        bottomLayout.addView(tapToStopButton)
 
         // Open App Link Button
         val openAppButton = TextView(this).apply {
