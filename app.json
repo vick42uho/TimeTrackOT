@@ -30,7 +30,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.timetrackot",
-      "versionCode": 28,
+      "versionCode": 29,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
@@ -78,9 +78,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "890a7fe6-a4a4-4bb5-8819-042a465115fe"
+        "projectId": "cd47e41a-1110-4b9e-bd6e-1aca4e029017"
       }
     },
-    "owner": "wick.51"
+    "owner": "wick.22"
   }
 }
