@@ -91,8 +91,43 @@ const DayCell = React.memo(function DayCell({
       ? (isDark ? '#94a3b8' : '#64748b')
       : (colors?.text || (isDark ? '#f8fafc' : '#1e293b'));
 
-  const holidayColors = item.holiday ? getMiniTagColors(item.holiday.type, isDark) : null;
-  const leaveColors = item.leave ? getMiniTagColors(item.leave.leaveType, isDark) : null;
+  // Priority: Leave > Holiday (Max 1 Badge per cell to prevent overflow)
+  let badge: { text: string; bg: string; textCol: string } | null = null;
+  let secondaryDotColor: string | null = null;
+
+  if (hasLeave && hasHoliday) {
+    // Leave is primary badge, Holiday becomes secondary dot (like Day 12 in reference image)
+    const lCol = getMiniTagColors(item.leave!.leaveType, isDark);
+    badge = {
+      text: LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา',
+      bg: lCol.bg,
+      textCol: lCol.text,
+    };
+    const hCol = getMiniTagColors(item.holiday!.type, isDark);
+    secondaryDotColor = hCol.text;
+  } else if (hasLeave) {
+    const lCol = getMiniTagColors(item.leave!.leaveType, isDark);
+    badge = {
+      text: LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา',
+      bg: lCol.bg,
+      textCol: lCol.text,
+    };
+    if (hasActivities) {
+      secondaryDotColor = '#8b5cf6';
+    }
+  } else if (hasHoliday) {
+    const hCol = getMiniTagColors(item.holiday!.type, isDark);
+    badge = {
+      text: HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.shortLabel || 'หยุด',
+      bg: hCol.bg,
+      textCol: hCol.text,
+    };
+    if (hasActivities) {
+      secondaryDotColor = '#8b5cf6';
+    }
+  } else if (hasActivities) {
+    secondaryDotColor = '#8b5cf6';
+  }
 
   return (
     <TouchableOpacity
@@ -125,54 +160,37 @@ const DayCell = React.memo(function DayCell({
         {String(item.dayNumber)}
       </RNText>
 
-      {/* Status Badges / Tags on Calendar Day */}
-      {hasHoliday && holidayColors && (
+      {/* Primary Status Badge (Max 1 per cell, perfectly fitting without truncation) */}
+      {badge && (
         <View
           style={[
             styles.calendarMiniTag,
-            { backgroundColor: holidayColors.bg },
+            { backgroundColor: badge.bg },
           ]}
         >
           <RNText
             numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
             style={[
               styles.calendarMiniTagText,
-              { color: holidayColors.text },
+              { color: badge.textCol },
             ]}
           >
-            {HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.shortLabel || 'หยุด'}
+            {badge.text}
           </RNText>
         </View>
       )}
 
-      {hasLeave && leaveColors && (
-        <View
-          style={[
-            styles.calendarMiniTag,
-            { backgroundColor: leaveColors.bg },
-          ]}
-        >
-          <RNText
-            numberOfLines={1}
-            style={[
-              styles.calendarMiniTagText,
-              { color: leaveColors.text },
-            ]}
-          >
-            {LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา'}
-          </RNText>
-        </View>
-      )}
-
-      {/* Activity Dot / Second Indicator */}
-      {hasActivities && (
+      {/* Secondary Dot (Holiday dot if leave exists, or Activity dot) */}
+      {secondaryDotColor && (
         <View style={styles.activityDotContainer}>
           <View
             style={[
               styles.activityDot,
               {
-                backgroundColor: hasHoliday || hasLeave ? '#64748b' : '#8b5cf6',
-                marginTop: hasHoliday || hasLeave ? 2 : 4,
+                backgroundColor: secondaryDotColor,
+                marginTop: badge ? 2 : 4,
               },
             ]}
           />
@@ -309,42 +327,43 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: `${100 / 7}%`,
-    height: 58,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 4,
+    paddingTop: 3,
     borderRadius: 12,
-    marginVertical: 2,
+    marginVertical: 1.5,
   },
   dayNumberText: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 19,
     textAlign: 'center',
     includeFontPadding: false,
   },
   calendarMiniTag: {
     marginTop: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2.5,
     paddingVertical: 1,
     borderRadius: 4,
-    maxWidth: '92%',
+    maxWidth: '96%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   calendarMiniTagText: {
-    fontSize: 10,
+    fontSize: 8.5,
     fontFamily: 'Sarabun_700Bold',
     includeFontPadding: false,
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
   activityDotContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   activityDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.25,
   },
   calendarLegendRow: {
     flexDirection: 'row',
