@@ -66,7 +66,7 @@ export interface CameraProps {
   facing?: CameraType;
   enableTorch?: boolean;
   showControls?: boolean;
-  timerOptions?: Array<number>;
+  timerOptions?: number[];
   enableVideo?: boolean;
   maxVideoDuration?: number; // in seconds
   onClose?: () => void;
@@ -111,7 +111,7 @@ export const Camera = forwardRef<CameraRef, CameraProps>(
     const zoom = useSharedValue(0);
     const baseZoom = useSharedValue(0);
 
-    const aspectRatios: Array<CameraRatio> = ['16:9', '4:3', '1:1'];
+    const aspectRatios: CameraRatio[] = ['16:9', '4:3', '1:1'];
 
     const [permission, requestPermission] = useCameraPermissions();
     const [torch, setTorch] = useState(false);

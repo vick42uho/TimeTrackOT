@@ -190,6 +190,7 @@ export const useTimeCalculation = () => {
       formatDateThai,
       getThaiDayName,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helpers are stable pure fns; recomputing on every render would defeat memoization
     []
   );
 };

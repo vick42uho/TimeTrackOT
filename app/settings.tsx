@@ -116,19 +116,7 @@ const SettingsContent: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadWorkSchedule();
-  }, [selectedMonth, selectedYear]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (isReady && startTime === '08:00' && endTime === '17:00') {
-        loadWorkSchedule();
-      }
-    }, [isReady, selectedMonth, selectedYear, startTime, endTime])
-  );
-
-  const loadWorkSchedule = async () => {
+  const loadWorkSchedule = useCallback(async () => {
     if (!isReady) return;
 
     const schedule = await getWorkSchedule(selectedMonth, selectedYear);
@@ -139,7 +127,23 @@ const SettingsContent: React.FC = () => {
       setStartTime('08:00');
       setEndTime('17:00');
     }
-  };
+  }, [isReady, selectedMonth, selectedYear, getWorkSchedule]);
+
+  useEffect(() => {
+    if (isReady) {
+      loadWorkSchedule();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, selectedMonth, selectedYear]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isReady) {
+        loadWorkSchedule();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isReady, selectedMonth, selectedYear])
+  );
 
   const handleSaveSchedule = async () => {
     if (!isReady) {

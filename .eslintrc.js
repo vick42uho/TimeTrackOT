@@ -11,7 +11,7 @@ module.exports = {
       jsx: true
     }
   },
-  ignorePatterns: ['/dist/*', '/public/*'],
+  ignorePatterns: ['/dist/*', '/public/*', '/scripts/*'],
   env: {
     browser: true,
   },

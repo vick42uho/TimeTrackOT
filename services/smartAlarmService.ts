@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import scheduleNotificationAsync from 'expo-notifications/build/scheduleNotificationAsync';
 import cancelScheduledNotificationAsync from 'expo-notifications/build/cancelScheduledNotificationAsync';
+import cancelAllScheduledNotificationsAsync from 'expo-notifications/build/cancelAllScheduledNotificationsAsync';
 import setNotificationChannelAsync from 'expo-notifications/build/setNotificationChannelAsync';
 import deleteNotificationChannelAsync from 'expo-notifications/build/deleteNotificationChannelAsync';
 import setNotificationCategoryAsync from 'expo-notifications/build/setNotificationCategoryAsync';
@@ -438,6 +439,8 @@ export async function cancelAllSmartAlarms(): Promise<void> {
         })
       );
     }
+    // Also purge all scheduled notifications in expo-notifications to prevent hitting Android 500 alarm limit
+    await cancelAllScheduledNotificationsAsync().catch(() => {});
     await AsyncStorage.removeItem(SMART_ALARM_SCHEDULED_IDS_KEY);
   } catch (error) {
     console.error('Error cancelling smart alarms:', error);
@@ -554,8 +557,11 @@ export async function syncSmartAlarmSchedule(
             item.notificationId = scheduledAlarmId;
             scheduledCount++;
           }
-        } catch (err) {
+        } catch (err: any) {
           console.warn('Error scheduling smart alarm for', item.date, err);
+          if (String(err?.message || '').includes('500') || String(err?.message || '').includes('limit')) {
+            await cancelAllScheduledNotificationsAsync().catch(() => {});
+          }
         }
       }
     }
@@ -604,8 +610,11 @@ export async function syncSmartAlarmSchedule(
             scheduledIds.push(gId);
             goodnightCount++;
           }
-        } catch (err) {
+        } catch (err: any) {
           console.warn('Error scheduling goodnight alert for', item.date, err);
+          if (String(err?.message || '').includes('500') || String(err?.message || '').includes('limit')) {
+            await cancelAllScheduledNotificationsAsync().catch(() => {});
+          }
         }
       }
     }
@@ -786,34 +795,67 @@ export async function triggerTestSmartAlarm(): Promise<string | undefined> {
       }
     }
 
-    const notifId = await scheduleNotificationAsync({
-      content: {
-        title: 'ทดสอบระบบนาฬิกาปลุก (Smart Alarm Test)',
-        body: 'แตะแถบนี้เพื่อเปิดหน้าต่างปลุกเต็มจอ หรือกดเลื่อน/ปิดได้ทันที',
-        sound: 'alarm.wav',
-        priority: AndroidNotificationPriority.MAX,
-        sticky: true,
-        autoDismiss: false,
-        color: '#2563EB',
-        categoryIdentifier: SMART_ALARM_CATEGORY,
-        data: {
-          type: 'smart-alarm',
-          date: now.toISOString().split('T')[0],
-          alarmTime: timeStr,
-          reason: 'ทดสอบระบบนาฬิกาปลุก',
-        },
+    const notificationContent = {
+      title: 'ทดสอบระบบนาฬิกาปลุก (Smart Alarm Test)',
+      body: 'แตะแถบนี้เพื่อเปิดหน้าต่างปลุกเต็มจอ หรือกดเลื่อน/ปิดได้ทันที',
+      sound: 'alarm.wav',
+      priority: AndroidNotificationPriority.MAX,
+      sticky: true,
+      autoDismiss: false,
+      color: '#2563EB',
+      categoryIdentifier: SMART_ALARM_CATEGORY,
+      data: {
+        type: 'smart-alarm',
+        date: now.toISOString().split('T')[0],
+        alarmTime: timeStr,
+        reason: 'ทดสอบระบบนาฬิกาปลุก',
       },
-      trigger: {
-        type: SchedulableTriggerInputTypes.DATE,
-        date: triggerDate,
-        channelId: SMART_ALARM_CHANNEL_ID,
-      },
-    });
+    };
+
+    const triggerOptions = {
+      type: SchedulableTriggerInputTypes.DATE,
+      date: triggerDate,
+      channelId: SMART_ALARM_CHANNEL_ID,
+    };
+
+    let notifId: string | undefined;
+    try {
+      notifId = await scheduleNotificationAsync({
+        content: notificationContent,
+        trigger: triggerOptions,
+      });
+    } catch (schedErr: any) {
+      // If quota 500 limit reached on Android, purge all stale notifications and retry once
+      if (String(schedErr?.message || '').includes('500') || String(schedErr?.message || '').includes('limit')) {
+        console.warn('AlarmManager 500 limit reached. Purging all scheduled notifications and retrying...');
+        await cancelAllScheduledNotificationsAsync().catch(() => {});
+        notifId = await scheduleNotificationAsync({
+          content: notificationContent,
+          trigger: triggerOptions,
+        });
+      } else {
+        throw schedErr;
+      }
+    }
 
     return notifId;
   } catch (err) {
     console.error('Error scheduling test smart alarm:', err);
     return undefined;
+  }
+}
+
+/**
+ * Purge all scheduled notifications directly from AlarmManager (safe emergency cleanup)
+ */
+export async function purgeAllScheduledNotifications(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    await cancelAllScheduledNotificationsAsync().catch(() => {});
+    await AsyncStorage.removeItem(SMART_ALARM_SCHEDULED_IDS_KEY);
+    console.log('All scheduled notifications and smart alarm records successfully purged.');
+  } catch (err) {
+    console.error('Error purging scheduled notifications:', err);
   }
 }
 

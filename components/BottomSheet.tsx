@@ -71,6 +71,7 @@ const SimpleBottomSheet: React.FC<SimpleBottomSheetProps> = ({
         }),
       ]).start();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- gestureTranslateY is a stable Animated.Value ref that should not trigger effect
   }, [isVisible, translateY, backdropOpacity]);
 
   const handleBackdropPress = () => {

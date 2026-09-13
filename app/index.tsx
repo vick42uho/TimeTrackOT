@@ -46,6 +46,11 @@ import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
 import { Activity, LeaveSummary, TaskNote } from '../types';
 import { TaskNoteModal } from '@/components/TaskNoteModal';
+import { StatsGrid } from '@/components/home/StatsGrid';
+import { LeaveQuotas } from '@/components/home/LeaveQuotas';
+import { ShiftCard } from '@/components/home/ShiftCard';
+import { TasksActivitiesBento } from '@/components/home/TasksActivitiesBento';
+import { StatusNotices, HeaderStatusChip } from '@/components/home/StatusNotices';
 import { TaskNoteManagerSheet } from '@/components/TaskNoteManagerSheet';
 import { ActivityDetailSheet } from '@/components/ActivityDetailSheet';
 import { getSmartAlarmConfig, syncSmartAlarmSchedule } from '@/services/smartAlarmService';
@@ -61,7 +66,7 @@ import {
 
 const { width } = Dimensions.get('window');
 
-const LiveGreetingRow = React.memo(({ isDark, textStyle }: { isDark: boolean; textStyle: any }) => {
+const LiveGreetingRow = React.memo(({ isDark, textStyle }: { isDark: boolean; textStyle: import('react-native').TextStyle }) => {
   const [liveTime, setLiveTime] = useState(() => new Date());
 
   useEffect(() => {
@@ -111,6 +116,7 @@ const LiveGreetingRow = React.memo(({ isDark, textStyle }: { isDark: boolean; te
     </View>
   );
 });
+LiveGreetingRow.displayName = 'LiveGreetingRow';
 
 const HomeContent: React.FC = () => {
   const { colors, themeMode } = useThemeContext();
@@ -437,7 +443,7 @@ const HomeContent: React.FC = () => {
     setCurrentSchedule(schedule);
     setTodayEntry(todayEntryWithLate);
     setTodayStatus(dayStatus);
-  }, [isReady, getWorkSchedule, getTimeEntry, calculateWorkHours, calculateLateArrival, calculateEarlyLeave, checkDateStatus, getActivitiesForDate, getHolidays, getLeaveSummary, loadYearlyStats, getTasksNotes]);
+  }, [isReady, getWorkSchedule, getTimeEntry, calculateWorkHours, calculateLateArrival, calculateEarlyLeave, checkDateStatus, getActivitiesForDate, getHolidays, getLeaves, getLeaveSummary, loadYearlyStats, getTasksNotes]);
 
   const handleSaveTaskNote = async (data: Omit<TaskNote, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (selectedNote?.id) {
@@ -475,7 +481,8 @@ const HomeContent: React.FC = () => {
       if (isReady) {
         loadTodayData();
       }
-    }, [isReady, loadTodayData])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isReady])
   );
 
   const currentMonth = new Date().toLocaleDateString('th-TH', { 
@@ -483,14 +490,48 @@ const HomeContent: React.FC = () => {
     year: 'numeric' 
   });
 
-  const handleActionPress = (route: string) => {
+  const handleActionPress = useCallback((route: string) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     router.replace(route as any);
-  };
+  }, [router]);
+
+  const handleOpenTimeEntry = useCallback(() => {
+    handleActionPress('/time-entry');
+  }, [handleActionPress]);
 
   const isDark = themeMode === 'dark';
+
+  const handleAddActivity = useCallback(() => {
+    setSelectedActivity(null);
+    setIsActivityCreateMode(true);
+    setIsActivitySheetVisible(true);
+  }, []);
+
+  const handleOpenActivity = useCallback((item: any) => {
+    setSelectedActivity(item);
+    setIsActivityCreateMode(false);
+    setIsActivitySheetVisible(true);
+  }, []);
+
+  const handleOpenLeaves = useCallback(() => {
+    handleActionPress('/leaves');
+  }, [handleActionPress]);
+
+  const handleOpenTaskManager = useCallback(() => {
+    setIsManagerSheetVisible(true);
+  }, []);
+
+  const handleAddNote = useCallback(() => {
+    setSelectedNote(null);
+    setIsNoteModalVisible(true);
+  }, []);
+
+  const handleOpenNote = useCallback((item: any) => {
+    setSelectedNote(item);
+    setIsNoteModalVisible(true);
+  }, []);
 
   const getCategoryMeta = (category: string) => {
     switch (category) {
@@ -504,52 +545,6 @@ const HomeContent: React.FC = () => {
         return { icon: ShoppingBag, label: 'ธุระส่วนตัว', bg: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', color: '#16a34a' };
       default:
         return { icon: Calendar, label: 'กิจกรรม', bg: isDark ? 'rgba(100, 116, 139, 0.15)' : '#f8fafc', color: '#64748b' };
-    }
-  };
-
-  const getLeaveTypeMeta = (leaveType: string) => {
-    switch (leaveType) {
-      case 'vacation':
-        return {
-          icon: Palmtree,
-          label: 'พักร้อน',
-          color: '#10b981',
-          lightBg: '#dcfce7',
-          lightBorder: colors.border,
-          darkBg: 'rgba(34, 197, 94, 0.15)',
-          darkBorder: colors.border,
-        };
-      case 'sick':
-        return {
-          icon: HeartPulse,
-          label: 'ลาป่วย',
-          color: '#ef4444',
-          lightBg: '#ffe4e6',
-          lightBorder: colors.border,
-          darkBg: 'rgba(239, 68, 68, 0.15)',
-          darkBorder: colors.border,
-        };
-      case 'personal':
-        return {
-          icon: UserCheck,
-          label: 'ลากิจ',
-          color: '#f59e0b',
-          lightBg: '#fef3c7',
-          lightBorder: colors.border,
-          darkBg: 'rgba(245, 158, 11, 0.15)',
-          darkBorder: colors.border,
-        };
-      case 'other':
-      default:
-        return {
-          icon: FileText,
-          label: 'อื่นๆ',
-          color: '#8b5cf6',
-          lightBg: '#f3e8ff',
-          lightBorder: colors.border,
-          darkBg: 'rgba(168, 85, 247, 0.15)',
-          darkBorder: colors.border,
-        };
     }
   };
 
@@ -601,284 +596,6 @@ const HomeContent: React.FC = () => {
       letterSpacing: -0.3,
       marginTop: 1,
     },
-    statusChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 9,
-      paddingVertical: 4,
-      borderRadius: 12,
-      borderWidth: 1,
-    },
-    statusChipText: {
-      fontSize: 11,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-    },
-    // Compact Bento Metrics Grid
-    dashboardGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 10,
-    },
-    statCardWrapper: {
-      width: (width - 36) / 2,
-    },
-    statCard: {
-      borderRadius: 24,
-      padding: 12,
-      minHeight: 78,
-      justifyContent: 'space-between',
-      borderWidth: 0,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 12,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    otCard: {
-      backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7',
-    },
-    lateCard: {
-      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#ffe4e6',
-    },
-    regularCard: {
-      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe',
-    },
-    overtimeCard: {
-      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fef3c7',
-    },
-    statHeaderRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    statLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_600SemiBold',
-    },
-    statValue: {
-      fontSize: 18,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-      marginTop: 2,
-    },
-    otVal: {
-      color: isDark ? '#34d399' : '#059669',
-    },
-    lateVal: {
-      color: isDark ? '#f87171' : '#dc2626',
-    },
-    regularVal: {
-      color: isDark ? '#60a5fa' : '#2563eb',
-    },
-    overtimeVal: {
-      color: isDark ? '#fbbf24' : '#d97706',
-    },
-    statSubLabel: {
-      fontSize: 10,
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_400Regular',
-    },
-    // Banner styling
-    statusNoticeBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      borderRadius: 22,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      marginBottom: 10,
-      borderWidth: 0,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.04,
-          shadowRadius: 10,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    // Integrated Shift Card
-    bnaCard: {
-      marginBottom: 12,
-      borderRadius: 28,
-      borderWidth: 0,
-      padding: 18,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.05,
-          shadowRadius: 20,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    cardTitleContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    cardTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.text,
-      fontFamily: 'Sarabun_700Bold',
-    },
-    schedulePill: {
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 8,
-    },
-    timeBox: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    timeLabel: {
-      fontSize: 11,
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_600SemiBold',
-      marginBottom: 2,
-    },
-    timeVal: {
-      fontSize: 16,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-    },
-    progressBarTrack: {
-      height: 6,
-      borderRadius: 3,
-      overflow: 'hidden',
-      marginVertical: 6,
-    },
-    progressBarFill: {
-      height: 6,
-      borderRadius: 3,
-    },
-    metricMiniRow: {
-      flexDirection: 'row',
-      gap: 6,
-      marginTop: 4,
-    },
-    metricMiniChip: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 7,
-      paddingHorizontal: 6,
-      borderRadius: 999,
-      borderWidth: 0,
-    },
-    metricMiniText: {
-      fontSize: 11,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-    },
-    // Today's Agenda
-    agendaItemRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 7,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    agendaIconBadge: {
-      width: 32,
-      height: 32,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 10,
-    },
-    emptyAgendaBox: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 16,
-      paddingHorizontal: 14,
-      borderRadius: 22,
-      backgroundColor: colors.backgroundAlt,
-      borderWidth: 0,
-    },
-    // Upcoming Holiday Pill
-    nextHolidayCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 24,
-      borderWidth: 0,
-      backgroundColor: colors.card,
-      marginBottom: 12,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 12,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    // Quota Cards (4 slots)
-    quotaCard: {
-      flex: 1,
-      borderRadius: 22,
-      paddingVertical: 12,
-      paddingHorizontal: 4,
-      alignItems: 'center',
-      borderWidth: 0,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 12,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    quotaLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_600SemiBold',
-    },
-    quotaVal: {
-      fontSize: 15,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-    },
-    quotaSub: {
-      fontSize: 9,
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_400Regular',
-      marginTop: 2,
-    },
   });
 
   return (
@@ -894,1047 +611,65 @@ const HomeContent: React.FC = () => {
               </Text>
             </View>
 
-            {/* Header Live Status Chip */}
-            <View
-              style={[
-                styles.statusChip,
-                todayStatus.isHoliday
-                  ? { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff', borderColor: '#3b82f6' }
-                  : todayStatus.isLeave
-                    ? { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff', borderColor: '#8b5cf6' }
-                    : todayStatus.isWFH
-                      ? { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#f0fdf4', borderColor: '#22c55e' }
-                      : todayEntry?.clockOut
-                        ? { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : '#dcfce7', borderColor: '#16a34a' }
-                        : todayEntry?.clockIn
-                          ? { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#dbeafe', borderColor: '#2563eb' }
-                          : { backgroundColor: colors.backgroundAlt, borderColor: colors.border },
-              ]}
-            >
-              <View
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: todayStatus.isHoliday
-                    ? '#3b82f6'
-                    : todayStatus.isLeave
-                      ? '#8b5cf6'
-                      : todayStatus.isWFH
-                        ? '#22c55e'
-                        : todayEntry?.clockOut
-                          ? '#16a34a'
-                          : todayEntry?.clockIn
-                            ? '#2563eb'
-                            : colors.textSecondary,
-                  marginRight: 5,
-                }}
-              />
-              <Text
-                style={[
-                  styles.statusChipText,
-                  {
-                    color: todayStatus.isHoliday
-                      ? '#3b82f6'
-                      : todayStatus.isLeave
-                        ? '#8b5cf6'
-                        : todayStatus.isWFH
-                          ? '#16a34a'
-                          : todayEntry?.clockOut
-                            ? '#16a34a'
-                            : todayEntry?.clockIn
-                              ? '#2563eb'
-                              : colors.textSecondary,
-                  },
-                ]}
-              >
-                {todayStatus.isHoliday
-                  ? 'วันหยุด'
-                  : todayStatus.isLeave
-                    ? 'ลางาน'
-                    : todayStatus.isWFH
-                      ? 'WFH'
-                      : todayEntry?.clockOut
-                        ? 'เสร็จสิ้น'
-                        : todayEntry?.clockIn
-                          ? 'กำลังทำงาน'
-                          : 'ยังไม่ลงเวลา'}
-              </Text>
-            </View>
+            <HeaderStatusChip
+              todayStatus={todayStatus}
+              todayEntry={todayEntry}
+              colors={colors}
+              isDark={isDark}
+            />
           </View>
         </View>
 
         {/* 2x2 High-Density Bento Stats Grid */}
-        <View ref={metricsGridRef} collapsable={false} style={styles.dashboardGrid}>
-          {/* Card 1: OT Balance (Yearly) */}
-          <View style={styles.statCardWrapper}>
-            <View style={[styles.statCard, styles.otCard]}>
-              <View style={styles.statHeaderRow}>
-                <Text style={styles.statLabel}>OT คงเหลือทั้งปี</Text>
-                <TrendingUp size={16} color={isDark ? '#34d399' : '#059669'} />
-              </View>
-              <View>
-                <Text style={[styles.statValue, styles.otVal]}>
-                  {formatHours(monthlyStats.totalOT - monthlyStats.totalOTUsed)}{' '}
-                  <Text style={{ fontSize: 13 }}>ชม.</Text>
-                </Text>
-                {monthlyStats.totalOTUsed > 0 ? (
-                  <Text style={styles.statSubLabel} numberOfLines={1}>
-                    (ใช้แล้ว {formatHours(monthlyStats.totalOTUsed)} ชม.)
-                  </Text>
-                ) : monthlyStats.totalOT > 0 ? (
-                  <Text style={styles.statSubLabel} numberOfLines={1}>
-                    (สะสม {formatHours(monthlyStats.totalOT)} ชม.)
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
+        <StatsGrid
+          monthlyStats={monthlyStats}
+          formatHours={formatHours}
+          isDark={isDark}
+          colors={colors}
+          metricsGridRef={metricsGridRef}
+        />
 
-          {/* Card 2: Monthly OT */}
-          <View style={styles.statCardWrapper}>
-            <View style={[styles.statCard, styles.overtimeCard]}>
-              <View style={styles.statHeaderRow}>
-                <Text style={styles.statLabel}>OT รวมเดือนนี้</Text>
-                <Zap size={16} color={isDark ? '#fbbf24' : '#d97706'} />
-              </View>
-              <View>
-                <Text style={[styles.statValue, styles.overtimeVal]}>
-                  {formatHours(monthlyStats.monthOTHours - monthlyStats.monthOTUsed)}{' '}
-                  <Text style={{ fontSize: 13 }}>ชม.</Text>
-                </Text>
-                {monthlyStats.monthOTUsed > 0 ? (
-                  <Text style={styles.statSubLabel} numberOfLines={1}>
-                    (ใช้แล้ว {formatHours(monthlyStats.monthOTUsed)} ชม.)
-                  </Text>
-                ) : (
-                  <Text style={styles.statSubLabel} numberOfLines={1}>
-                    (สะสม {formatHours(monthlyStats.monthOTHours)} ชม.)
-                  </Text>
-                )}
-              </View>
-            </View>
-          </View>
+        <StatusNotices todayStatus={todayStatus} colors={colors} isDark={isDark} />
 
-          {/* Card 3: Monthly Work Hours */}
-          <View style={styles.statCardWrapper}>
-            <View style={[styles.statCard, styles.regularCard]}>
-              <View style={styles.statHeaderRow}>
-                <Text style={styles.statLabel}>ทำงานรวมเดือนนี้</Text>
-                <Briefcase size={16} color={isDark ? '#60a5fa' : '#2563eb'} />
-              </View>
-              <View>
-                <Text style={[styles.statValue, styles.regularVal]}>
-                  {formatHours(monthlyStats.monthWorkHours)}{' '}
-                  <Text style={{ fontSize: 13 }}>ชม.</Text>
-                </Text>
-                <Text style={styles.statSubLabel} numberOfLines={1}>
-                  (ทำงาน {monthlyStats.monthWorkDays} วัน)
-                </Text>
-              </View>
-            </View>
-          </View>
+        <ShiftCard
+          currentSchedule={currentSchedule}
+          todayEntry={todayEntry}
+          colors={colors}
+          isDark={isDark}
+          shiftProgress={getShiftProgress()}
+          formatHours={formatHours}
+          onOpenTimeEntry={handleOpenTimeEntry}
+          shiftCardRef={shiftCardRef}
+        />
 
-          {/* Card 4: Late Count (Monthly) */}
-          <View style={styles.statCardWrapper}>
-            <View style={[styles.statCard, styles.lateCard]}>
-              <View style={styles.statHeaderRow}>
-                <Text style={styles.statLabel}>มาสายเดือนนี้</Text>
-                <AlertCircle size={16} color={isDark ? '#f87171' : '#dc2626'} />
-              </View>
-              <View>
-                <Text style={[styles.statValue, styles.lateVal]}>
-                  {monthlyStats.lateCount - monthlyStats.lateUsedCount}{' '}
-                  <Text style={{ fontSize: 13 }}>ครั้ง</Text>
-                </Text>
-                {monthlyStats.lateUsedCount > 0 ? (
-                  <Text style={styles.statSubLabel} numberOfLines={1}>
-                    (ใช้แล้ว {monthlyStats.lateUsedCount} ครั้ง)
-                  </Text>
-                ) : (
-                  <Text style={styles.statSubLabel} numberOfLines={1}>
-                    (รวม {monthlyStats.lateCount} ครั้ง)
-                  </Text>
-                )}
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Special Status Notices (if any) */}
-        {todayStatus.isHoliday && (
-          <View
-            style={[
-              styles.statusNoticeBanner,
-              {
-                backgroundColor: isDark ? '#1e3a8a25' : '#eff6ff',
-                borderColor: isDark ? '#3b82f640' : '#bfdbfe',
-              },
-            ]}
-          >
-            <Palmtree size={20} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                วันนี้เป็นวันหยุด: {todayStatus.holidayName}
-              </Text>
-              <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular' }}>
-                วันหยุดนักขัตฤกษ์ / ประจำปี ไม่นับเป็นวันทำงาน
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {todayStatus.isWFH && (
-          <View
-            style={[
-              styles.statusNoticeBanner,
-              {
-                backgroundColor: isDark ? '#14532d25' : '#f0fdf4',
-                borderColor: isDark ? '#16a34a40' : '#bbf7d0',
-              },
-            ]}
-          >
-            <Home size={20} color="#16a34a" />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: '#16a34a',
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                วันนี้ทำงานที่บ้าน (Work From Home)
-              </Text>
-              <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular' }}>
-                บันทึกเวลาทำงานและคำนวณ OT ได้ตามปกติ
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {todayStatus.isLeave && (
-          <View
-            style={[
-              styles.statusNoticeBanner,
-              {
-                backgroundColor: isDark ? '#312e8125' : '#f5f3ff',
-                borderColor: isDark ? '#8b5cf640' : '#ddd6fe',
-              },
-            ]}
-          >
-            <FileText size={20} color="#8b5cf6" />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: '#8b5cf6',
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                วันนี้อยู่ในช่วงลา:{' '}
-                {todayStatus.leaveType === 'vacation'
-                  ? 'ลาพักร้อน'
-                  : todayStatus.leaveType === 'sick'
-                    ? 'ลาป่วย'
-                    : todayStatus.leaveType === 'personal'
-                      ? 'ลากิจ'
-                      : 'การลา'}
-              </Text>
-              {todayStatus.leaveReason && (
-                <Text style={{ fontSize: 11, color: colors.textSecondary, fontFamily: 'Sarabun_400Regular' }}>
-                  เหตุผล: {todayStatus.leaveReason}
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Integrated Today's Shift Card */}
-        <View
-          ref={shiftCardRef}
-          collapsable={false}
-        >
-          <Card style={styles.bnaCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleContainer}>
-              <Clock size={16} color={colors.primary} />
-              <Text style={styles.cardTitle}>การทำงานวันนี้</Text>
-            </View>
-            {currentSchedule && (
-              <View
-                style={[
-                  styles.schedulePill,
-                  { backgroundColor: colors.backgroundAlt, flexDirection: 'row', alignItems: 'center', gap: 4 },
-                ]}
-              >
-                <Clock size={11} color={colors.textSecondary} />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  กะ {currentSchedule.startTime} - {currentSchedule.endTime} น.
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {todayEntry ? (
-            <>
-              {/* Clock In / Out Times */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
-                <View
-                  style={[
-                    styles.timeBox,
-                    { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.08)' : '#f0fdf4' },
-                  ]}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                    <LogIn size={12} color="#16a34a" />
-                    <Text style={styles.timeLabel}>เวลาเข้างาน</Text>
-                  </View>
-                  <Text style={[styles.timeVal, { color: '#16a34a' }]}>
-                    {todayEntry.clockIn ? `${todayEntry.clockIn} น.` : '-'}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.timeBox,
-                    {
-                      backgroundColor: todayEntry.clockOut
-                        ? isDark
-                          ? 'rgba(239, 68, 68, 0.08)'
-                          : '#fef2f2'
-                        : colors.backgroundAlt,
-                    },
-                  ]}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                    <LogOut size={12} color="#dc2626" />
-                    <Text style={styles.timeLabel}>เวลาเลิกงาน</Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.timeVal,
-                      { color: todayEntry.clockOut ? '#dc2626' : colors.textSecondary },
-                    ]}
-                  >
-                    {todayEntry.clockOut ? `${todayEntry.clockOut} น.` : 'ยังไม่เลิกงาน'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Visual Shift Progress Bar */}
-              <View style={[styles.progressBarTrack, { backgroundColor: colors.backgroundAlt }]}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${getShiftProgress()}%`,
-                      backgroundColor: todayEntry.clockOut ? '#16a34a' : colors.primary,
-                    },
-                  ]}
-                />
-              </View>
-
-              {/* Metric Mini Chips */}
-              <View style={styles.metricMiniRow}>
-                <View
-                  style={[
-                    styles.metricMiniChip,
-                    {
-                      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
-                      flexDirection: 'row',
-                      justifyContent: 'center',
-                      gap: 4,
-                    },
-                  ]}
-                >
-                  <Briefcase size={12} color={colors.primary} />
-                  <Text style={[styles.metricMiniText, { color: colors.primary }]}>
-                    ทำงาน {todayEntry.regularHours ? formatHours(todayEntry.regularHours) : '0'} ชม.
-                  </Text>
-                </View>
-
-                {todayEntry.overtimeHours > 0 && (
-                  <View
-                    style={[
-                      styles.metricMiniChip,
-                      {
-                        backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : '#ecfdf5',
-                        flexDirection: 'row',
-                        justifyContent: 'center',
-                        gap: 4,
-                      },
-                    ]}
-                  >
-                    <Zap size={12} color="#10b981" />
-                    <Text style={[styles.metricMiniText, { color: '#059669' }]}>
-                      OT +{formatHours(todayEntry.overtimeHours)} ชม.
-                    </Text>
-                  </View>
-                )}
-
-                {todayEntry.lateArrivalHours > 0 && (
-                  <View
-                    style={[
-                      styles.metricMiniChip,
-                      {
-                        backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2',
-                        flexDirection: 'row',
-                        justifyContent: 'center',
-                        gap: 4,
-                      },
-                    ]}
-                  >
-                    <AlertCircle size={12} color="#dc2626" />
-                    <Text style={[styles.metricMiniText, { color: '#dc2626' }]}>
-                      สาย {formatHours(todayEntry.lateArrivalHours)} ชม.
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Action Button depending on shift completion */}
-              {todayEntry.clockIn && !todayEntry.clockOut ? (
-                <View style={{ marginTop: 10 }}>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    icon={LogOut}
-                    style={{
-                      width: '100%',
-                      backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#ffe4e6',
-                    }}
-                    textStyle={{ color: isDark ? '#f87171' : '#dc2626', fontWeight: '700' }}
-                    onPress={() => handleActionPress('/time-entry')}
-                  >
-                    บันทึกเวลาเลิกงาน
-                  </Button>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => handleActionPress('/time-entry')}
-                  activeOpacity={0.7}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    marginTop: 8,
-                    paddingVertical: 7,
-                    paddingHorizontal: 18,
-                    borderRadius: 999,
-                    backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-                    alignSelf: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 12, color: colors.primary, fontFamily: 'Sarabun_700Bold', fontWeight: '700' }}>
-                    ดูหรือแก้ไขเวลาทำงานวันนี้
-                  </Text>
-                  <ChevronRight size={13} color={colors.primary} />
-                </TouchableOpacity>
-              )}
-            </>
-          ) : (
-            <View style={{ gap: 8, marginTop: 4 }}>
-              <View
-                style={[
-                  styles.emptyAgendaBox,
-                  {
-                    backgroundColor: colors.backgroundAlt,
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                  },
-                ]}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Clock size={15} color={colors.textSecondary} />
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: '600',
-                      color: colors.textSecondary,
-                      fontFamily: 'Sarabun_600SemiBold',
-                    }}
-                  >
-                    ยังไม่ได้ลงเวลาทำงานวันนี้
-                  </Text>
-                </View>
-                <Badge
-                  variant="outline"
-                  style={{
-                    borderWidth: 0,
-                    backgroundColor: colors.card,
-                  }}
-                >
-                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_600SemiBold' }}>
-                    เริ่ม {currentSchedule?.startTime || '09:00'} น.
-                  </Text>
-                </Badge>
-              </View>
-
-              <Button
-                variant="default"
-                size="lg"
-                icon={LogIn}
-                style={{ width: '100%' }}
-                onPress={() => handleActionPress('/time-entry')}
-              >
-                บันทึกเวลาเข้างาน
-              </Button>
-            </View>
-          )}
-        </Card>
-      </View>
-
-      {/* Row: 1x2 Bento Pair (Left: Activities 50% | Right: Notes & Tasks 50%) */}
-      <View
-        ref={tasksNotesRef}
-        collapsable={false}
-        style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}
-      >
-          {/* Left: Activities & Appointments */}
-          <Card style={{ flex: 1, ...styles.bnaCard, marginBottom: 0, padding: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
-                <Icon name={Calendar} size={15} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '700',
-                    color: colors.text,
-                    fontFamily: 'Sarabun_700Bold',
-                  }}
-                  numberOfLines={1}
-                >
-                  กิจกรรม
-                </Text>
-                {activities.length > 0 && (
-                  <Badge variant="secondary" style={{ paddingHorizontal: 5, paddingVertical: 1 }}>
-                    {activities.length}
-                  </Badge>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  triggerHaptic('selection');
-                  setSelectedActivity(null);
-                  setIsActivityCreateMode(true);
-                  setIsActivitySheetVisible(true);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 2,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 999,
-                  backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff',
-                }}
-              >
-                <Icon name={Plus} size={11} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: colors.primary,
-                    fontFamily: 'Sarabun_700Bold',
-                  }}
-                >
-                  เพิ่ม
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {activities.length > 0 ? (
-              <View style={{ gap: 8 }}>
-                {activities.slice(0, 2).map((item, idx) => {
-                  const meta = getCategoryMeta(item.category);
-                  const CatIcon = meta.icon;
-                  return (
-                    <TouchableOpacity
-                      key={item.id || idx}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        triggerHaptic('impact-light');
-                        setSelectedActivity(item);
-                        setIsActivityCreateMode(false);
-                        setIsActivitySheetVisible(true);
-                      }}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 8,
-                        paddingVertical: 3,
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.agendaIconBadge,
-                          { width: 28, height: 28, borderRadius: 9, backgroundColor: meta.bg },
-                        ]}
-                      >
-                        <Icon name={CatIcon} size={14} color={meta.color} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: '700',
-                            color: colors.text,
-                            fontFamily: 'Sarabun_700Bold',
-                          }}
-                          numberOfLines={1}
-                        >
-                          {item.title}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 10,
-                              color: colors.primary,
-                              fontFamily: 'Sarabun_600SemiBold',
-                              flexShrink: 0,
-                            }}
-                            numberOfLines={1}
-                          >
-                            {item.isAllDay || (!item.startTime && !item.endTime)
-                              ? 'ตลอดวัน'
-                              : item.startTime && item.endTime
-                              ? `${item.startTime} - ${item.endTime} น.`
-                              : item.startTime
-                              ? `${item.startTime} น.`
-                              : `ถึง ${item.endTime} น.`}
-                          </Text>
-                          {item.location ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, flex: 1 }}>
-                              <Icon name={MapPin} size={10} color={colors.textSecondary} />
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  color: colors.textSecondary,
-                                  fontFamily: 'Sarabun_400Regular',
-                                  flex: 1,
-                                }}
-                                numberOfLines={1}
-                              >
-                                {item.location}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-                {activities.length > 2 && (
-                  <TouchableOpacity onPress={() => handleActionPress('/leaves')}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        color: colors.primary,
-                        fontFamily: 'Sarabun_600SemiBold',
-                        textAlign: 'center',
-                        marginTop: 2,
-                      }}
-                    >
-                      + ดูอีก {activities.length - 2} รายการ
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={() => handleActionPress('/leaves')}
-                activeOpacity={0.7}
-                style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 18,
-                  gap: 2,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_400Regular',
-                  }}
-                >
-                  ไม่มีนัดหมายวันนี้
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    color: colors.primary,
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  แตะเพื่อเพิ่มนัด
-                </Text>
-              </TouchableOpacity>
-            )}
-          </Card>
-
-          {/* Right: Notes & Tasks (To-Do List) */}
-          <Card style={{ flex: 1, ...styles.bnaCard, marginBottom: 0, padding: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => setIsManagerSheetVisible(true)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}
-              >
-                <Icon name={CheckSquare} size={15} color="#16a34a" />
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '700',
-                    color: colors.text,
-                    fontFamily: 'Sarabun_700Bold',
-                  }}
-                  numberOfLines={1}
-                >
-                  โน้ต & งาน
-                </Text>
-                {pendingTasksCount > 0 && (
-                  <Badge variant="secondary" style={{ paddingHorizontal: 5, paddingVertical: 1 }}>
-                    {pendingTasksCount}
-                  </Badge>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  triggerHaptic('selection');
-                  setSelectedNote(null);
-                  setIsNoteModalVisible(true);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 2,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 999,
-                  backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#dcfce7',
-                }}
-              >
-                <Icon name={Plus} size={11} color="#16a34a" />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: '#16a34a',
-                    fontFamily: 'Sarabun_700Bold',
-                  }}
-                >
-                  เพิ่ม
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {tasksNotes.length > 0 ? (
-              <View style={{ gap: 8 }}>
-                {tasksNotes.slice(0, 2).map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setSelectedNote(item);
-                      setIsNoteModalVisible(true);
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      paddingVertical: 3,
-                    }}
-                  >
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      onPress={() => handleToggleTaskNote(item.id!, !item.isCompleted)}
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 6,
-                        borderWidth: item.isCompleted ? 0 : 1.5,
-                        borderColor: colors.border,
-                        backgroundColor: item.isCompleted ? '#16a34a' : 'transparent',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {item.isCompleted && <Icon name={Check} size={12} color="#ffffff" />}
-                    </TouchableOpacity>
-
-                    <Text
-                      style={{
-                        flex: 1,
-                        fontSize: 12,
-                        fontWeight: '600',
-                        color: item.isCompleted ? colors.textSecondary : colors.text,
-                        textDecorationLine: item.isCompleted ? 'line-through' : 'none',
-                        fontFamily: 'Sarabun_600SemiBold',
-                      }}
-                      numberOfLines={1}
-                    >
-                      {item.title}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                {tasksNotes.length > 2 && (
-                  <TouchableOpacity onPress={() => setIsManagerSheetVisible(true)}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        color: '#16a34a',
-                        fontFamily: 'Sarabun_600SemiBold',
-                        textAlign: 'center',
-                        marginTop: 2,
-                      }}
-                    >
-                      + ดูอีก {tasksNotes.length - 2} รายการ
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={() => {
-                  triggerHaptic('selection');
-                  setSelectedNote(null);
-                  setIsNoteModalVisible(true);
-                }}
-                activeOpacity={0.7}
-                style={{
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 18,
-                  gap: 2,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_400Regular',
-                  }}
-                >
-                  ไม่มีงานค้างวันนี้
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 10,
-                    color: '#16a34a',
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  แตะเพื่อสร้างงาน/โน้ต
-                </Text>
-              </TouchableOpacity>
-            )}
-          </Card>
-        </View>
-
-        {/* Upcoming Holiday Countdown Pill */}
-        {nextHoliday && (
-          <TouchableOpacity
-            onPress={() => handleActionPress('/leaves')}
-            activeOpacity={0.8}
-            style={[
-              styles.nextHolidayCard,
-              {
-                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : '#eff6ff',
-                borderColor: isDark ? '#1e3a8a' : '#bfdbfe',
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-              <Palmtree size={18} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: '700',
-                    color: colors.text,
-                    fontFamily: 'Sarabun_700Bold',
-                  }}
-                  numberOfLines={1}
-                >
-                  วันหยุดถัดไป: {nextHoliday.name}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_400Regular',
-                  }}
-                >
-                  {formatDateThai(nextHoliday.date)}
-                </Text>
-              </View>
-            </View>
-
-            <View
-              style={{
-                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe',
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: 8,
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                {nextHoliday.daysLeft === 0
-                  ? 'วันนี้'
-                  : nextHoliday.daysLeft === 1
-                    ? 'พรุ่งนี้'
-                    : `อีก ${nextHoliday.daysLeft} วัน`}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+      <TasksActivitiesBento
+        activities={activities}
+        tasksNotes={tasksNotes}
+        pendingTasksCount={pendingTasksCount}
+        nextHoliday={nextHoliday}
+        colors={colors}
+        isDark={isDark}
+        getCategoryMeta={getCategoryMeta}
+        formatDateThai={formatDateThai}
+        triggerHaptic={triggerHaptic}
+        onAddActivity={handleAddActivity}
+        onOpenActivity={handleOpenActivity}
+        onOpenLeaves={handleOpenLeaves}
+        onOpenTaskManager={handleOpenTaskManager}
+        onAddNote={handleAddNote}
+        onOpenNote={handleOpenNote}
+        onToggleTask={handleToggleTaskNote}
+        tasksNotesRef={tasksNotesRef}
+      />
 
         {/* Leave Quotas (4 Slots) - Replaced redundant menu shortcuts */}
-        <View ref={leaveQuotaRef} collapsable={false} style={{ marginTop: 4, marginBottom: 26 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 8,
-              paddingHorizontal: 2,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Calendar size={15} color={colors.primary} />
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: colors.text,
-                  fontFamily: 'Sarabun_700Bold',
-                }}
-              >
-                โควต้าวันลาคงเหลือ ({new Date().getFullYear() + 543})
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => handleActionPress('/leaves')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
-            >
-              <Text
-                style={{
-                  fontSize: 11,
-                  fontWeight: '600',
-                  color: colors.primary,
-                  fontFamily: 'Sarabun_600SemiBold',
-                }}
-              >
-                ดูทั้งหมด
-              </Text>
-              <ChevronRight size={12} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {leaveSummaries.length > 0 ? (
-              leaveSummaries.map((item) => {
-                const meta = getLeaveTypeMeta(item.leaveType);
-                const LeaveIcon = meta.icon;
-                return (
-                  <TouchableOpacity
-                    key={item.leaveType}
-                    onPress={() => handleActionPress('/leaves')}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.quotaCard,
-                      {
-                        backgroundColor: isDark ? meta.darkBg : meta.lightBg,
-                        borderColor: isDark ? meta.darkBorder : meta.lightBorder,
-                      },
-                    ]}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-                      <LeaveIcon size={14} color={meta.color} />
-                      <Text style={styles.quotaLabel} numberOfLines={1}>
-                        {meta.label}
-                      </Text>
-                    </View>
-                    <Text style={[styles.quotaVal, { color: meta.color }]}>
-                      {item.remainingDays}
-                      <Text style={{ fontSize: 10, fontWeight: 'normal', color: colors.textSecondary }}>
-                        {' '}วัน
-                      </Text>
-                    </Text>
-                    <Text style={styles.quotaSub} numberOfLines={1}>
-                      ใช้ {item.usedDays}/{item.quotaDays}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })
-            ) : (
-              ['vacation', 'sick', 'personal', 'other'].map((type) => {
-                const meta = getLeaveTypeMeta(type);
-                const LeaveIcon = meta.icon;
-                return (
-                  <TouchableOpacity
-                    key={type}
-                    onPress={() => handleActionPress('/leaves')}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.quotaCard,
-                      {
-                        backgroundColor: isDark ? meta.darkBg : meta.lightBg,
-                        borderColor: isDark ? meta.darkBorder : meta.lightBorder,
-                      },
-                    ]}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-                      <LeaveIcon size={14} color={meta.color} />
-                      <Text style={styles.quotaLabel} numberOfLines={1}>
-                        {meta.label}
-                      </Text>
-                    </View>
-                    <Text style={[styles.quotaVal, { color: meta.color }]}>
-                      -
-                      <Text style={{ fontSize: 10, fontWeight: 'normal', color: colors.textSecondary }}>
-                        {' '}วัน
-                      </Text>
-                    </Text>
-                    <Text style={styles.quotaSub} numberOfLines={1}>
-                      แตะเพื่อดู
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
-        </View>
+        <LeaveQuotas
+          leaveSummaries={leaveSummaries}
+          colors={colors}
+          isDark={isDark}
+          onOpenLeaves={() => handleActionPress('/leaves')}
+          leaveQuotaRef={leaveQuotaRef}
+        />
       </ScrollView>
 
       <TaskNoteModal

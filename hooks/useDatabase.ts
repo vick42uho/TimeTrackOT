@@ -22,8 +22,43 @@ const DATABASE_NAME = 'timetracker.db';
 let globalDb: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+function isReleasedError(e: any): boolean {
+  const m = String((e as any)?.message ?? e ?? '');
+  return m.includes('already released') || m.includes('Cannot use shared object') || m.includes('NullPointerException') || m.includes('NativeDatabase');
+}
+
+function resetDbState() {
+  globalDb = null;
+  initPromise = null;
+}
+
+async function withRetry<T>(fn: (db: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
+  try {
+    const db = await getOrInitDb();
+    return await fn(db);
+  } catch (e) {
+    if (isReleasedError(e)) {
+      resetDbState();
+      const db2 = await getOrInitDb();
+      return await fn(db2);
+    }
+    throw e;
+  }
+}
+
 async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
-  if (globalDb) return globalDb;
+  if (globalDb) {
+    try {
+      await globalDb.getFirstAsync('SELECT 1 as _hc');
+      return globalDb;
+    } catch (e) {
+      if (isReleasedError(e)) {
+        resetDbState();
+      } else {
+        return globalDb;
+      }
+    }
+  }
   if (!initPromise) {
     initPromise = (async () => {
       try {
@@ -175,6 +210,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
         return database;
       } catch (error) {
         initPromise = null;
+        globalDb = null;
         console.error('Database initialization failed:', error);
         throw error;
       }
@@ -230,7 +266,7 @@ export const useDatabase = () => {
 
   const getWorkSchedulesForYear = async (year: number): Promise<Record<number, WorkSchedule>> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const results = await db.getAllAsync<any>(
         'SELECT * FROM work_schedules WHERE year = ?',
         [year]
@@ -249,6 +285,7 @@ export const useDatabase = () => {
         };
       });
       return scheduleMap;
+      });
     } catch (error) {
       console.error('Error getting work schedules for year:', error);
       return {};
@@ -355,7 +392,7 @@ export const useDatabase = () => {
 
   const getTimeEntriesForPeriod = async (startDate: string, endDate: string): Promise<TimeEntry[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const results = await db.getAllAsync<any>(
         'SELECT * FROM time_entries WHERE date >= ? AND date <= ? ORDER BY date',
         [startDate, endDate]
@@ -377,6 +414,7 @@ export const useDatabase = () => {
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }));
+      });
     } catch (error) {
       console.error('Error getting time entries for period:', error);
       return [];
@@ -459,7 +497,7 @@ export const useDatabase = () => {
 
   const getAllTimeEntries = async (): Promise<TimeEntry[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const results = await db.getAllAsync<any>(
         'SELECT * FROM time_entries ORDER BY date DESC'
       );
@@ -478,6 +516,7 @@ export const useDatabase = () => {
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }));
+      });
     } catch (error) {
       console.error('Error getting all time entries:', error);
       return [];
@@ -490,7 +529,7 @@ export const useDatabase = () => {
 
   const getHolidays = async (year?: number, month?: number): Promise<Holiday[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       let query = 'SELECT * FROM holidays';
       const params: any[] = [];
 
@@ -514,6 +553,7 @@ export const useDatabase = () => {
         isRecurring: r.is_recurring === 1,
         createdAt: r.created_at,
       }));
+      });
     } catch (error) {
       console.error('Error getting holidays:', error);
       return [];
@@ -599,16 +639,15 @@ export const useDatabase = () => {
       ];
 
       let insertedCount = 0;
-      for (const h of thaiHolidays2026) {
-        const existing = await db.getFirstAsync<any>('SELECT id FROM holidays WHERE date = ?', [h.date]);
-        if (!existing) {
-          await db.runAsync(
-            'INSERT INTO holidays (name, date, type, is_recurring, created_at) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)',
+      await db.withTransactionAsync(async () => {
+        for (const h of thaiHolidays2026) {
+          const res = await db.runAsync(
+            'INSERT OR IGNORE INTO holidays (name, date, type, is_recurring, created_at) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)',
             [h.name, h.date, h.type]
           );
-          insertedCount++;
+          if (res.changes > 0) insertedCount++;
         }
-      }
+      });
       return insertedCount;
     } catch (error) {
       console.error('Error preloading Thai holidays:', error);
@@ -622,7 +661,7 @@ export const useDatabase = () => {
 
   const getLeaves = async (year?: number, month?: number): Promise<LeaveRequest[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       let query = 'SELECT * FROM leaves';
       const params: any[] = [];
 
@@ -649,6 +688,7 @@ export const useDatabase = () => {
         status: r.status,
         createdAt: r.created_at,
       }));
+      });
     } catch (error) {
       console.error('Error getting leaves:', error);
       return [];
@@ -756,7 +796,7 @@ export const useDatabase = () => {
 
   const getLeaveQuotas = async (year: number): Promise<LeaveQuota[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const results = await db.getAllAsync<any>(
         'SELECT * FROM leave_quotas WHERE year = ?',
         [year]
@@ -773,6 +813,7 @@ export const useDatabase = () => {
         leaveType: type,
         quotaDays: quotasMap[type] !== undefined ? quotasMap[type]! : DEFAULT_QUOTAS[type],
       }));
+      });
     } catch (error) {
       console.error('Error getting leave quotas:', error);
       return [];
@@ -841,7 +882,7 @@ export const useDatabase = () => {
     isRegularOff: boolean;
   }> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       // Check holiday
       const holiday = await db.getFirstAsync<any>(
         'SELECT id, name, type FROM holidays WHERE date = ?',
@@ -866,6 +907,7 @@ export const useDatabase = () => {
         isWFH: hType === 'wfh',
         isRegularOff: hType === 'regular_off',
       };
+      });
     } catch (error) {
       console.error('Error checking date status:', error);
       return { isHoliday: false, isLeave: false, isWFH: false, isRegularOff: false };
@@ -878,7 +920,7 @@ export const useDatabase = () => {
     name: string
   ): Promise<boolean> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       await db.runAsync('DELETE FROM holidays WHERE date = ?', [dateStr]);
       await db.runAsync(
         `INSERT INTO holidays (name, date, type, is_recurring, created_at)
@@ -886,6 +928,7 @@ export const useDatabase = () => {
         [name, dateStr, type]
       );
       return true;
+      });
     } catch (error) {
       console.error('Error setting day holiday status:', error);
       return false;
@@ -909,7 +952,7 @@ export const useDatabase = () => {
   // ----------------------------------------------------
   const getActivitiesForMonth = async (year: number, month: number): Promise<Activity[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const monthStr = String(month).padStart(2, '0');
       const startDate = `${year}-${monthStr}-01`;
       const endDate = `${year}-${monthStr}-31`;
@@ -938,6 +981,7 @@ export const useDatabase = () => {
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       }));
+      });
     } catch (error) {
       console.error('Error fetching activities for month:', error);
       return [];
@@ -946,7 +990,7 @@ export const useDatabase = () => {
 
   const getActivitiesForDate = async (date: string): Promise<Activity[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const rows = await db.getAllAsync<any>(
         'SELECT * FROM activities WHERE date = ? ORDER BY is_all_day DESC, start_time ASC, id ASC',
         [date]
@@ -971,6 +1015,7 @@ export const useDatabase = () => {
         createdAt: r.created_at,
         updatedAt: r.updated_at,
       }));
+      });
     } catch (error) {
       console.error('Error fetching activities for date:', error);
       return [];
@@ -1116,7 +1161,7 @@ export const useDatabase = () => {
     pinnedOnly?: boolean;
   }): Promise<TaskNote[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       let query = 'SELECT * FROM tasks_notes WHERE 1=1';
       const params: any[] = [];
 
@@ -1141,6 +1186,7 @@ export const useDatabase = () => {
 
       const rows = await db.getAllAsync<any>(query, params);
       return rows.map(mapTaskNoteRow);
+      });
     } catch (error) {
       console.error('Error fetching tasks & notes:', error);
       return [];
@@ -1149,11 +1195,12 @@ export const useDatabase = () => {
 
   const getTodayTasksNotes = async (): Promise<TaskNote[]> => {
     try {
-      const db = await getOrInitDb();
+      return await withRetry(async (db) => {
       const rows = await db.getAllAsync<any>(
         'SELECT * FROM tasks_notes ORDER BY is_pinned DESC, is_completed ASC, updated_at DESC, id DESC'
       );
       return rows.map(mapTaskNoteRow);
+      });
     } catch (error) {
       console.error('Error fetching today tasks & notes:', error);
       return [];
@@ -1455,6 +1502,7 @@ export const useDatabase = () => {
         await db.runAsync('DELETE FROM leaves;');
         await db.runAsync('DELETE FROM leave_quotas;');
         await db.runAsync('DELETE FROM activities;');
+        await db.runAsync('DELETE FROM tasks_notes;');
       }
 
       // 1. Insert time_entries
@@ -1672,6 +1720,7 @@ export const useDatabase = () => {
       importBackupData,
       clearAllDatabaseData,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- API object intentionally memoized on isReady only; inner fns close over db/isReady
     [isReady]
   );
 };

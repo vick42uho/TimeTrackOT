@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import {
@@ -188,7 +189,7 @@ export function Toast({
       }
     });
     scale.value = withSpring(0.8, SPRING_CONFIG);
-  }, [id, onDismiss, reduceMotion]);
+  }, [id, onDismiss, reduceMotion, opacity, scale, translateY]);
 
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
@@ -403,6 +404,10 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
   const addToast = useCallback(
     (toastData: Omit<ToastData, 'id'>) => {
       const id = generateId();
@@ -424,12 +429,8 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
         }, newToast.duration);
       }
     },
-    [maxToasts]
+    [maxToasts, dismissToast]
   );
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
 
   const dismissAll = useCallback(() => {
     setToasts([]);
@@ -446,19 +447,39 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
     [addToast]
   );
 
-  const contextValue: ToastContextType = {
-    toast: addToast,
-    success: (title, description) =>
+  const success = useCallback(
+    (title: string, description?: string) =>
       createVariantToast('success', title, description),
-    error: (title, description) =>
+    [createVariantToast]
+  );
+  const error = useCallback(
+    (title: string, description?: string) =>
       createVariantToast('error', title, description),
-    warning: (title, description) =>
+    [createVariantToast]
+  );
+  const warning = useCallback(
+    (title: string, description?: string) =>
       createVariantToast('warning', title, description),
-    info: (title, description) =>
+    [createVariantToast]
+  );
+  const info = useCallback(
+    (title: string, description?: string) =>
       createVariantToast('info', title, description),
-    dismiss: dismissToast,
-    dismissAll,
-  };
+    [createVariantToast]
+  );
+
+  const contextValue: ToastContextType = useMemo(
+    () => ({
+      toast: addToast,
+      success,
+      error,
+      warning,
+      info,
+      dismiss: dismissToast,
+      dismissAll,
+    }),
+    [addToast, success, error, warning, info, dismissToast, dismissAll]
+  );
 
   const containerStyle: ViewStyle = {
     position: 'absolute',

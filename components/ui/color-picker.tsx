@@ -245,7 +245,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
       setPureHueColor(pureHex);
       setHexInput(currentColor);
     }
-  }, [isModalVisible, currentColor]);
+  }, [isModalVisible, currentColor, brightness, hue, saturation]);
 
   const hueGesture = Gesture.Pan()
     .minDistance(0)
@@ -337,7 +337,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
     saturation.value = hsv.s;
     brightness.value = hsv.v;
     updateColor(hsv.h, hsv.s, hsv.v);
-  }, [hexInput, currentColor, updateColor]);
+  }, [hexInput, currentColor, updateColor, brightness, hue, saturation]);
 
   const handleColorSelect = () => {
     const rgb = hsvToRgb(hue.value, saturation.value, brightness.value);

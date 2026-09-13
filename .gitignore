@@ -13,6 +13,8 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+*.apk
+*.aab
 
 .metro-health-check*
 
@@ -31,6 +33,10 @@ yarn-error.*
 
 android/
 ios/
+
+# Derived native alarm sound — single source is assets/sounds/alarm.wav
+# Synced at install via scripts/sync-alarm-sound.js (postinstall)
+modules/full-screen-alarm/android/src/main/res/raw/alarm.wav
 
 netlify.toml
 .netlify/

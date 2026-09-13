@@ -216,7 +216,7 @@ export function BottomSheet({
         }
       });
     }
-  }, [isVisible, defaultOffset, maxSheetHeight]);
+  }, [isVisible, defaultOffset, maxSheetHeight, currentSnapIndex, opacity, translateY]);
 
   const scrollTo = (destination: number) => {
     'worklet';
@@ -234,7 +234,9 @@ export function BottomSheet({
         scrollTo(currentOffset);
       }
     }
-  }, [keyboardHeight, isKeyboardVisible, isVisible]);
+    // SharedValues (keyboardHeightSV, currentSnapIndex) and worklet (scrollTo) intentionally excluded to avoid loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardHeight, isKeyboardVisible, isVisible, maxSheetHeight, snapOffsets]);
 
   const animateClose = () => {
     'worklet';

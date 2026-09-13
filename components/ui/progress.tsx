@@ -46,7 +46,9 @@ export function Progress({
     if (!isDragging.value) {
       progressWidth.value = withTiming(clampedValue, { duration: 300 });
     }
-  }, [clampedValue]);
+    // isDragging is a SharedValue — reading .value shouldn't retrigger effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clampedValue, progressWidth]);
 
   const updateValue = (newValue: number) => {
     const clamped = Math.max(0, Math.min(100, newValue));

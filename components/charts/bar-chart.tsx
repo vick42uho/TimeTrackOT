@@ -49,6 +49,7 @@ const AnimatedBar = React.memo(
     );
   }
 );
+AnimatedBar.displayName = 'AnimatedBar';
 
 interface ChartConfig {
   width?: number;
@@ -105,6 +106,7 @@ export const BarChart = ({ data, config = {}, style }: Props) => {
     } else {
       animationProgress.value = 1;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animationProgress is a Reanimated SharedValue that should not trigger effect
   }, [data, animated, duration]);
 
   if (!data.length) return null;

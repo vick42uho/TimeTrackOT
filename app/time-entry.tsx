@@ -27,6 +27,9 @@ import {
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { TimeInput } from '../components/TimeInput';
+import { PreviewCard } from '@/components/entry/PreviewCard';
+import { DateNavigator } from '@/components/entry/DateNavigator';
+import { TimePickersCard } from '@/components/entry/TimePickersCard';
 import {
   InteractiveTourOverlay,
   APP_TOUR_STEPS,
@@ -81,7 +84,7 @@ const TimeEntryContent: React.FC = () => {
   const [workSchedule, setWorkSchedule] = useState<any>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const getDateFromString = (dateString: string): Date => {
+  const getDateFromString = useCallback((dateString: string): Date => {
     if (!dateString) return new Date();
     const parts = dateString.split('-');
     if (parts.length === 3) {
@@ -91,7 +94,7 @@ const TimeEntryContent: React.FC = () => {
       return new Date(year, month, day);
     }
     return new Date(dateString);
-  };
+  }, []);
 
   const isToday = (dateStr: string) => dateStr === formatDate(new Date());
 
@@ -109,6 +112,10 @@ const TimeEntryContent: React.FC = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const handleOpenPicker = () => {
+    setShowDatePicker(true);
+  };
+
   const handleGoToday = () => {
     setSelectedDate(formatDate(new Date()));
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -124,9 +131,9 @@ const TimeEntryContent: React.FC = () => {
     }
   };
 
-  const loadTimeEntry = async (targetDateStr?: string) => {
+  const loadTimeEntry = useCallback(async (targetDateStr?: string) => {
     if (!isReady) return;
-    
+
     const dateToLoad = targetDateStr || selectedDate;
     const dateObj = getDateFromString(dateToLoad);
     const month = dateObj.getMonth() + 1;
@@ -150,7 +157,7 @@ const TimeEntryContent: React.FC = () => {
       setClockOut('');
       setReason('');
     }
-  };
+  }, [isReady, selectedDate, getDateFromString, getTimeEntry, getWorkSchedule]);
 
   const getCurrentTimeStr = () => {
     const now = new Date();
@@ -201,12 +208,13 @@ const TimeEntryContent: React.FC = () => {
       // Clear param so subsequent manual navigation (prev/next/today) is never locked
       router.setParams({ date: '' });
     }
-  }, [params.date]);
+  }, [params.date, router]);
 
   useEffect(() => {
     if (isReady) {
       loadTimeEntry(selectedDate);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, isReady]);
 
   // Refresh data when screen comes into focus without overriding manual date navigation
@@ -218,6 +226,7 @@ const TimeEntryContent: React.FC = () => {
       return () => {
         lastConsumedDateRef.current = null;
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReady, selectedDate])
   );
 
@@ -439,10 +448,6 @@ const TimeEntryContent: React.FC = () => {
       paddingVertical: 12,
       paddingHorizontal: 2,
     },
-    backButton: {
-      marginRight: 10,
-      padding: 4,
-    },
     title: {
       fontSize: 20,
       fontWeight: '700',
@@ -457,133 +462,6 @@ const TimeEntryContent: React.FC = () => {
       paddingVertical: 6,
       borderRadius: 999,
       borderWidth: 0,
-    },
-    dateNavigatorCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.card,
-      borderRadius: 24,
-      borderWidth: 0,
-      paddingVertical: 10,
-      paddingHorizontal: 8,
-      marginBottom: 10,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.05,
-          shadowRadius: 14,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    dateNavArrow: {
-      padding: 8,
-      borderRadius: 999,
-      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-    },
-    dateCenterBtn: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 2,
-    },
-    dateNavTitle: {
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.text,
-      fontFamily: 'Sarabun_700Bold',
-    },
-    statusBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-      borderRadius: 999,
-      borderWidth: 0,
-    },
-    statusBadgeText: {
-      fontSize: 11,
-      fontWeight: '600',
-      fontFamily: 'Sarabun_600SemiBold',
-    },
-    bnaCard: {
-      borderRadius: 28,
-      padding: 18,
-      marginVertical: 4,
-      borderWidth: 0,
-      ...Platform.select({
-        ios: {
-          shadowColor: '#64748b',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.05,
-          shadowRadius: 20,
-        },
-        android: {
-          elevation: 0,
-        },
-      }),
-    },
-    cardTitle: {
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.text,
-      fontFamily: 'Sarabun_700Bold',
-    },
-    schedulePill: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 999,
-      borderWidth: 0,
-      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-    },
-    columnLabel: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.text,
-      fontFamily: 'Sarabun_600SemiBold',
-    },
-    quickPresetBtn: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 7,
-      borderRadius: 999,
-      borderWidth: 0,
-      backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
-    },
-    quickPresetText: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: colors.primary,
-      fontFamily: 'Sarabun_700Bold',
-    },
-    metricBox: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 4,
-      borderRadius: 18,
-      borderWidth: 0,
-      backgroundColor: colors.backgroundAlt,
-    },
-    metricLabel: {
-      fontSize: 11,
-      color: colors.textSecondary,
-      fontFamily: 'Sarabun_400Regular',
-      marginBottom: 2,
-    },
-    metricVal: {
-      fontSize: 15,
-      fontWeight: '700',
-      fontFamily: 'Sarabun_700Bold',
-    },
-    metricSub: {
-      fontSize: 10,
-      color: colors.textSecondary,
-      marginTop: 2,
     },
   });
 
@@ -613,84 +491,18 @@ const TimeEntryContent: React.FC = () => {
           )}
         </View>
 
-        {/* Compact Interactive Date Navigator Bar (Replaces 2 duplicate cards) */}
-        <View style={styles.dateNavigatorCard}>
-          <TouchableOpacity
-            style={styles.dateNavArrow}
-            onPress={handlePrevDay}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ChevronLeft size={22} color={colors.text} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dateCenterBtn}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowDatePicker(true);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <CalendarIcon size={16} color={colors.primary} />
-              <Text style={styles.dateNavTitle}>
-                {getThaiDayName(selectedDate)}, {formatDateThai(selectedDate)}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-              {isToday(selectedDate) && (
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' },
-                  ]}
-                >
-                  <Text style={[styles.statusBadgeText, { color: colors.primary }]}>วันนี้</Text>
-                </View>
-              )}
-              {currentEntry ? (
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: isDark ? 'rgba(34, 197, 94, 0.2)' : '#dcfce7' },
-                  ]}
-                >
-                  <View
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: '#16a34a',
-                      marginRight: 4,
-                    }}
-                  />
-                  <Text style={[styles.statusBadgeText, { color: '#16a34a' }]}>
-                    บันทึกแล้ว ({currentEntry.clockIn || '-'} - {currentEntry.clockOut || '-'})
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9' },
-                  ]}
-                >
-                  <Text style={[styles.statusBadgeText, { color: colors.textSecondary }]}>
-                    ยังไม่ได้บันทึก
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dateNavArrow}
-            onPress={handleNextDay}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ChevronRight size={22} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+        <DateNavigator
+          selectedDate={selectedDate}
+          isTodayDate={isToday(selectedDate)}
+          currentEntry={currentEntry}
+          colors={colors}
+          isDark={isDark}
+          getThaiDayName={getThaiDayName}
+          formatDateThai={formatDateThai}
+          onPrevDay={handlePrevDay}
+          onNextDay={handleNextDay}
+          onOpenPicker={handleOpenPicker}
+        />
 
         {showDatePicker && (
           <DateTimePicker
@@ -701,314 +513,24 @@ const TimeEntryContent: React.FC = () => {
           />
         )}
 
-        {/* Working Hours Card (High Density 2-Column Side-by-Side) */}
-        <View ref={timeCardRef} collapsable={false}>
-          <Card style={styles.bnaCard}>
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 10,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Clock size={16} color={colors.primary} />
-              <Text style={styles.cardTitle}>เวลาทำงาน</Text>
-            </View>
-            {workSchedule && (
-              <View
-                style={[
-                  styles.schedulePill,
-                  { backgroundColor: colors.backgroundAlt, flexDirection: 'row', alignItems: 'center', gap: 4 },
-                ]}
-              >
-                <Clock size={11} color={colors.textSecondary} />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                    fontFamily: 'Sarabun_600SemiBold',
-                  }}
-                >
-                  กะงาน {workSchedule.startTime} - {workSchedule.endTime} น.
-                </Text>
-              </View>
-            )}
-          </View>
+        <TimePickersCard
+          workSchedule={workSchedule}
+          clockIn={clockIn}
+          clockOut={clockOut}
+          reason={reason}
+          colors={colors}
+          isDark={isDark}
+          onClockInChange={setClockIn}
+          onClockOutChange={setClockOut}
+          onReasonChange={setReason}
+          onSetClockInNow={handleSetClockInNow}
+          onSetClockInSchedule={handleSetClockInSchedule}
+          onSetClockOutNow={handleSetClockOutNow}
+          onSetClockOutSchedule={handleSetClockOutSchedule}
+          timeCardRef={timeCardRef}
+        />
 
-          {/* 2-Column Time Pickers */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            {/* Left Column: Clock In */}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                <View
-                  style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' }}
-                />
-                <Text style={styles.columnLabel}>เวลาเข้างาน</Text>
-              </View>
-              <TimeInput
-                label=""
-                value={clockIn}
-                onChange={setClockIn}
-                placeholder="เลือกเวลา"
-              />
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                <TouchableOpacity
-                  onPress={handleSetClockInNow}
-                  style={[
-                    styles.quickPresetBtn,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.backgroundAlt,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 3,
-                    },
-                  ]}
-                >
-                  <Clock size={10} color={colors.primary} />
-                  <Text style={styles.quickPresetText}>ตอนนี้</Text>
-                </TouchableOpacity>
-                {workSchedule?.startTime && (
-                  <TouchableOpacity
-                    onPress={handleSetClockInSchedule}
-                    style={[
-                      styles.quickPresetBtn,
-                      {
-                        borderColor: colors.border,
-                        backgroundColor: colors.backgroundAlt,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 3,
-                      },
-                    ]}
-                  >
-                    <LogIn size={10} color={colors.text} />
-                    <Text style={[styles.quickPresetText, { color: colors.text }]}>
-                      {workSchedule.startTime}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* Right Column: Clock Out */}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                <View
-                  style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#dc2626' }}
-                />
-                <Text style={styles.columnLabel}>เวลาเลิกงาน</Text>
-              </View>
-              <TimeInput
-                label=""
-                value={clockOut}
-                onChange={setClockOut}
-                placeholder="เลือกเวลา"
-              />
-              <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                <TouchableOpacity
-                  onPress={handleSetClockOutNow}
-                  style={[
-                    styles.quickPresetBtn,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.backgroundAlt,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 3,
-                    },
-                  ]}
-                >
-                  <Clock size={10} color={colors.primary} />
-                  <Text style={styles.quickPresetText}>ตอนนี้</Text>
-                </TouchableOpacity>
-                {workSchedule?.endTime && (
-                  <TouchableOpacity
-                    onPress={handleSetClockOutSchedule}
-                    style={[
-                      styles.quickPresetBtn,
-                      {
-                        borderColor: colors.border,
-                        backgroundColor: colors.backgroundAlt,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 3,
-                      },
-                    ]}
-                  >
-                    <LogOut size={10} color={colors.text} />
-                    <Text style={[styles.quickPresetText, { color: colors.text }]}>
-                      {workSchedule.endTime}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Reason Input (Compact) */}
-          <View style={{ marginTop: 10 }}>
-            <Text style={[styles.columnLabel, { marginBottom: 4 }]}>
-              เหตุผลในการแก้ไข / บันทึกย่อ (ถ้ามี)
-            </Text>
-            <Input
-              placeholder="ระบุเหตุผลในการแก้ไขเวลา (ถ้ามี)"
-              value={reason}
-              onChangeText={setReason}
-              icon={FileText}
-            />
-            </View>
-          </Card>
-        </View>
-
-        {/* Live Calculation Preview Card */}
-        {detailedPreview && (
-          <Card
-            style={StyleSheet.flatten([
-              styles.bnaCard,
-              {
-                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : '#eff6ff',
-                borderColor: isDark ? '#1e3a8a' : '#bfdbfe',
-                marginTop: 2,
-              },
-            ])}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 8,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <TrendingUp size={14} color={colors.primary} />
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: '700',
-                    color: colors.primary,
-                    fontFamily: 'Sarabun_700Bold',
-                  }}
-                >
-                  สรุปการคำนวณสด
-                </Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: colors.textSecondary,
-                  fontFamily: 'Sarabun_600SemiBold',
-                }}
-              >
-                รวมเวลาจริง:{' '}
-                <Text style={{ fontWeight: '700', color: colors.text }}>
-                  {detailedPreview.totalHours.toFixed(2)} ชม.
-                </Text>
-              </Text>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {/* 1. Regular Hours */}
-              <View
-                style={[
-                  styles.metricBox,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                <Text style={styles.metricLabel}>ชั่วโมงปกติ</Text>
-                <Text style={[styles.metricVal, { color: '#3b82f6' }]}>
-                  {detailedPreview.regularHours.toFixed(2)}
-                </Text>
-                <Text style={styles.metricSub}>ชม.</Text>
-              </View>
-
-              {/* 2. Overtime Hours */}
-              <View
-                style={[
-                  styles.metricBox,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: detailedPreview.overtimeHours > 0 ? '#16a34a' : colors.border,
-                  },
-                ]}
-              >
-                <Text style={styles.metricLabel}>OT รวม</Text>
-                <Text
-                  style={[
-                    styles.metricVal,
-                    {
-                      color: detailedPreview.overtimeHours > 0 ? '#16a34a' : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  {detailedPreview.overtimeHours > 0
-                    ? `+${detailedPreview.overtimeHours.toFixed(2)}`
-                    : '0.00'}
-                </Text>
-                <Text style={styles.metricSub}>
-                  {detailedPreview.overtimeHours > 0
-                    ? `เช้า ${detailedPreview.morningOT || 0} / เย็น ${detailedPreview.eveningOT || 0}`
-                    : 'ชม.'}
-                </Text>
-              </View>
-
-              {/* 3. Late Arrival */}
-              <View
-                style={[
-                  styles.metricBox,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: detailedPreview.lateArrivalHours > 0 ? '#f59e0b' : colors.border,
-                  },
-                ]}
-              >
-                <Text style={styles.metricLabel}>มาสาย</Text>
-                <Text
-                  style={[
-                    styles.metricVal,
-                    {
-                      color: detailedPreview.lateArrivalHours > 0 ? '#dc2626' : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  {detailedPreview.lateArrivalHours.toFixed(2)}
-                </Text>
-                <Text style={styles.metricSub}>ชม.</Text>
-              </View>
-
-              {/* 4. Early Leave */}
-              <View
-                style={[
-                  styles.metricBox,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: detailedPreview.earlyLeaveHours > 0 ? '#f59e0b' : colors.border,
-                  },
-                ]}
-              >
-                <Text style={styles.metricLabel}>กลับก่อน</Text>
-                <Text
-                  style={[
-                    styles.metricVal,
-                    {
-                      color: detailedPreview.earlyLeaveHours > 0 ? '#dc2626' : colors.textSecondary,
-                    },
-                  ]}
-                >
-                  {detailedPreview.earlyLeaveHours.toFixed(2)}
-                </Text>
-                <Text style={styles.metricSub}>ชม.</Text>
-              </View>
-            </View>
-          </Card>
-        )}
+        <PreviewCard preview={detailedPreview} colors={colors} isDark={isDark} />
 
         {/* Primary Action Buttons (Thumb Zone) */}
         {currentEntry ? (

@@ -27,31 +27,21 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
-  Palmtree,
-  HeartPulse,
   Briefcase,
-  Layers,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
   Home,
   Coffee,
-  Check,
   Building2,
-  Info,
+  Check,
   Share2,
   Bell,
   BellOff,
-  Dumbbell,
-  Heart,
-  Utensils,
-  Compass,
-  Tag,
   MapPin,
   ListTodo,
   Save,
   X,
   Settings,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -65,7 +55,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DatePicker, DateRange } from '@/components/ui/date-picker';
 import { BottomSheet, useBottomSheet } from '@/components/ui/bottom-sheet';
-import { AlertDialog, useAlertDialog } from '@/components/ui/alert-dialog';
+import { useAlertDialog } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
@@ -76,7 +66,6 @@ import { Icon } from '@/components/ui/icon';
 import { ThemeProvider, useThemeContext } from '../components/ThemeProvider';
 import { BottomNavigation } from '../components/BottomNavigation';
 import { TimeInput } from '../components/TimeInput';
-import { SmartAlarmModal } from '@/components/SmartAlarmModal';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
@@ -103,52 +92,18 @@ import {
   getSmartAlarmSummary,
   DEFAULT_SMART_ALARM_CONFIG,
 } from '@/services/smartAlarmService';
-
-const THAI_MONTH_NAMES = [
-  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-];
-
-const WEEKDAY_NAMES = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-
-const LEAVE_TYPE_OPTIONS: { type: LeaveType; label: string; shortLabel: string; icon: any; color: string }[] = [
-  { type: 'vacation', label: 'ลาพักร้อน (Vacation)', shortLabel: 'พักร้อน', icon: Palmtree, color: '#3b82f6' },
-  { type: 'sick', label: 'ลาป่วย (Sick Leave)', shortLabel: 'ลาป่วย', icon: HeartPulse, color: '#ef4444' },
-  { type: 'personal', label: 'ลากิจ (Personal Leave)', shortLabel: 'ลากิจ', icon: Briefcase, color: '#f59e0b' },
-  { type: 'other', label: 'ลาอื่นๆ (Other)', shortLabel: 'อื่นๆ', icon: Layers, color: '#8b5cf6' },
-];
-
-const HOLIDAY_TYPE_CONFIG: Record<
-  HolidayType,
-  { label: string; shortLabel: string; badgeVariant: 'default' | 'secondary' | 'outline' | 'success'; color: string; icon: any }
-> = {
-  public: { label: 'วันหยุดนักขัตฤกษ์', shortLabel: 'นักขัตฯ', badgeVariant: 'default', color: '#2563eb', icon: Sparkles },
-  company: { label: 'วันหยุดบริษัท', shortLabel: 'หยุด บ.', badgeVariant: 'secondary', color: '#7c3aed', icon: Building2 },
-  special: { label: 'วันหยุดพิเศษ', shortLabel: 'พิเศษ', badgeVariant: 'outline', color: '#d97706', icon: Info },
-  regular_off: { label: 'วันหยุดปกติ (Day Off)', shortLabel: 'หยุดปกติ', badgeVariant: 'outline', color: '#64748b', icon: Coffee },
-  wfh: { label: 'Work From Home (WFH)', shortLabel: 'WFH', badgeVariant: 'success', color: '#16a34a', icon: Home },
-};
-
-const ACTIVITY_CATEGORY_CONFIG: Record<
-  ActivityCategory,
-  { label: string; shortLabel: string; icon: any; color: string; bgColor: string }
-> = {
-  work: { label: 'งาน / ประชุม', shortLabel: 'งาน', icon: Briefcase, color: '#2563eb', bgColor: '#eff6ff' },
-  exercise: { label: 'ออกกำลังกาย', shortLabel: 'วิ่ง/ฟิตเนส', icon: Dumbbell, color: '#10b981', bgColor: '#ecfdf5' },
-  personal: { label: 'ส่วนตัว / แฟน', shortLabel: 'นัดแฟน', icon: Heart, color: '#ec4899', bgColor: '#fdf2f8' },
-  dining: { label: 'กินข้าว / สังสรรค์', shortLabel: 'กินข้าว', icon: Utensils, color: '#f59e0b', bgColor: '#fffbeb' },
-  travel: { label: 'เที่ยว / ทำบุญ', shortLabel: 'เที่ยว/วัด', icon: Compass, color: '#8b5cf6', bgColor: '#f5f3ff' },
-  general: { label: 'ทั่วไป', shortLabel: 'ทั่วไป', icon: Tag, color: '#64748b', bgColor: '#f8fafc' },
-};
-
-const REMINDER_OPTIONS = [
-  { label: 'ไม่เตือน', value: null },
-  { label: 'ตรงเวลา', value: 0 },
-  { label: 'ก่อน 15 นาที', value: 15 },
-  { label: 'ก่อน 30 นาที', value: 30 },
-  { label: 'ก่อน 1 ชม.', value: 60 },
-  { label: 'ก่อน 1 วัน', value: 1440 },
-];
+import {
+  THAI_MONTH_NAMES,
+  WEEKDAY_NAMES,
+  LEAVE_TYPE_OPTIONS,
+  HOLIDAY_TYPE_CONFIG,
+  ACTIVITY_CATEGORY_CONFIG,
+  REMINDER_OPTIONS,
+} from '@/components/leaves/leavesConstants';
+import { CalendarGrid } from '@/components/leaves/CalendarGrid';
+import { LeaveSheet } from '@/components/leaves/LeaveSheet';
+import { LeavesDialogs } from '@/components/leaves/LeavesDialogs';
+import type { CalendarDayItem } from '@/components/leaves/leavesConstants';
 
 const LeavesContent: React.FC = () => {
   const router = useRouter();
@@ -166,6 +121,7 @@ const LeavesContent: React.FC = () => {
     clearDayHolidayStatus,
     getLeaves,
     saveLeave,
+    updateLeave,
     deleteLeave,
     getLeaveSummary,
     saveLeaveQuota,
@@ -322,7 +278,8 @@ const LeavesContent: React.FC = () => {
   const [actLocation, setActLocation] = useState('');
   const [actNote, setActNote] = useState('');
 
-  // New Leave Form
+  // New Leave Form (Add / Edit)
+  const [editingLeave, setEditingLeave] = useState<LeaveRequest | null>(null);
   const [leaveType, setLeaveType] = useState<LeaveType>('vacation');
   const [leaveRange, setLeaveRange] = useState<DateRange | undefined>({
     startDate: new Date(),
@@ -474,16 +431,7 @@ const LeavesContent: React.FC = () => {
     const firstDayIndex = new Date(selectedYear, selectedMonth - 1, 1).getDay(); // 0 = Sun
     const totalDaysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
 
-    const days: ({
-      dayNumber: number;
-      dateStr: string;
-      isCurrentMonth: boolean;
-      holiday?: Holiday;
-      leave?: LeaveRequest;
-      activities?: Activity[];
-      isToday: boolean;
-      isWeekend: boolean;
-    } | null)[] = [];
+    const days: (CalendarDayItem | null)[] = [];
 
     // Leading empty cells
     for (let i = 0; i < firstDayIndex; i++) {
@@ -616,7 +564,7 @@ const LeavesContent: React.FC = () => {
     });
 
     return items.sort((a, b) => a.date.localeCompare(b.date));
-  }, [holidays, leaves, selectedYear, selectedMonth, colors]);
+  }, [holidays, leaves, selectedYear, selectedMonth, formatDateThai, getHolidayBadge, getLeaveTypeBadge]);
 
   // Yearly Public & Company Holidays (set once for the whole year)
   const yearlyPublicHolidays = useMemo(() => {
@@ -1000,7 +948,31 @@ const LeavesContent: React.FC = () => {
     }
   };
 
-  // Save Leave Request
+  // Save Leave Request (Add / Edit)
+  const handleOpenAddLeave = (defaultDate?: Date) => {
+    setEditingLeave(null);
+    setLeaveType('vacation');
+    setLeaveDurationType('full_day');
+    setLeaveReason('');
+    const d = defaultDate || new Date(selectedYear, selectedMonth - 1, 1);
+    setLeaveRange({ startDate: d, endDate: d });
+    leaveSheet.open();
+  };
+
+  const handleOpenEditLeave = (l: LeaveRequest) => {
+    setEditingLeave(l);
+    setLeaveType(l.leaveType);
+    setLeaveDurationType(l.durationType);
+    setLeaveReason(l.reason || '');
+    const [sy, sm, sd] = l.startDate.split('-').map(Number);
+    const [ey, em, ed] = l.endDate.split('-').map(Number);
+    setLeaveRange({
+      startDate: new Date(sy, sm - 1, sd),
+      endDate: new Date(ey, em - 1, ed),
+    });
+    leaveSheet.open();
+  };
+
   const handleSaveLeave = async () => {
     if (!leaveRange?.startDate || !leaveRange?.endDate) {
       warning('กรุณากรอกข้อมูล', 'กรุณาเลือกช่วงวันที่ต้องการลา');
@@ -1031,8 +1003,39 @@ const LeavesContent: React.FC = () => {
 
     setLeaveReason('');
     setLeaveDurationType('full_day');
+    const wasEditing = editingLeave;
+    setEditingLeave(null);
     leaveSheet.close();
     dayActionSheet.close();
+
+    if (wasEditing?.id) {
+      // 1. Instant local state update for Edit
+      setLeaves((prev) =>
+        prev.map((x) =>
+          x.id === wasEditing.id
+            ? { ...x, leaveType, startDate: startStr, endDate: endStr, durationDays: duration, durationType: leaveDurationType, reason: leaveReason.trim() || undefined }
+            : x
+        )
+      );
+
+      const ok = await updateLeave(wasEditing.id, {
+        leaveType,
+        startDate: startStr,
+        endDate: endStr,
+        durationDays: duration,
+        durationType: leaveDurationType,
+        reason: leaveReason.trim() || undefined,
+      });
+
+      if (ok) {
+        success('แก้ไขสำเร็จ', `อัปเดตการลา ${duration} วันเรียบร้อยแล้ว`);
+        await loadAllData();
+      } else {
+        error('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกการแก้ไขได้');
+        await loadAllData();
+      }
+      return;
+    }
 
     const ok = await saveLeave({
       leaveType,
@@ -1267,163 +1270,17 @@ const LeavesContent: React.FC = () => {
                   }}
                 >
                 <Card style={{ padding: 12, backgroundColor: colors.card }}>
-                  {/* Month Navigator Header */}
-                  <View style={styles.calendarMonthHeader}>
-                    <TouchableOpacity onPress={handlePrevMonth} style={styles.monthNavBtn}>
-                      <ChevronLeft size={20} color={colors.primary} />
-                    </TouchableOpacity>
-
-                    <Text variant="subtitle" style={{ fontWeight: '700', fontSize: 16 }}>
-                      {THAI_MONTH_NAMES[selectedMonth - 1]} {selectedYear + 543}
-                    </Text>
-
-                    <TouchableOpacity onPress={handleNextMonth} style={styles.monthNavBtn}>
-                      <ChevronRight size={20} color={colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Weekday Row */}
-                  <View style={styles.weekdayRow}>
-                    {WEEKDAY_NAMES.map((w, idx) => (
-                      <View key={w} style={styles.weekdayCell}>
-                        <Text
-                          variant="caption"
-                          style={{
-                            fontSize: 12,
-                            fontWeight: '700',
-                            color: idx === 0 ? '#ef4444' : idx === 6 ? '#8b5cf6' : colors.textSecondary,
-                          }}
-                        >
-                          {w}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Days Grid */}
-                  <View style={styles.daysGrid}>
-                    {calendarDays.map((item, index) => {
-                      if (!item) {
-                        return <View key={`empty-${index}`} style={styles.dayCell} />;
-                      }
-
-                      const isSelected = item.dateStr === selectedCalendarDate;
-                      const hasHoliday = !!item.holiday;
-                      const hasLeave = !!item.leave;
-                      const hasActivities = (item.activities?.length || 0) > 0;
-
-                      return (
-                        <TouchableOpacity
-                          key={item.dateStr}
-                          onPress={() => handleDayPress(item.dateStr)}
-                          activeOpacity={0.7}
-                          style={[
-                            styles.dayCell,
-                            item.isWeekend && !isSelected && {
-                              backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc',
-                            },
-                          ]}
-                        >
-                          {/* Day Number Circle */}
-                          <View
-                            style={[
-                              styles.dateNumberCircle,
-                              isSelected && {
-                                backgroundColor: colors.primary,
-                                shadowColor: colors.primary,
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 3.84,
-                                elevation: 3,
-                              },
-                              item.isToday && !isSelected && {
-                                borderColor: colors.primary,
-                                borderWidth: 1.5,
-                                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.dayNumberText,
-                                {
-                                  color: isSelected
-                                    ? '#ffffff'
-                                    : item.isToday
-                                      ? colors.primary
-                                      : item.isWeekend
-                                        ? colors.textSecondary
-                                        : colors.text,
-                                  fontWeight: isSelected || item.isToday ? '700' : '500',
-                                },
-                              ]}
-                            >
-                              {item.dayNumber}
-                            </Text>
-                          </View>
-
-                          {/* Status Dots Row (Remimo Style) */}
-                          <View style={styles.statusDotsRow}>
-                            {hasHoliday && (
-                              <View
-                                style={[
-                                  styles.statusDot,
-                                  {
-                                    backgroundColor:
-                                      HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6',
-                                  },
-                                ]}
-                              />
-                            )}
-                            {hasLeave && (
-                              <View
-                                style={[
-                                  styles.statusDot,
-                                  {
-                                    backgroundColor:
-                                      LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color ||
-                                      '#f59e0b',
-                                  },
-                                ]}
-                              />
-                            )}
-                            {hasActivities && (
-                              <View
-                                style={[
-                                  styles.statusDot,
-                                  { backgroundColor: '#8b5cf6' },
-                                ]}
-                              />
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Calendar Legend / Guide */}
-                  <View style={styles.calendarLegendRow}>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#2563eb' }]} />
-                      <Text variant="caption" style={{ fontSize: 11 }}>นักขัตฯ</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#16a34a' }]} />
-                      <Text variant="caption" style={{ fontSize: 11 }}>WFH</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#64748b' }]} />
-                      <Text variant="caption" style={{ fontSize: 11 }}>หยุดปกติ</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
-                      <Text variant="caption" style={{ fontSize: 11 }}>วันลา</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendDot, { backgroundColor: '#8b5cf6' }]} />
-                      <Text variant="caption" style={{ fontSize: 11 }}>กิจกรรม</Text>
-                    </View>
-                  </View>
+                  <CalendarGrid
+                    selectedYear={selectedYear}
+                    selectedMonth={selectedMonth}
+                    calendarDays={calendarDays}
+                    selectedCalendarDate={selectedCalendarDate}
+                    isDark={isDark}
+                    colors={colors}
+                    onPrevMonth={handlePrevMonth}
+                    onNextMonth={handleNextMonth}
+                    onDayPress={handleDayPress}
+                  />
 
                   {/* Subtle Watermark Footer on Shared Image */}
                   <View
@@ -2016,7 +1873,7 @@ const LeavesContent: React.FC = () => {
                   variant="default"
                   size="lg"
                   icon={Plus}
-                  onPress={leaveSheet.open}
+                  onPress={() => handleOpenAddLeave()}
                 >
                   ยื่นขอลา / บันทึกการลา
                 </Button>
@@ -2042,15 +1899,23 @@ const LeavesContent: React.FC = () => {
                           {l.startDate !== l.endDate && ` - ${formatDateThai(l.endDate)}`}
                         </Text>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setItemToDelete({ type: 'leave', id: l.id!, name: 'ประวัติการลา' });
-                          deleteLeaveDialog.open();
-                        }}
-                        style={[styles.iconDeleteBtn, { backgroundColor: colors.errorLight || '#fee2e2' }]}
-                      >
-                        <Trash2 size={16} color="#ef4444" />
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <TouchableOpacity
+                          onPress={() => handleOpenEditLeave(l)}
+                          style={[styles.iconDeleteBtn, { backgroundColor: isDark ? '#1e3a8a55' : '#e0e7ff' }]}
+                        >
+                          <Edit3 size={16} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setItemToDelete({ type: 'leave', id: l.id!, name: 'ประวัติการลา' });
+                            deleteLeaveDialog.open();
+                          }}
+                          style={[styles.iconDeleteBtn, { backgroundColor: colors.errorLight || '#fee2e2' }]}
+                        >
+                          <Trash2 size={16} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </Card>
                 ))}
@@ -2309,6 +2174,10 @@ const LeavesContent: React.FC = () => {
               style={[styles.quickActionBtn, { borderColor: '#3b82f6', backgroundColor: isDark ? '#1e3a8a30' : '#eff6ff' }]}
               onPress={() => {
                 const targetDate = new Date(selectedCalendarDate);
+                setEditingLeave(null);
+                setLeaveType('vacation');
+                setLeaveDurationType('full_day');
+                setLeaveReason('');
                 setLeaveRange({ startDate: targetDate, endDate: targetDate });
                 dayActionSheet.close();
                 leaveSheet.open();
@@ -2441,117 +2310,23 @@ const LeavesContent: React.FC = () => {
       </BottomSheet>
 
       {/* ========================================================= */}
-      {/* BOTTOM SHEET 3: LEAVE REQUEST FORM */}
+      {/* BOTTOM SHEET 3: LEAVE REQUEST FORM (Add / Edit) */}
       {/* ========================================================= */}
-      <BottomSheet
+      <LeaveSheet
         isVisible={leaveSheet.isVisible}
-        onClose={leaveSheet.close}
-        snapPoints={[0.96]}
-        title="บันทึกการลา / ยื่นขอลา"
-        footer={
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            <Button variant="outline" icon={X} style={{ flex: 1 }} onPress={leaveSheet.close}>
-              ยกเลิก
-            </Button>
-            <Button variant="default" icon={Save} style={{ flex: 1 }} onPress={handleSaveLeave}>
-              บันทึกการลา
-            </Button>
-          </View>
-        }
-      >
-        <View style={{ gap: 16, paddingBottom: 16 }}>
-          {/* Leave Type Selector */}
-          <View>
-            <Text variant="caption" style={{ marginBottom: 8, color: colors.textSecondary, fontWeight: '600' }}>
-              ประเภทการลา:
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {LEAVE_TYPE_OPTIONS.map((opt) => {
-                const isSel = leaveType === opt.type;
-                return (
-                  <TouchableOpacity
-                    key={opt.type}
-                    onPress={() => setLeaveType(opt.type)}
-                    style={[
-                      styles.leaveTypePill,
-                      {
-                        backgroundColor: isSel ? opt.color : colors.card,
-                        borderColor: isSel ? opt.color : colors.border,
-                      },
-                    ]}
-                  >
-                    <opt.icon size={16} color={isSel ? '#fff' : colors.text} />
-                    <Text
-                      variant="caption"
-                      style={{
-                        color: isSel ? '#fff' : colors.text,
-                        fontWeight: isSel ? '700' : '500',
-                        marginLeft: 6,
-                      }}
-                    >
-                      {opt.label.split(' ')[0]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Duration Type: Full day / Half day */}
-          <View>
-            <Text variant="caption" style={{ marginBottom: 8, color: colors.textSecondary, fontWeight: '600' }}>
-              ระยะเวลาการลา:
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[
-                { type: 'full_day' as LeaveDurationType, label: 'เต็มวัน' },
-                { type: 'half_day_morning' as LeaveDurationType, label: 'ครึ่งวันเช้า' },
-                { type: 'half_day_afternoon' as LeaveDurationType, label: 'ครึ่งวันบ่าย' },
-              ].map((d) => (
-                <TouchableOpacity
-                  key={d.type}
-                  onPress={() => setLeaveDurationType(d.type)}
-                  style={[
-                    styles.durationPill,
-                    {
-                      flex: 1,
-                      backgroundColor: leaveDurationType === d.type ? colors.primary : colors.card,
-                      borderColor: leaveDurationType === d.type ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    variant="caption"
-                    style={{
-                      color: leaveDurationType === d.type ? '#fff' : colors.text,
-                      fontWeight: leaveDurationType === d.type ? '700' : '400',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {d.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Date Picker (Range or Single Date) */}
-          <DatePicker
-            label="ช่วงวันที่ลา"
-            mode="range"
-            value={leaveRange}
-            onChange={(r) => r && setLeaveRange(r)}
-          />
-
-          {/* Reason Input */}
-          <Input
-            label="เหตุผลการลา (ไม่บังคับ)"
-            placeholder="เช่น พักผ่อนประจำปี, ลาไปหาหมอ"
-            value={leaveReason}
-            onChangeText={setLeaveReason}
-          />
-        </View>
-      </BottomSheet>
+        onClose={() => { setEditingLeave(null); leaveSheet.close(); }}
+        editingLeave={editingLeave}
+        leaveType={leaveType}
+        onChangeLeaveType={setLeaveType}
+        leaveDurationType={leaveDurationType}
+        onChangeDurationType={setLeaveDurationType}
+        leaveRange={leaveRange}
+        onChangeLeaveRange={(r) => setLeaveRange(r)}
+        leaveReason={leaveReason}
+        onChangeLeaveReason={setLeaveReason}
+        colors={colors}
+        onSave={handleSaveLeave}
+      />
 
       {/* ========================================================= */}
       {/* BOTTOM SHEET 4: EDIT ANNUAL QUOTAS */}
@@ -2604,40 +2379,27 @@ const LeavesContent: React.FC = () => {
         </View>
       </BottomSheet>
 
-      {/* Delete Holiday Dialog */}
-      <AlertDialog
-        isVisible={deleteHolidayDialog.isVisible}
-        onClose={deleteHolidayDialog.close}
-        title="ยืนยันการลบวันหยุด"
-        description={`คุณแน่ใจหรือไม่ว่าต้องการลบรายการ "${itemToDelete?.name}" ออกจากระบบ?`}
-        confirmText="ลบรายการ"
-        confirmVariant="destructive"
-        cancelText="ยกเลิก"
-        onConfirm={handleConfirmDelete}
-      />
-
-      {/* Delete Leave Dialog */}
-      <AlertDialog
-        isVisible={deleteLeaveDialog.isVisible}
-        onClose={deleteLeaveDialog.close}
-        title="ยืนยันการลบประวัติการลา"
-        description="คุณแน่ใจหรือไม่ว่าต้องการลบประวัติการลานี้? โควตาวันลาจะถูกคืนให้อัตโนมัติ"
-        confirmText="ลบประวัติ"
-        confirmVariant="destructive"
-        cancelText="ยกเลิก"
-        onConfirm={handleConfirmDelete}
-      />
-
-      {/* Clear Day Status Confirmation Dialog */}
-      <AlertDialog
-        isVisible={clearStatusDialog.isVisible}
-        onClose={clearStatusDialog.close}
-        title="ยืนยันการยกเลิกสถานะ"
-        description={`คุณแน่ใจหรือไม่ว่าต้องการยกเลิกสถานะของวันที่ ${formatDateThai(selectedCalendarDate)}?`}
-        confirmText="ลบสถานะ"
-        confirmVariant="destructive"
-        cancelText="ยกเลิก"
-        onConfirm={handleQuickClearStatus}
+      {/* Delete / Confirm Dialogs + Smart Alarm */}
+      <LeavesDialogs
+        deleteHolidayVisible={deleteHolidayDialog.isVisible}
+        onCloseDeleteHoliday={deleteHolidayDialog.close}
+        deleteLeaveVisible={deleteLeaveDialog.isVisible}
+        onCloseDeleteLeave={deleteLeaveDialog.close}
+        clearStatusVisible={clearStatusDialog.isVisible}
+        onCloseClearStatus={clearStatusDialog.close}
+        deleteActivityVisible={deleteActivityDialog.isVisible}
+        onCloseDeleteActivity={deleteActivityDialog.close}
+        itemToDeleteName={itemToDelete?.name}
+        activityToDeleteTitle={activityToDelete?.title}
+        clearStatusDateLabel={formatDateThai(selectedCalendarDate)}
+        onConfirmDelete={handleConfirmDelete}
+        onConfirmClearStatus={handleQuickClearStatus}
+        onConfirmDeleteActivity={handleConfirmDeleteActivity}
+        alarmVisible={isSmartAlarmModalVisible}
+        onCloseAlarm={() => setIsSmartAlarmModalVisible(false)}
+        holidays={holidays}
+        leaves={leaves}
+        onAlarmSaved={loadAllData}
       />
 
       {/* ========================================================= */}
@@ -2839,27 +2601,6 @@ const LeavesContent: React.FC = () => {
         </View>
       </BottomSheet>
 
-      {/* Delete Activity Dialog */}
-      <AlertDialog
-        isVisible={deleteActivityDialog.isVisible}
-        onClose={deleteActivityDialog.close}
-        title="ยืนยันการลบกิจกรรม"
-        description={`คุณแน่ใจหรือไม่ว่าต้องการลบนัดหมาย "${activityToDelete?.title}" ออกจากระบบ? การแจ้งเตือนจะถูกยกเลิกด้วย`}
-        confirmText="ลบกิจกรรม"
-        confirmVariant="destructive"
-        cancelText="ยกเลิก"
-        onConfirm={handleConfirmDeleteActivity}
-      />
-
-      {/* Smart Workday Alarm Modal */}
-      <SmartAlarmModal
-        visible={isSmartAlarmModalVisible}
-        onClose={() => setIsSmartAlarmModalVisible(false)}
-        holidays={holidays}
-        leaves={leaves}
-        onSaved={loadAllData}
-      />
-
       {/* Interactive Tour Overlay for Steps 2, 3, 4, and 5 */}
       <InteractiveTourOverlay
         visible={isTourActiveInLeaves && !!currentTourConfig}
@@ -3002,6 +2743,18 @@ const styles = StyleSheet.create({
     width: 5.5,
     height: 5.5,
     borderRadius: 3,
+  },
+  calendarDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  calendarDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   calendarLegendRow: {
     flexDirection: 'row',

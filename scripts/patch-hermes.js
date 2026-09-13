@@ -1,10 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
+const projectRoot = path.resolve(__dirname, '..');
 const targetDirs = [
-  path.resolve('D:\\My-work_My-Everything\\TimeTrackOT\\node_modules\\react-native'),
-  path.resolve('D:\\My-work_My-Everything\\TimeTrackOT\\node_modules\\react-native-reanimated'),
-  path.resolve('D:\\My-work_My-Everything\\TimeTrackOT\\node_modules\\react-native-worklets'),
+  path.join(projectRoot, 'node_modules', 'react-native'),
+  path.join(projectRoot, 'node_modules', 'react-native-reanimated'),
+  path.join(projectRoot, 'node_modules', 'react-native-worklets'),
 ];
 
 function getAllFiles(dir, fileList = []) {
@@ -34,7 +35,7 @@ for (const baseDir of targetDirs) {
 
       if (newContent !== content) {
         fs.writeFileSync(file, newContent, 'utf8');
-        console.log('Cleaned:', path.relative(path.resolve('D:\\My-work_My-Everything\\TimeTrackOT'), file));
+        console.log('Cleaned:', path.relative(projectRoot, file));
         patchedCount++;
       }
     }
@@ -42,7 +43,7 @@ for (const baseDir of targetDirs) {
 }
 
 // Patch Event.js and DOMException.js Object.defineProperty to be writable
-const eventJsPath = path.join(path.resolve('D:\\My-work_My-Everything\\TimeTrackOT'), 'node_modules', 'react-native', 'src', 'private', 'webapis', 'dom', 'events', 'Event.js');
+const eventJsPath = path.join(projectRoot, 'node_modules', 'react-native', 'src', 'private', 'webapis', 'dom', 'events', 'Event.js');
 if (fs.existsSync(eventJsPath)) {
   let content = fs.readFileSync(eventJsPath, 'utf8');
   if (!content.includes('writable: true')) {
@@ -52,7 +53,7 @@ if (fs.existsSync(eventJsPath)) {
   }
 }
 
-const domExceptionPath = path.join(path.resolve('D:\\My-work_My-Everything\\TimeTrackOT'), 'node_modules', 'react-native', 'src', 'private', 'webapis', 'errors', 'DOMException.js');
+const domExceptionPath = path.join(projectRoot, 'node_modules', 'react-native', 'src', 'private', 'webapis', 'errors', 'DOMException.js');
 if (fs.existsSync(domExceptionPath)) {
   let content = fs.readFileSync(domExceptionPath, 'utf8');
   if (!content.includes('writable: true')) {

@@ -101,3 +101,4 @@ export const BottomNavigation: React.FC = React.memo(() => {
     </View>
   );
 });
+BottomNavigation.displayName = 'BottomNavigation';

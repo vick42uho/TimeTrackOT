@@ -51,6 +51,7 @@ const AnimatedSlice = React.memo(
     );
   }
 );
+AnimatedSlice.displayName = 'AnimatedSlice';
 
 interface ChartConfig {
   width?: number;
@@ -107,6 +108,7 @@ export const PieChart = ({ data, config = {}, style }: Props) => {
     } else {
       animationProgress.value = 1;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- animationProgress is a Reanimated SharedValue that should not trigger effect
   }, [data, animated, duration]);
 
   if (!data.length) return null;

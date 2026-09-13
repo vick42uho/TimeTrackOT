@@ -148,7 +148,9 @@ export function SheetContent({ children, style }: SheetContentProps) {
       );
       overlayOpacity.value = withTiming(0, { duration: 250 });
     }
-  }, [open, side, sheetWidth]); // Rerun if these change
+    // SharedValues (overlayOpacity, translateX) stable — excluded to avoid loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, side, sheetWidth, initialPosition, isVisible]);
 
   // Animated style for the sheet content
   const animatedSheetStyle = useAnimatedStyle(() => {
