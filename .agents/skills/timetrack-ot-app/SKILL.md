@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS time_entries (
   clock_in TEXT,
   clock_out TEXT,
   reason TEXT,
+  attachment_uri TEXT,
   regular_hours REAL DEFAULT 0,
   overtime_hours REAL DEFAULT 0,
   late_arrival_hours REAL DEFAULT 0,
@@ -366,7 +367,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
 
 ---
 
-## 8. Smart Workday Alarm & Activity Management Engine
+## 10. Smart Workday Alarm & Activity Management Engine
 
 ### Smart Workday Alarm Architecture (`services/smartAlarmService.ts` & `modules/full-screen-alarm`)
 1. **Native Android Full-Screen Intent Module (`modules/full-screen-alarm`)**:
@@ -462,6 +463,77 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
       - 1st tap: Smoothly selects the date and updates the preview card below without intrusive popups.
       - 2nd tap on selected date OR Long-Press OR clicking "จัดการวันที่ & กิจกรรม": Opens `DayActionSheet`.
 
+---
 
+## 11. Local Timezone Engine & Date Standardization (`utils/dateHelper.ts`)
 
+### Problem: 07:00 AM UTC Rollover Bug
+In Thailand (UTC+7 / GMT+7), standard JavaScript `date.toISOString().split('T')[0]` returns the UTC date rather than the local date. Between 00:00 and 06:59 AM local time, `toISOString()` evaluates to the *previous* calendar day. This previously caused:
+1. Dashboard and Calendar highlighting the previous day before 07:00 AM.
+2. Smart Workday Alarm scheduling against the wrong day during early morning lookaheads.
+3. Activity and note dates registering off-by-one.
 
+### Architectural Solution
+- **`utils/dateHelper.ts` Standardized Utilities**:
+  - `toLocalDateString(date: Date = new Date()): string`
+    - Formats dates as `YYYY-MM-DD` strictly based on local device year, month, and day (`getFullYear()`, `getMonth() + 1`, `getDate()`).
+  - `parseLocalDate(dateStr: string): Date`
+    - Parses `YYYY-MM-DD` strings at noon local time (`12:00:00`) to prevent any daylight saving or timezone boundary edge shifts.
+  - `getDatesInRange(startDate: string, endDate: string): string[]`
+    - Generates local date arrays for multi-day leaves and range queries.
+- **Midnight Rollover Auto-Refresh (`app/index.tsx`)**:
+  - Automatically schedules a background timeout to fire at the exact next midnight (`00:00:00 local time`).
+  - Refreshes dashboard statistics, today's schedule, and greeting seamlessly without requiring an app restart.
+
+---
+
+## 12. Proof & Document Attachment Engine (Time Entry & Leaves)
+
+### Architecture & Storage Strategy (`utils/leaveAttachmentHelper.ts`)
+To prevent data loss if a user deletes or moves the original photo in their device gallery, all attachments are permanently cloned to local sandbox storage:
+1. **Permanent File Storage**:
+   - Stored in `FileSystem.documentDirectory` with timestamped and categorized file names (`time_entry_proof_*.jpg` or `leave_attachment_*.jpg`).
+   - Cleaned up safely upon record deletion using `deleteAttachmentSafely`.
+2. **Camera & Gallery Capture Pipeline**:
+   - `takePhotoWithCamera(options)`: Requests `Camera` permissions, opens native camera viewfinder, optimizes image compression to `0.8` JPEG, and returns the local document URI.
+   - `pickImageFromGallery(options)`: Requests `MediaLibrary` permissions, opens image picker, and saves a local copy.
+
+### Time Entry Proof Attachment (`TimeEntryAttachmentCard.tsx`)
+- **Use Case**: Provides proof of attendance when fingerprint scanners or facial recognition terminals malfunction at work.
+- **Database Integration**:
+  - `time_entries` table: `attachment_uri TEXT`
+  - Automated migration on startup: `ALTER TABLE time_entries ADD COLUMN attachment_uri TEXT;`
+- **UI Architecture**:
+  - Dual action buttons: `[ถ่ายรูปหลักฐาน]` (Camera) and `[เลือกจากอัลบั้ม]` (ImageIcon).
+  - Thumbnail card: Rounded 68x68 preview with `CheckCircle2` badge, `[ดูรูป]` (Eye), `[ถ่ายใหม่]` (Camera), and `[ลบ]` (Trash2).
+  - Reports indicator: `EntryRow.tsx` displays an active camera badge (`proofBadge`), and `DetailModal.tsx` provides an interactive preview with full-screen zoom and sharing (`ImagePreviewModal.tsx`).
+
+### Leave Medical Certificates & Document Attachment (`LeaveAttachmentCard.tsx`)
+- Supports attaching medical certificates (ใบรับรองแพทย์) or formal leave approval documents to leave requests in `leaves` table.
+
+---
+
+## 13. SafeArea & Modern Android Layout Architecture
+
+- **Elimination of Deprecated `SafeAreaView`**:
+  - Replaced all imports of `SafeAreaView` from `react-native` with `react-native-safe-area-context`.
+  - Uses `useSafeAreaInsets()` hook for precise pixel padding at status bar top and home indicator bottom.
+  - Guarantees seamless compatibility with Android Edge-to-Edge (`edgeToEdgeEnabled: true`) and gesture navigation bars.
+
+---
+
+## 14. Packaging, Distribution & Store Release Guide
+
+### EAS Build Profiles (`eas.json`)
+1. **Testing APK (`preview` profile)**:
+   - Configuration: `"android": { "buildType": "apk" }, "distribution": "internal"`.
+   - Generates standalone `.apk` files for direct sideloading and internal workplace distribution.
+2. **Google Play Store (`production` profile)**:
+   - Configuration: `"android": { "buildType": "app-bundle" }`.
+   - Generates Android App Bundle (`.aab`), mandatory for all new Google Play Store submissions.
+   - Note: Google Play requires a one-time developer registration fee ($25 USD) and a mandatory 14-day closed testing period with 12-20 testers for new personal developer accounts.
+
+### Zero-Cost Distribution Channels
+- **Direct Sideloading**: Distribute `.apk` via cloud drive, chat applications (LINE, Telegram), or internal company portals.
+- **APKPure / Alternative Stores**: Submit APK directly to APKPure (free developer submit) for public search and download without listing fees.
+- **GitHub Releases**: Tag releases with bundled APK assets for open, transparent version tracking.

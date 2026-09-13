@@ -1,8 +1,8 @@
 # TimeTrack OT (แอปพลิเคชันบันทึกเวลาทำงานและจัดการโอที)
 
-แอปพลิเคชันบันทึกเวลาทำงาน, คำนวณค่าล่วงเวลา (OT เช้า-เย็น), บันทึกกิจกรรม & แจ้งเตือนนัดหมาย, จัดการวันหยุด & วันลา และรายงานสรุปชั่วโมงทำงาน สร้างด้วย **React Native 0.81**, **Expo SDK 54**, **Expo SQLite (WAL Mode)**, **Expo Notifications** และระบบ UI ดีไซน์ **BNA UI** พร้อมสัญลักษณ์เวกเตอร์ไอคอนมาตรฐานระดับสากล
+แอปพลิเคชันบันทึกเวลาทำงาน, คำนวณค่าล่วงเวลา (OT เช้า-เย็น), ถ่ายรูปแนบหลักฐานการลงเวลา, บันทึกกิจกรรม & แจ้งเตือนนัดหมาย, จัดการวันหยุด & วันลาพร้อมแนบใบรับรองแพทย์, และรายงานสรุปชั่วโมงทำงาน สร้างด้วย **React Native 0.81**, **Expo SDK 54**, **Expo SQLite (WAL Mode)**, **Expo Notifications** และระบบ UI ดีไซน์ **BNA UI** พร้อมสัญลักษณ์เวกเตอร์ไอคอนมาตรฐานระดับสากล
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)
 ![Database](https://img.shields.io/badge/database-Expo%20SQLite%20(WAL)-green.svg)
 ![Design](https://img.shields.io/badge/UI-BNA%20UI%20%2B%20Sarabun-orange.svg)
@@ -13,14 +13,17 @@
 ## สารบัญ
 
 - [คุณสมบัติหลัก (Key Features)](#คุณสมบัติหลัก-key-features)
+- [ระบบถ่ายรูปและแนบหลักฐานการลงเวลา (Time Entry Proof Attachment)](#ระบบถ่ายรูปและแนบหลักฐานการลงเวลา-time-entry-proof-attachment)
 - [ระบบคำนวณเวลา & OT Engine](#ระบบคำนวณเวลา--ot-engine)
 - [ระบบแจ้งเตือนกิจกรรม & นัดหมาย](#ระบบแจ้งเตือนกิจกรรม--นัดหมาย)
+- [ระบบนาฬิกาปลุกวันทำงานอัจฉริยะ (Smart Workday Alarm)](#ระบบนาฬิกาปลุกวันทำงานอัจฉริยะ-smart-workday-alarm)
+- [ระบบจัดการ Timezone และเปลี่ยนวันเที่ยงคืนตรงเป๊ะ (Local Timezone Engine)](#ระบบจัดการ-timezone-และเปลี่ยนวันเที่ยงคืนตรงเป๊ะ-local-timezone-engine)
 - [โครงสร้างฐานข้อมูล & Performance](#โครงสร้างฐานข้อมูล--performance)
 - [ระบบ UI/UX & Pillow Cloud Design System](#ระบบ-uiux--pillow-cloud-design-system)
 - [ระบบจัดการโน้ตและงาน (To-Do List & Quick Notes)](#ระบบจัดการโน้ตและงาน-to-do-list--quick-notes---google-keep-hybrid)
 - [โครงสร้างโปรเจกต์](#โครงสร้างโปรเจกต์)
 - [การติดตั้ง & วิธีรัน](#การติดตั้ง--วิธีรัน)
-- [วิธี Build APK (Android)](#วิธี-build-apk-android)
+- [วิธี Build ไฟล์และการเผยแพร่แอป (Distribution Guide)](#วิธี-build-ไฟล์และการเผยแพร่แอป-distribution-guide)
 - [ข้อมูลผู้พัฒนา & ข้อเสนอแนะ](#ข้อมูลผู้พัฒนา--ข้อเสนอแนะ)
 
 ---
@@ -44,15 +47,22 @@
 ### 2. บันทึกเวลาทำงาน (Time Entry)
 - บันทึกเวลาเข้า-ออกงานพร้อมปุ่ม Preset ด่วน: `ตอนนี้`, `เริ่มกะ` และ `เลิกกะ`
 - **Detailed Live Preview**: จำลองการคำนวณชั่วโมงปกติ, OT เช้า, OT เย็น, มาสาย, กลับก่อนเวลา แบบสดๆ ก่อนกดบันทึก
+- **ระบบถ่ายรูป & แนบรูปหลักฐานการลงเวลา (Proof Attachment Card)**:
+  - เปิดกล้องถ่ายภาพหลักฐานทันที หรือเลือกจากอัลบั้มรูปในเครื่อง
+  - เหมาะสำหรับเก็บเป็นหลักฐานเวลานาฬิกาสแกนนิ้วหรือเครื่องสแกนใบหน้ามีปัญหา
+  - แสดง Thumbnail ขอบมนพรีวิว พร้อมปุ่มดูรูปเต็มจอ, ถ่ายใหม่, หรือลบ
+  - บันทึกไฟล์สำเนาถาวรในโฟลเดอร์แอป (Local Storage) รูปไม่สูญหายแม้ลบต้นฉบับออกจากคลังภาพ
 - ช่องกรอกหมายเหตุ/เหตุผลด้วย **BNA UI Input (Textarea)**
 - ระบบป้องกันการลบข้อมูลด้วย **AlertDialog (Destructive Guard)**
 
 ### 3. วันหยุด วันลา & กิจกรรม (Leaves, Calendar & Activities)
 - **ปฏิทินไทย (พ.ศ. 2569)**: แสดงสถานะแต่ละวันด้วยป้ายข้อความย่อ (Mini Badges) อ่านง่ายชัดเจน (`[หยุดปกติ]`, `[WFH]`, `[ลาป่วย]`, `[พักร้อน]`, `[นักขัตฯ]`) และจุดแสดงกิจกรรม พร้อมระบบ Smart 2-Tap (แตะเพื่อดูรายละเอียด / แตะซ้ำหรือกดค้างเพื่อจัดการวันที่)
+- **ระบบแนบใบรับรองแพทย์ & เอกสารการลา (Leave Document Attachments)**: สามารถถ่ายภาพหรือเลือกไฟล์รูปใบรับรองแพทย์เพื่อแนบไปกับประวัติการลาได้ทันที
+- **ระบบตัดรอบวันอัตโนมัติเที่ยงคืน (Local Timezone)**: คำนวณตามเวลาท้องถิ่นไทย (GMT+7) เปลี่ยนวันตรงเวลา 00:00 น. เป๊ะ ไม่ดีเลย์ไปถึง 07:00 น.
 - **บันทึกกิจกรรม & นัดหมายประจำวัน (Daily Activities)**:
   - เพิ่มนัดหมายพร้อมเลือกหมวดหมู่ (งาน/ประชุม, ออกกำลังกาย, ส่วนตัว/แฟน, กินข้าว/สังสรรค์, เที่ยว/ทำบุญ, ทั่วไป)
   - กำหนดเวลาเริ่มต้น-สิ้นสุด หรือเลือกเป็นกิจกรรมตลอดวัน
-  - ระบุสถานที่และบันทึกช่วยจำ
+  - ระบุสถานที่ (แตะเพื่อเปิดแผนที่) และบันทึกช่วยจำ
 - **ระบบ BottomSheet ฟอร์มเพิ่มกิจกรรมแบบ Pinned Footer**:
   - โครงสร้าง `bottom: 0` แนบสนิทขอบล่างของหน้าจอ
   - ปุ่ม `[ยกเลิก]` และ `[บันทึกนัดหมาย]` ถูกตรึงอยู่ด้านล่างอย่างถาวร มองเห็นได้ชัดเจน 100% โดยไม่ต้องเลื่อนจอ
@@ -68,6 +78,7 @@
   - `ชั่วโมง OT สะสม`: แสดงยอด OT รวมทั้งหมด $\rightarrow$ `ใช้แล้ว` $\rightarrow$ `คงเหลือสุทธิ (สีเขียวเด่น)`
   - `ชั่วโมงมาสาย`: แสดงยอดรวมมาสาย $\rightarrow$ `ชดเชยแล้ว` $\rightarrow$ `สายคงค้าง`
   - `รวมเวลาทำงานจริง`: แสดงเวลาที่ร่างกายทำงานจริงทั้งเดือน (`ปกติ + OT สะสม`) สำหรับ Time Card Audit Log
+- **สัญลักษณ์มีรูปหลักฐาน (Proof Badge)**: ในตารางประวัติเวลา วันที่มีการแนบภาพหลักฐานจะแสดงสัญลักษณ์กล้องถ่ายรูปกำกับไว้ชัดเจน และสามารถแตะดูรูปขยายใหญ่ได้จากหน้ารายละเอียด
 - **แบ่งรอบงวด 3 งวดต่อเดือน**: งวดที่ 1 (1-10), งวดที่ 2 (11-20), งวดที่ 3 (21-สิ้นเดือน)
 - **Quick Filter Pills**: กรองเฉพาะวันที่มี OT, มาสาย หรือกลับก่อน
 - **ส่งออกภาพสรุปรายเดือน**: บันทึกการ์ดสรุปเป็นรูปภาพความละเอียดสูงพร้อมตราสัญลักษณ์ TimeTrack OT เพื่อส่งหัวหน้างานหรือฝ่ายบุคคล
@@ -151,6 +162,37 @@
 
 ---
 
+## ระบบถ่ายรูปและแนบหลักฐานการลงเวลา (Time Entry Proof Attachment)
+
+TimeTrack OT ออกแบบระบบจัดเก็บภาพถ่ายเพื่อเป็นหลักฐานการเข้า-ออกงาน โดยเฉพาะในสถานการณ์ที่เครื่องสแกนนิ้ว, บัตรทาบ หรือเครื่องสแกนใบหน้าที่ทำงานเกิดปัญหา:
+- **2 ช่องทางการเลือกภาพ**:
+  - **ถ่ายรูปหลักฐาน**: เปิดกล้องถ่ายภาพ ณ เวลานั้นทันที พร้อมบันทึกพิกัดเวลา
+  - **เลือกจากอัลบั้ม**: นำรูปภาพที่ถ่ายไว้ล่วงหน้าจากคลังภาพขึ้นมาแนบ
+- **การจัดเก็บข้อมูลถาวร (Permanent Local Storage)**:
+  - ใช้ `FileSystem.documentDirectory` สำเนาไฟล์ภาพเก็บไว้ในพื้นที่เฉพาะของแอป
+  - แม้ผู้ใช้จะลบรูปต้นฉบับออกจากคลังภาพของเครื่อง รูปในแอป TimeTrack OT จะยังคงอยู่ครบถ้วน
+- **ระบบพรีวิวและแชร์ภาพ (`ImagePreviewModal`)**:
+  - แสดง Thumbnail ขอบมนขนาด 68x68 พร้อมป้ายสถานะ `CheckCircle2`
+  - แตะดูรูปขนาดเต็มจอพร้อมความสามารถในการซูมดูรายละเอียด (Pinch-to-zoom)
+  - มีปุ่มแชร์ภาพส่งต่อผ่านแอปพลิเคชันอื่น (เช่น LINE หรือ Email) เพื่อแจ้งฝ่ายบุคคล
+- **เชื่อมโยงกับหน้ารายงาน (Reports Integration)**:
+  - วันที่มีการแนบหลักฐาน จะมีสัญลักษณ์กล้องถ่ายรูป (`Camera` icon) บนแถวรายการ
+  - แตะดูภาพหลักฐานได้โดยตรงจากหน้ารายละเอียดการลงเวลา
+
+---
+
+## ระบบจัดการ Timezone และเปลี่ยนวันเที่ยงคืนตรงเป๊ะ (Local Timezone Engine)
+
+แก้ไขปัญหาทางเทคนิคเรื่อง Timezone Offset ของมาตรฐาน JavaScript `toISOString()` ในประเทศไทย (UTC+7 / GMT+7):
+- **ตัดรอบวันตรงเวลา 00:00 น. (เที่ยงคืน)**:
+  - ปรับระบบวันที่ทั้งหมดมาใช้ `toLocalDateString()` จาก `utils/dateHelper.ts` ซึ่งคำนวณจากเวลาท้องถิ่นของเครื่องโดยตรง
+  - แก้ปัญหาหน้า Dashboard และปฏิทินแสดงเป็นวันที่ของเมื่อวานในช่วงเวลา 00:00 - 06:59 น.
+  - ระบบนาฬิกาปลุกอัจฉริยะ (Smart Alarm) คำนวณตารางปลุกล่วงหน้า 21 วันได้อย่างแม่นยำตั้งแต่นาทีแรกของวัน
+- **Midnight Rollover Auto-Refresh**:
+  - ระบบตั้งเวลาอัจฉริยะในหน้าแรกที่จะตรวจจับเมื่อถึงเวลาเที่ยงคืน 00:00:00 น. เพื่อสั่งรีเฟรชข้อมูลหน้าจอ กะการทำงาน และสถานะวันใหม่โดยอัตโนมัติ ไม่ต้องปิดแล้วเปิดแอปใหม่
+
+---
+
 ## โครงสร้างฐานข้อมูล & Performance
 
 ### SQLite Database Optimization
@@ -161,7 +203,10 @@
   - `idx_leaves_dates` บน `leaves(start_date, end_date)`
   - `idx_work_schedules_month_year` บน `work_schedules(month, year)`
   - `idx_activities_date` บน `activities(date)`
+- **Auto-Migration**: ตรวจสอบและอัปเกรด Schema ฐานข้อมูลอัตโนมัติ (`ALTER TABLE time_entries ADD COLUMN attachment_uri TEXT;`) ข้อมูลเดิมไม่สูญหาย
+- **Permanent Sandboxed File Storage**: จัดเก็บภาพถ่ายหลักฐานใน `FileSystem.documentDirectory` ด้วยการสร้างชื่อไฟล์แยกตามหมวดหมู่และ Timestamp (`time_entry_proof_*.jpg`, `leave_attachment_*.jpg`) ป้องกันภาพสูญหาย และลบไฟล์ทิ้งอัตโนมัติเมื่อมีการลบข้อมูล
 - **Navigation Performance**: ปรับเปลี่ยนการสลับแท็บจาก `router.push()` เป็น `router.replace()` ป้องกันการสะสมหน้าจอใน Stack และแก้ไขปัญหาอาการแอปหน่วงได้อย่างเด็ดขาด
+- **Modern Edge-to-Edge & SafeArea Context**: อัปเกรดมาใช้ `react-native-safe-area-context` เพื่อรองรับ Navigation Gestures และขอบจอโค้งมนของ Android ยุคใหม่ 100% ปราศจาก Deprecation Warning
 
 ---
 
@@ -213,7 +258,7 @@ TimeTrackOT/
 ├── app/                             # File-Based Routing (Expo Router)
 │   ├── _layout.tsx                  # Root Layout, Global Font Loader & Notification Init
 │   ├── index.tsx                    # หน้าแรก (Dashboard 2x2 Stats, Live Clock & Quotas)
-│   ├── time-entry.tsx               # หน้าบันทึกเวลาทำงาน & Live Preview
+│   ├── time-entry.tsx               # หน้าบันทึกเวลาทำงาน & แนบรูปหลักฐาน
 │   ├── leaves.tsx                   # หน้าปฏิทินวันหยุด วันลา & กิจกรรมนัดหมาย
 │   ├── reports.tsx                  # หน้ารายงาน 3 งวด & การ์ดสรุปรายเดือน
 │   └── settings.tsx                 # หน้าตั้งค่าเวลากะรายปี, Haptic, ธีม & ข้อมูลแอป
@@ -226,19 +271,33 @@ TimeTrackOT/
 │   │   ├── bottom-sheet.tsx         # Pinned Footer BottomSheet (bottom: 0)
 │   │   ├── button.tsx               # BNA Themed Button
 │   │   ├── card.tsx                 # Surface Container Card
+│   │   ├── icon.tsx                 # BNA Vector Icon Standard Wrapper
 │   │   ├── input.tsx                # Styled Input & Textarea
 │   │   ├── separator.tsx            # Divider
 │   │   └── toast.tsx                # Global Toast Feedback
+│   ├── entry/
+│   │   └── TimeEntryAttachmentCard.tsx # การ์ดถ่ายภาพ & แนบรูปหลักฐานการลงเวลา
+│   ├── leaves/
+│   │   ├── LeaveAttachmentCard.tsx     # การ์ดแนบใบรับรองแพทย์ & เอกสารการลา
+│   │   └── ImagePreviewModal.tsx       # หน้าต่างพรีวิวรูปภาพ ซูม และแชร์ภาพ
+│   ├── reports/
+│   │   ├── EntryRow.tsx             # แถวรายการเวลาพร้อม Camera Proof Badge
+│   │   └── DetailModal.tsx          # รายละเอียดเวลาพร้อมพรีวิวรูปหลักฐาน
 │   ├── BottomNavigation.tsx         # Tab Navigation Bar (router.replace)
 │   ├── DatePicker.tsx               # Date Picker Modal
 │   ├── TimeInput.tsx                # Time Input with Wheel Selector
 │   └── ThemeProvider.tsx            # Theme Context Provider
 │
 ├── hooks/                           # Core Custom Hooks
-│   ├── useDatabase.ts               # SQLite Database Engine & Singleton Connection
+│   ├── useDatabase.ts               # SQLite Database Engine, Singleton & Auto-Migration
 │   ├── useTimeCalculation.ts        # Overtime & Working Hours Calculation Engine
 │   ├── useHaptics.ts                # Configurable Haptic Feedback Hook
 │   └── useTheme.ts                  # Light/Dark Theme Tokens
+│
+├── utils/                           # Helper Utilities
+│   ├── dateHelper.ts                # Local Timezone (GMT+7) Date Formatting & Parser
+│   ├── leaveAttachmentHelper.ts     # Permanent Local File Storage & Camera/Gallery Helper
+│   └── urlHelper.ts                 # Smart URL Auto-detection & Web Launcher
 │
 ├── modules/                         # Local Native Modules
 │   └── full-screen-alarm/           # Native Android Full-Screen Alarm Module (Kotlin)
@@ -255,9 +314,9 @@ TimeTrackOT/
 │   └── smartAlarmService.ts         # Smart Alarm Scheduling & Dynamic Lookahead Engine
 │
 ├── types/                           # TypeScript Definitions
-│   └── index.ts                     # TimeEntry, WorkSchedule, Leave, Holiday, Activity types
+│   └── index.ts                     # TimeEntry (with attachmentUri), WorkSchedule, Leave types
 ├── app.json                         # Expo Application Configuration & Permissions
-├── eas.json                         # EAS Build Profiles
+├── eas.json                         # EAS Build Profiles (Preview APK & Production AAB)
 └── package.json                     # Project Dependencies
 ```
 
@@ -286,18 +345,32 @@ npm run web       # สำหรับ Web Browser
 
 ---
 
-## วิธี Build APK (Android)
+## วิธี Build ไฟล์และการเผยแพร่แอป (Distribution Guide)
 
+### 1. การสร้างไฟล์สำหรับทดสอบ / ติดตั้งใช้งานภายใน (Standalone APK)
+สร้างไฟล์ `.apk` เพื่อนำไปแชร์ให้เพื่อนร่วมงานหรือทดสอบบนเครื่องจริงได้ทันที:
 ```bash
-# Build APK ด้วย EAS Cloud (Production Profile สำหรับติดตั้งไฟล์ Standalone APK บนเครื่องจริง)
+npx eas-cli@latest build -p android --profile preview
+```
+*เมื่อคำสั่งทำงานเสร็จสิ้น จะได้ลิงก์ดาวน์โหลดไฟล์ `.apk` พร้อม QR Code สำหรับสแกนติดตั้งบนอุปกรณ์ Android*
+
+### 2. การสร้างไฟล์เพื่อนำขึ้น Google Play Store (.aab)
+สร้างไฟล์ Android App Bundle สำหรับส่งเข้า Google Play Console:
+```bash
 npx eas-cli@latest build -p android --profile production
 ```
+
+### 3. ช่องทางการแจกจ่ายและเผยแพร่ฟรี (100% Free Distribution)
+เนื่องจากระบบ Android รองรับการติดตั้งไฟล์จากภายนอกอย่างอิสระ คุณสามารถแจกจ่ายแอปได้โดยไม่ต้องเสียค่าธรรมเนียม:
+* **แจกไฟล์ APK โดยตรง (Direct Download)**: นำไฟล์ `.apk` ไปฝากไว้บน Google Drive, ส่งผ่านแชต LINE หรือสร้างลิงก์ดาวน์โหลดบนเว็บไซต์องค์กร
+* **ส่งขึ้น APKPure (ฟรี 100%)**: ส่งไฟล์ APK ผ่านหน้า [APKPure Developer Submit](https://apkpure.com/developer-submit-apk) เพื่อให้ทีมงานตรวจสอบความปลอดภัยและเปิดให้ผู้ใช้ทั่วโลกค้นหาและดาวน์โหลดได้ฟรี
+* **เผยแพร่ผ่าน GitHub Releases**: แนบไฟล์ `.apk` ไว้ในหน้า Release ของ Repository เพื่อให้ผู้ใช้งานสามารถติดตามและดาวน์โหลดเวอร์ชันใหม่ๆ ได้สะดวก
 
 ---
 
 ## ข้อมูลผู้พัฒนา & ข้อเสนอแนะ
 
 - **ผู้พัฒนา (Developer)**: Wick
-- **เวอร์ชัน**: 1.4.0 (กันยายน 2569 - Build 23)
+- **เวอร์ชัน**: 1.5.0 (กันยายน 2569 - Build 30)
 - **การจัดเก็บข้อมูล**: ออฟไลน์ 100% ภายในเครื่อง ปลอดภัย เป็นส่วนตัวสูงสุด
 - **แจ้งปัญหาและข้อเสนอแนะ**: [แบบฟอร์มรับฟังข้อเสนอแนะ](https://forms.gle/BKx4Pz6VB65kdaka8)
