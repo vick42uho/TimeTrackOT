@@ -30,6 +30,7 @@ import {
   ListTodo,
 } from 'lucide-react-native';
 import { extractUrls, handleOpenURL } from '@/utils/urlHelper';
+import { toLocalDateString } from '@/utils/dateHelper';
 
 interface TaskNoteModalProps {
   isVisible: boolean;
@@ -177,7 +178,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
         isCompleted: allDone,
         color,
         isPinned,
-        date: defaultDate || new Date().toISOString().split('T')[0],
+        date: defaultDate || toLocalDateString(),
       });
       onClose();
     } catch (e) {

@@ -25,6 +25,7 @@ import {
 import { requestNotificationPermissions } from './notificationService';
 import * as FileSystem from 'expo-file-system/legacy';
 import FullScreenAlarm, { isFullScreenAlarmAvailable } from '../modules/full-screen-alarm';
+import { toLocalDateString, getDatesInRange } from '../utils/dateHelper';
 
 export const SMART_ALARM_CONFIG_KEY = '@timetrack_smart_alarm_config';
 export const SMART_ALARM_SCHEDULED_IDS_KEY = '@timetrack_smart_alarm_scheduled_ids';
@@ -276,15 +277,13 @@ export function calculateSmartAlarmSchedule(
     holidayMap[h.date] = h;
   });
 
-  // Pre-index leaves by date string
+  // Pre-index leaves by date string safely in local time
   const leaveMap: Record<string, LeaveRequest> = {};
   leaves.forEach((l) => {
-    const start = new Date(l.startDate);
-    const end = new Date(l.endDate);
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dStr = d.toISOString().split('T')[0];
+    const dates = getDatesInRange(l.startDate, l.endDate);
+    dates.forEach((dStr) => {
       leaveMap[dStr] = l;
-    }
+    });
   });
 
   const schedule: SmartAlarmScheduleItem[] = [];
@@ -748,7 +747,7 @@ export async function snoozeSmartAlarm(
         categoryIdentifier: SMART_ALARM_CATEGORY,
         data: {
           type: 'smart-alarm',
-          date: triggerDate.toISOString().split('T')[0],
+          date: toLocalDateString(triggerDate),
           alarmTime: timeStr,
           reason: `${reason} (เลื่อนปลุก)`,
         },
@@ -806,7 +805,7 @@ export async function triggerTestSmartAlarm(): Promise<string | undefined> {
       categoryIdentifier: SMART_ALARM_CATEGORY,
       data: {
         type: 'smart-alarm',
-        date: now.toISOString().split('T')[0],
+        date: toLocalDateString(now),
         alarmTime: timeStr,
         reason: 'ทดสอบระบบนาฬิกาปลุก',
       },

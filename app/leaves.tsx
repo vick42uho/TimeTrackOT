@@ -72,6 +72,7 @@ import { TimeInput } from '../components/TimeInput';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { useDatabase } from '../hooks/useDatabase';
 import { useTimeCalculation } from '../hooks/useTimeCalculation';
+import { toLocalDateString, getDatesInRange } from '@/utils/dateHelper';
 import {
   Holiday,
   HolidayType,
@@ -246,7 +247,7 @@ const LeavesContent: React.FC = () => {
 
   // Selected Date on Calendar for quick action
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    toLocalDateString()
   );
 
   // BottomSheet & Dialog States
@@ -365,12 +366,10 @@ const LeavesContent: React.FC = () => {
   const leaveMapByDate = useMemo(() => {
     const map: Record<string, LeaveRequest> = {};
     leaves.forEach((l) => {
-      const start = new Date(l.startDate);
-      const end = new Date(l.endDate);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dStr = d.toISOString().split('T')[0];
+      const dates = getDatesInRange(l.startDate, l.endDate);
+      dates.forEach((dStr) => {
         map[dStr] = l;
-      }
+      });
     });
     return map;
   }, [leaves]);
@@ -447,7 +446,7 @@ const LeavesContent: React.FC = () => {
       days.push(null);
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = toLocalDateString();
 
     // Days in month
     for (let day = 1; day <= totalDaysInMonth; day++) {

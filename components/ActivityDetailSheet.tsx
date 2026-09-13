@@ -24,6 +24,7 @@ import {
   cancelActivityReminder,
 } from '@/services/notificationService';
 import { extractUrls, handleOpenURL } from '@/utils/urlHelper';
+import { toLocalDateString } from '@/utils/dateHelper';
 import { Activity, ActivityCategory } from '@/types';
 import { LOCATION_PRESETS } from '@/components/leaves/leavesConstants';
 import {
@@ -222,7 +223,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
     try {
       triggerHaptic('impact-light');
 
-      const targetDate = activity?.date || defaultDate || new Date().toISOString().split('T')[0];
+      const targetDate = activity?.date || defaultDate || toLocalDateString();
 
       if (activity?.id && !isCreateMode) {
         // Edit existing
@@ -310,7 +311,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
     return `เตือนล่วงหน้า ${mins} นาที`;
   }, [isEditing, reminderMinutes, activity?.reminderMinutes]);
 
-  const targetDateStr = activity?.date || defaultDate || new Date().toISOString().split('T')[0];
+  const targetDateStr = activity?.date || defaultDate || toLocalDateString();
   const thaiDayName = getThaiDayName(targetDateStr);
   const formattedDate = formatDateThai(targetDateStr);
 

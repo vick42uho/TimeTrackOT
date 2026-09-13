@@ -55,6 +55,7 @@ import { TaskNoteManagerSheet } from '@/components/TaskNoteManagerSheet';
 import { ActivityDetailSheet } from '@/components/ActivityDetailSheet';
 import { getSmartAlarmConfig, syncSmartAlarmSchedule } from '@/services/smartAlarmService';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { toLocalDateString } from '@/utils/dateHelper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   InteractiveTourOverlay,
@@ -167,7 +168,7 @@ const HomeContent: React.FC = () => {
   );
   const [leaveSummaries, setLeaveSummaries] = useState<LeaveSummary[]>([]);
   const [nextHoliday, setNextHoliday] = useState<{ name: string; date: string; daysLeft: number } | null>(null);
-  const [currentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(true);
   const [monthlyStats, setMonthlyStats] = useState<{
     totalOT: number;
@@ -362,14 +363,15 @@ const HomeContent: React.FC = () => {
       return;
     }
     
-    // Use actual current date from system
+    // Use actual current date from system in local timezone
     const today = new Date();
+    setCurrentDate(today);
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
     const day = today.getDate();
     
-    // Format date string properly
-    const dateString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    // Format date string properly in local timezone
+    const dateString = toLocalDateString(today);
 
     // High Performance: Fetch today data, yearly stats, and tasks concurrently in parallel
     const [schedule, entry, dayStatus, todayActs, yearHolidays, leaveSum, _yearlyStats, todayTasks] = await Promise.all([
@@ -484,6 +486,27 @@ const HomeContent: React.FC = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReady])
   );
+
+  // Auto-refresh date & data if midnight crosses while app remains in foreground
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentDate((prev) => {
+        if (
+          prev.getDate() !== now.getDate() ||
+          prev.getMonth() !== now.getMonth() ||
+          prev.getFullYear() !== now.getFullYear()
+        ) {
+          if (isReady) {
+            loadTodayData();
+          }
+          return now;
+        }
+        return prev;
+      });
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [isReady, loadTodayData]);
 
   const currentMonth = new Date().toLocaleDateString('th-TH', { 
     month: 'long', 
@@ -607,7 +630,7 @@ const HomeContent: React.FC = () => {
             <View>
               <LiveGreetingRow isDark={isDark} textStyle={styles.greetingText} />
               <Text style={styles.dateTitle}>
-                วัน{getThaiDayName(currentDate.toISOString().split('T')[0])}ที่ {formatDateThai(currentDate.toISOString().split('T')[0])}
+                วัน{getThaiDayName(toLocalDateString(currentDate))}ที่ {formatDateThai(toLocalDateString(currentDate))}
               </Text>
             </View>
 
@@ -704,7 +727,7 @@ const HomeContent: React.FC = () => {
         visible={isActivitySheetVisible}
         activity={selectedActivity}
         isCreateMode={isActivityCreateMode}
-        defaultDate={new Date().toISOString().split('T')[0]}
+        defaultDate={toLocalDateString(currentDate)}
         onClose={() => {
           setIsActivitySheetVisible(false);
           setSelectedActivity(null);
