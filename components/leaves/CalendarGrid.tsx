@@ -106,7 +106,10 @@ const DayCell = React.memo(function DayCell({
     const hCol = getMiniTagColors(item.holiday!.type, isDark);
     dots.push({ id: `holiday-${item.dateStr}`, color: hCol.text });
     if (hasActivities) {
-      dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
+      const maxActDots = Math.min(item.activities!.length, 2);
+      for (let i = 0; i < maxActDots; i++) {
+        dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
+      }
     }
   } else if (hasLeave) {
     const lCol = getMiniTagColors(item.leave!.leaveType, isDark);
@@ -116,7 +119,10 @@ const DayCell = React.memo(function DayCell({
       textCol: lCol.text,
     };
     if (hasActivities) {
-      dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
+      const maxActDots = Math.min(item.activities!.length, 3);
+      for (let i = 0; i < maxActDots; i++) {
+        dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
+      }
     }
   } else if (hasHoliday) {
     const hCol = getMiniTagColors(item.holiday!.type, isDark);
@@ -126,10 +132,16 @@ const DayCell = React.memo(function DayCell({
       textCol: hCol.text,
     };
     if (hasActivities) {
-      dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
+      const maxActDots = Math.min(item.activities!.length, 3);
+      for (let i = 0; i < maxActDots; i++) {
+        dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
+      }
     }
   } else if (hasActivities) {
-    dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
+    const maxActDots = Math.min(item.activities!.length, 3);
+    for (let i = 0; i < maxActDots; i++) {
+      dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
+    }
   }
 
   return (
