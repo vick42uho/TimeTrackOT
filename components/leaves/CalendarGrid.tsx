@@ -23,6 +23,48 @@ interface CalendarGridProps {
   onDayLongPress?: (dateStr: string) => void;
 }
 
+function getMiniTagColors(type: string, isDark: boolean): { bg: string; text: string } {
+  switch (type) {
+    case 'wfh':
+      return {
+        bg: isDark ? 'rgba(22, 163, 74, 0.25)' : '#dcfce7',
+        text: isDark ? '#86efac' : '#16a34a',
+      };
+    case 'regular_off':
+      return {
+        bg: isDark ? 'rgba(100, 116, 139, 0.25)' : '#f1f5f9',
+        text: isDark ? '#cbd5e1' : '#64748b',
+      };
+    case 'sick':
+      return {
+        bg: isDark ? 'rgba(239, 68, 68, 0.22)' : '#fee2e2',
+        text: isDark ? '#fca5a5' : '#ef4444',
+      };
+    case 'vacation':
+    case 'public':
+      return {
+        bg: isDark ? 'rgba(37, 99, 235, 0.22)' : '#dbeafe',
+        text: isDark ? '#93c5fd' : '#2563eb',
+      };
+    case 'personal':
+      return {
+        bg: isDark ? 'rgba(245, 158, 11, 0.22)' : '#fef3c7',
+        text: isDark ? '#fcd34d' : '#d97706',
+      };
+    case 'company':
+    case 'other':
+      return {
+        bg: isDark ? 'rgba(124, 58, 237, 0.22)' : '#f3e8ff',
+        text: isDark ? '#c4b5fd' : '#7c3aed',
+      };
+    default:
+      return {
+        bg: isDark ? 'rgba(100, 116, 139, 0.25)' : '#f1f5f9',
+        text: isDark ? '#cbd5e1' : '#64748b',
+      };
+  }
+}
+
 const DayCell = React.memo(function DayCell({
   item,
   isSelected,
@@ -43,11 +85,14 @@ const DayCell = React.memo(function DayCell({
   const hasActivities = (item.activities?.length || 0) > 0;
 
   const primaryColor = colors?.primary || '#2563eb';
-  const textColor = item.isToday
+  const textColor = isSelected
     ? primaryColor
     : item.isWeekend
-      ? (colors?.textSecondary || '#64748b')
-      : (colors?.text || (isDark ? '#f8fafc' : '#0f172a'));
+      ? (isDark ? '#94a3b8' : '#64748b')
+      : (colors?.text || (isDark ? '#f8fafc' : '#1e293b'));
+
+  const holidayColors = item.holiday ? getMiniTagColors(item.holiday.type, isDark) : null;
+  const leaveColors = item.leave ? getMiniTagColors(item.leave.leaveType, isDark) : null;
 
   return (
     <TouchableOpacity
@@ -58,16 +103,12 @@ const DayCell = React.memo(function DayCell({
       style={[
         styles.dayCell,
         item.isWeekend && !isSelected && {
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc',
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
         },
         isSelected && {
-          borderColor: primaryColor,
+          borderColor: '#3b82f6',
           borderWidth: 1.5,
-          backgroundColor: isDark ? `${primaryColor}25` : '#eff6ff',
-        },
-        item.isToday && !isSelected && {
-          borderWidth: 1,
-          borderColor: primaryColor,
+          backgroundColor: isDark ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
         },
       ]}
     >
@@ -77,7 +118,7 @@ const DayCell = React.memo(function DayCell({
           styles.dayNumberText,
           {
             color: textColor,
-            fontFamily: isSelected || item.isToday ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
+            fontFamily: isSelected ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
           },
         ]}
       >
@@ -85,22 +126,18 @@ const DayCell = React.memo(function DayCell({
       </RNText>
 
       {/* Status Badges / Tags on Calendar Day */}
-      {hasHoliday && (
+      {hasHoliday && holidayColors && (
         <View
           style={[
             styles.calendarMiniTag,
-            {
-              backgroundColor: isDark
-                ? `${HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6'}35`
-                : `${HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6'}18`,
-            },
+            { backgroundColor: holidayColors.bg },
           ]}
         >
           <RNText
             numberOfLines={1}
             style={[
               styles.calendarMiniTagText,
-              { color: HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || primaryColor },
+              { color: holidayColors.text },
             ]}
           >
             {HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.shortLabel || 'หยุด'}
@@ -108,26 +145,18 @@ const DayCell = React.memo(function DayCell({
         </View>
       )}
 
-      {hasLeave && (
+      {hasLeave && leaveColors && (
         <View
           style={[
             styles.calendarMiniTag,
-            {
-              backgroundColor: isDark
-                ? `${LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color || '#f59e0b'}35`
-                : `${LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color || '#f59e0b'}18`,
-            },
+            { backgroundColor: leaveColors.bg },
           ]}
         >
           <RNText
             numberOfLines={1}
             style={[
               styles.calendarMiniTagText,
-              {
-                color:
-                  LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color ||
-                  '#f59e0b',
-              },
+              { color: leaveColors.text },
             ]}
           >
             {LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา'}
@@ -135,10 +164,18 @@ const DayCell = React.memo(function DayCell({
         </View>
       )}
 
-      {/* Activity Dot */}
+      {/* Activity Dot / Second Indicator */}
       {hasActivities && (
         <View style={styles.activityDotContainer}>
-          <View style={styles.activityDot} />
+          <View
+            style={[
+              styles.activityDot,
+              {
+                backgroundColor: hasHoliday || hasLeave ? '#64748b' : '#8b5cf6',
+                marginTop: hasHoliday || hasLeave ? 2 : 4,
+              },
+            ]}
+          />
         </View>
       )}
     </TouchableOpacity>
@@ -164,7 +201,7 @@ export const CalendarGrid = React.memo(function CalendarGrid({
           <ChevronLeft size={20} color={colors.primary} />
         </TouchableOpacity>
 
-        <Text variant="subtitle" style={{ fontWeight: '700', fontSize: 16 }}>
+        <Text variant="subtitle" style={{ fontWeight: '700', fontSize: 18, fontFamily: 'Sarabun_700Bold' }}>
           {THAI_MONTH_NAMES[selectedMonth - 1]} {selectedYear + 543}
         </Text>
 
@@ -177,11 +214,17 @@ export const CalendarGrid = React.memo(function CalendarGrid({
         {WEEKDAY_NAMES.map((w, idx) => (
           <View key={w} style={styles.weekdayCell}>
             <Text
-              variant="caption"
               style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: idx === 0 ? '#ef4444' : idx === 6 ? '#8b5cf6' : colors.textSecondary,
+                fontSize: 13,
+                fontFamily: 'Sarabun_700Bold',
+                color:
+                  idx === 0
+                    ? '#ef4444'
+                    : idx === 6
+                      ? '#8b5cf6'
+                      : isDark
+                        ? '#94a3b8'
+                        : '#64748b',
               }}
             >
               {w}
@@ -213,23 +256,23 @@ export const CalendarGrid = React.memo(function CalendarGrid({
       <View style={styles.calendarLegendRow}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#2563eb' }]} />
-          <Text variant="caption" style={{ fontSize: 11 }}>นักขัตฯ</Text>
+          <Text variant="caption" style={{ fontSize: 12, color: colors.textSecondary }}>นักขัตฯ</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#16a34a' }]} />
-          <Text variant="caption" style={{ fontSize: 11 }}>WFH</Text>
+          <Text variant="caption" style={{ fontSize: 12, color: colors.textSecondary }}>WFH</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#64748b' }]} />
-          <Text variant="caption" style={{ fontSize: 11 }}>หยุดปกติ</Text>
+          <Text variant="caption" style={{ fontSize: 12, color: colors.textSecondary }}>หยุดปกติ</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#f59e0b' }]} />
-          <Text variant="caption" style={{ fontSize: 11 }}>วันลา</Text>
+          <Text variant="caption" style={{ fontSize: 12, color: colors.textSecondary }}>วันลา</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#8b5cf6' }]} />
-          <Text variant="caption" style={{ fontSize: 11 }}>กิจกรรม</Text>
+          <Text variant="caption" style={{ fontSize: 12, color: colors.textSecondary }}>กิจกรรม</Text>
         </View>
       </View>
     </>
@@ -243,18 +286,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     paddingHorizontal: 4,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   monthNavBtn: {
-    padding: 6,
+    padding: 8,
     borderRadius: 8,
   },
   weekdayRow: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f030',
     paddingBottom: 6,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   weekdayCell: {
     width: `${100 / 7}%`,
@@ -268,22 +309,22 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: `${100 / 7}%`,
-    height: 52,
+    height: 58,
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 3,
-    borderRadius: 8,
-    marginVertical: 1,
+    paddingTop: 4,
+    borderRadius: 12,
+    marginVertical: 2,
   },
   dayNumberText: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 20,
     textAlign: 'center',
     includeFontPadding: false,
   },
   calendarMiniTag: {
     marginTop: 2,
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
     maxWidth: '92%',
@@ -291,36 +332,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   calendarMiniTagText: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'Sarabun_700Bold',
     includeFontPadding: false,
     textAlign: 'center',
   },
   activityDotContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    marginTop: 2,
   },
   activityDot: {
-    width: 4.5,
-    height: 4.5,
-    borderRadius: 2.25,
-    backgroundColor: '#8b5cf6',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   calendarLegendRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 10,
-    marginTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f030',
+    paddingTop: 16,
+    marginTop: 14,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   legendDot: {
     width: 8,

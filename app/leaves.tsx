@@ -1281,7 +1281,7 @@ const LeavesContent: React.FC = () => {
                     marginBottom: 10,
                   }}
                 >
-                <Card style={{ padding: 12, backgroundColor: colors.card }}>
+                <Card style={{ padding: 16, borderRadius: 24, backgroundColor: colors.card }}>
                   <CalendarGrid
                     selectedYear={selectedYear}
                     selectedMonth={selectedMonth}
@@ -1301,18 +1301,16 @@ const LeavesContent: React.FC = () => {
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginTop: 10,
-                      paddingTop: 8,
-                      borderTopWidth: 1,
-                      borderTopColor: isDark ? '#27272a' : '#f1f5f9',
+                      marginTop: 14,
+                      paddingTop: 4,
                     }}
                   >
-                    <Text variant="caption" style={{ fontSize: 11, color: colors.textSecondary }}>
+                    <Text variant="caption" style={{ fontSize: 12, color: colors.textSecondary }}>
                       ตารางวันหยุด & วันทำงาน
                     </Text>
                     <Text
                       variant="caption"
-                      style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}
+                      style={{ fontSize: 12, color: colors.primary, fontWeight: '700', fontFamily: 'Sarabun_700Bold' }}
                     >
                       TimeTrack OT
                     </Text>
