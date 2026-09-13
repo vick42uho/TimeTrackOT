@@ -57,6 +57,11 @@ function getMiniTagColors(type: string, isDark: boolean): { bg: string; text: st
         bg: isDark ? 'rgba(124, 58, 237, 0.22)' : '#f3e8ff',
         text: isDark ? '#c4b5fd' : '#7c3aed',
       };
+    case 'activity':
+      return {
+        bg: isDark ? 'rgba(139, 92, 246, 0.22)' : '#ede9fe',
+        text: isDark ? '#c4b5fd' : '#7c3aed',
+      };
     default:
       return {
         bg: isDark ? 'rgba(100, 116, 139, 0.25)' : '#f1f5f9',
@@ -138,9 +143,18 @@ const DayCell = React.memo(function DayCell({
       }
     }
   } else if (hasActivities) {
-    const maxActDots = Math.min(item.activities!.length, 4);
+    // When no leave and no holiday, the 1st activity becomes the primary badge [กิจกรรม]
+    const actCol = getMiniTagColors('activity', isDark);
+    badge = {
+      text: 'กิจกรรม',
+      bg: actCol.bg,
+      textCol: actCol.text,
+    };
+    // Additional activities (from 2nd onwards) become secondary dots underneath
+    const remainingActs = item.activities!.slice(1);
+    const maxActDots = Math.min(remainingActs.length, 4);
     for (let i = 0; i < maxActDots; i++) {
-      dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
+      dots.push({ id: `act-${item.dateStr}-${i + 1}`, color: '#8b5cf6' });
     }
   }
 
