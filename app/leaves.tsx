@@ -101,6 +101,8 @@ import {
   REMINDER_OPTIONS,
 } from '@/components/leaves/leavesConstants';
 import { CalendarGrid } from '@/components/leaves/CalendarGrid';
+import { SelectedDayCard } from '@/components/leaves/SelectedDayCard';
+import { DayActionSheet } from '@/components/leaves/DayActionSheet';
 import { LeaveSheet } from '@/components/leaves/LeaveSheet';
 import { LeavesDialogs } from '@/components/leaves/LeavesDialogs';
 import type { CalendarDayItem } from '@/components/leaves/leavesConstants';
@@ -574,11 +576,21 @@ const LeavesContent: React.FC = () => {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [holidays, selectedYear]);
 
-  // Handle Day Cell Press
-  const handleDayPress = (dateStr: string) => {
+  // Handle Day Cell Press & Long Press (Smart 2-Tap / Long-Press UX)
+  const handleDayPress = useCallback((dateStr: string) => {
+    if (selectedCalendarDate === dateStr) {
+      // 2nd tap on the already selected date opens the action sheet
+      dayActionSheet.open();
+    } else {
+      // 1st tap: selects the date and smoothly updates the preview card below
+      setSelectedCalendarDate(dateStr);
+    }
+  }, [selectedCalendarDate, dayActionSheet]);
+
+  const handleDayLongPress = useCallback((dateStr: string) => {
     setSelectedCalendarDate(dateStr);
     dayActionSheet.open();
-  };
+  }, [dayActionSheet]);
 
   // Quick Set Day Status (1-Tap)
   const handleQuickSetStatus = async (type: HolidayType, customName?: string) => {
@@ -1280,6 +1292,7 @@ const LeavesContent: React.FC = () => {
                     onPrevMonth={handlePrevMonth}
                     onNextMonth={handleNextMonth}
                     onDayPress={handleDayPress}
+                    onDayLongPress={handleDayLongPress}
                   />
 
                   {/* Subtle Watermark Footer on Shared Image */}
@@ -1343,291 +1356,22 @@ const LeavesContent: React.FC = () => {
               </TouchableOpacity>
 
               {/* SELECTED DAY SCHEDULE & ACTIVITIES CARD */}
-              <Card style={{ marginBottom: 14, padding: 14 }}>
-                {/* Header with Date & Day Status */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: 10,
-                  }}
-                >
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text
-                      variant="caption"
-                      style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 12 }}
-                    >
-                      {getThaiDayName(selectedCalendarDate)}
-                    </Text>
-                    <Text variant="subtitle" style={{ fontWeight: '700', fontSize: 15 }}>
-                      {formatDateThai(selectedCalendarDate)}
-                    </Text>
-                  </View>
-
-                  {/* Day Status Badges (Supports multiple statuses simultaneously) */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    {selectedDateHoliday && getHolidayBadge(selectedDateHoliday.type)}
-                    {selectedDateLeave && getLeaveTypeBadge(selectedDateLeave.leaveType)}
-                    {!selectedDateHoliday && !selectedDateLeave && (
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 5,
-                          paddingVertical: 4,
-                          paddingHorizontal: 10,
-                          borderRadius: 999,
-                          borderWidth: 0,
-                          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f1f5f9',
-                        }}
-                      >
-                        <Briefcase size={12} color={colors.textSecondary} />
-                        <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>
-                          วันทำงานปกติ
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                {/* Holiday / Leave Detailed Info if present */}
-                {(selectedDateHoliday || selectedDateLeave) && (
-                  <View style={{ gap: 6, marginBottom: 12 }}>
-                    {selectedDateHoliday && (
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: 10,
-                          borderRadius: 12,
-                          backgroundColor: isDark
-                            ? `${HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || '#3b82f6'}15`
-                            : `${HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || '#3b82f6'}10`,
-                          borderLeftWidth: 3,
-                          borderLeftColor: HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || colors.primary,
-                        }}
-                      >
-                        <CalendarIcon size={14} color={HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || colors.primary} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
-                            {selectedDateHoliday.name}
-                          </Text>
-                          <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                            {HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.label || 'วันหยุด'}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-
-                    {selectedDateLeave && (
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: 10,
-                          borderRadius: 12,
-                          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fffbeb',
-                          borderLeftWidth: 3,
-                          borderLeftColor: LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.color || '#f59e0b',
-                        }}
-                      >
-                        <Briefcase size={14} color={LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.color || '#f59e0b'} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
-                            {LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.label || 'การลา'}: {selectedDateLeave.durationDays} วัน
-                          </Text>
-                          {selectedDateLeave.reason ? (
-                            <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                              เหตุผล: {selectedDateLeave.reason}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Activities List for Selected Day */}
-                {selectedDayActivities.length > 0 ? (
-                  <View style={{ gap: 8, marginBottom: 12 }}>
-                    {selectedDayActivities.map((act) => {
-                      const catCfg =
-                        ACTIVITY_CATEGORY_CONFIG[act.category] || ACTIVITY_CATEGORY_CONFIG.general;
-                      const CatIcon = catCfg.icon;
-
-                      return (
-                        <View
-                          key={act.id}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: 12,
-                            borderRadius: 18,
-                            borderLeftWidth: 4,
-                            borderLeftColor: catCfg.color,
-                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
-                            borderWidth: 0,
-                          }}
-                        >
-                          <View style={{ flex: 1, marginRight: 8 }}>
-                            {/* Title & Category */}
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: 6,
-                                marginBottom: 2,
-                              }}
-                            >
-                              <CatIcon size={14} color={catCfg.color} />
-                              <Text
-                                style={{
-                                  fontWeight: '700',
-                                  fontSize: 14,
-                                  color: colors.text,
-                                }}
-                              >
-                                {act.title}
-                              </Text>
-                            </View>
-
-                            {/* Time & Badges */}
-                            <View
-                              style={{
-                                flexDirection: 'row',
-                                flexWrap: 'wrap',
-                                alignItems: 'center',
-                                gap: 6,
-                                marginTop: 2,
-                              }}
-                            >
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Clock size={12} color={colors.textSecondary} />
-                                <Text style={{ fontSize: 12, color: colors.textSecondary }}>
-                                  {act.isAllDay
-                                    ? 'ตลอดวัน'
-                                    : `${act.startTime || ''}${act.endTime ? ` - ${act.endTime}` : ''} น.`}
-                                </Text>
-                              </View>
-
-                              {act.location && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                  <MapPin size={12} color={colors.textSecondary} />
-                                  <Text
-                                    style={{ fontSize: 12, color: colors.textSecondary }}
-                                    numberOfLines={1}
-                                  >
-                                    {act.location}
-                                  </Text>
-                                </View>
-                              )}
-
-                              {act.reminderMinutes !== null && act.reminderMinutes !== undefined && (
-                                <View
-                                  style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 3,
-                                    backgroundColor: isDark
-                                      ? 'rgba(245, 158, 11, 0.15)'
-                                      : '#fef3c7',
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 1,
-                                    borderRadius: 6,
-                                  }}
-                                >
-                                  <Bell size={10} color="#f59e0b" />
-                                  <Text
-                                    style={{
-                                      fontSize: 10,
-                                      color: '#d97706',
-                                      fontWeight: '600',
-                                    }}
-                                  >
-                                    {act.reminderMinutes === 0
-                                      ? 'ตรงเวลา'
-                                      : act.reminderMinutes === 15
-                                      ? 'ก่อน 15 นาที'
-                                      : act.reminderMinutes === 30
-                                      ? 'ก่อน 30 นาที'
-                                      : act.reminderMinutes === 60
-                                      ? 'ก่อน 1 ชม.'
-                                      : act.reminderMinutes === 1440
-                                      ? 'ก่อน 1 วัน'
-                                      : `ก่อน ${act.reminderMinutes} น.`}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-
-                            {act.note && (
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  color: colors.textSecondary,
-                                  marginTop: 3,
-                                }}
-                              >
-                                {act.note}
-                              </Text>
-                            )}
-                          </View>
-
-                          {/* Actions: Edit & Delete */}
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <TouchableOpacity
-                              onPress={() => handleOpenEditActivity(act)}
-                              style={{ padding: 6 }}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Edit3 size={16} color={colors.primary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteActivityPrompt(act)}
-                              style={{ padding: 6 }}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Trash2 size={16} color="#ef4444" />
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      paddingVertical: 14,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-                      ยังไม่มีกิจกรรมหรือนัดหมายในวันนี้
-                    </Text>
-                  </View>
-                )}
-
-                {/* Button to Add Activity */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={Plus}
-                  onPress={handleOpenAddActivity}
-                  style={{
-                    borderColor: colors.primary,
-                    backgroundColor: isDark ? `${colors.primary}15` : '#eff6ff',
-                    minHeight: 38,
-                  }}
-                  textStyle={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}
-                >
-                  เพิ่มกิจกรรม / นัดหมายในวันนี้
-                </Button>
-              </Card>
+              <SelectedDayCard
+                selectedCalendarDate={selectedCalendarDate}
+                selectedDateHoliday={selectedDateHoliday || null}
+                selectedDateLeave={selectedDateLeave || null}
+                selectedDayActivities={selectedDayActivities}
+                colors={colors}
+                isDark={isDark}
+                getThaiDayName={getThaiDayName}
+                formatDateThai={formatDateThai}
+                getLeaveTypeBadge={getLeaveTypeBadge}
+                getHolidayBadge={getHolidayBadge}
+                onEditActivity={handleOpenEditActivity}
+                onDeleteActivity={handleDeleteActivityPrompt}
+                onAddActivity={handleOpenAddActivity}
+                onManageDay={dayActionSheet.open}
+              />
 
               {/* Accordion: Monthly vs Yearly */}
               <View style={{ marginTop: 14 }}>
@@ -1987,251 +1731,55 @@ const LeavesContent: React.FC = () => {
       {/* ========================================================= */}
       {/* BOTTOM SHEET 1: DAY QUICK ACTION & ACTIVITIES (1-TAP) */}
       {/* ========================================================= */}
-      <BottomSheet
+      <DayActionSheet
         isVisible={dayActionSheet.isVisible}
         onClose={dayActionSheet.close}
-        snapPoints={[0.95]}
-        title="จัดการวันที่ & กิจกรรม"
-      >
-        <View style={{ paddingBottom: 20 }}>
-          {/* Selected Date Header */}
-          <View style={[styles.dayActionHeader, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
-            <CalendarIcon size={18} color={colors.primary} />
-            <Text variant="subtitle" style={{ fontWeight: '700', marginLeft: 8, fontSize: 14 }}>
-              {formatDateThai(selectedCalendarDate)} ({getThaiDayName(selectedCalendarDate)})
-            </Text>
-          </View>
-
-          {/* Current Status on this date if any */}
-          {(currentDayHoliday || currentDayLeave) && (
-            <View style={[styles.currentStatusBox, { borderColor: colors.border }]}>
-              <Text variant="caption" style={{ color: colors.textSecondary, marginBottom: 2 }}>
-                สถานะปัจจุบัน:
-              </Text>
-              {currentDayHoliday && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  {getHolidayBadge(currentDayHoliday.type)}
-                  <Text variant="subtitle" style={{ fontWeight: '600', fontSize: 14 }}>{currentDayHoliday.name}</Text>
-                </View>
-              )}
-              {currentDayLeave && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {getLeaveTypeBadge(currentDayLeave.leaveType)}
-                  <Text variant="subtitle" style={{ fontWeight: '600', fontSize: 14 }}>
-                    ลางาน ({currentDayLeave.durationDays} วัน) {currentDayLeave.reason ? `- ${currentDayLeave.reason}` : ''}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Existing Activities on this Date */}
-          {selectedDayActivities.length > 0 && (
-            <View
-              style={[
-                styles.currentStatusBox,
-                {
-                  borderColor: '#8b5cf6',
-                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.12)' : '#f5f3ff',
-                  marginBottom: 12,
-                },
-              ]}
-            >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text variant="caption" style={{ color: '#8b5cf6', fontWeight: '700', fontSize: 12 }}>
-                  กิจกรรมในวันนี้ ({selectedDayActivities.length}):
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    dayActionSheet.close();
-                    handleOpenAddActivity();
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={{ fontSize: 12, color: colors.primary, fontWeight: '700' }}>+ เพิ่มอีก</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={{ gap: 6 }}>
-                {selectedDayActivities.map((act) => {
-                  const catCfg =
-                    ACTIVITY_CATEGORY_CONFIG[act.category] || ACTIVITY_CATEGORY_CONFIG.general;
-                  const CatIcon = catCfg.icon;
-                  return (
-                    <View
-                      key={act.id}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor: colors.card,
-                        padding: 8,
-                        borderRadius: 8,
-                        borderLeftWidth: 3,
-                        borderLeftColor: catCfg.color,
-                      }}
-                    >
-                      <View style={{ flex: 1, marginRight: 6 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <CatIcon size={12} color={catCfg.color} />
-                          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>
-                            {act.title}
-                          </Text>
-                        </View>
-                        <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                          {act.isAllDay ? 'ตลอดวัน' : `${act.startTime || ''}${act.endTime ? ` - ${act.endTime}` : ''} น.`}
-                          {act.location ? ` • ${act.location}` : ''}
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 4 }}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            dayActionSheet.close();
-                            handleOpenEditActivity(act);
-                          }}
-                          style={{ padding: 4 }}
-                        >
-                          <Edit3 size={15} color={colors.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => {
-                            dayActionSheet.close();
-                            handleDeleteActivityPrompt(act);
-                          }}
-                          style={{ padding: 4 }}
-                        >
-                          <Trash2 size={15} color="#ef4444" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          <Text variant="caption" style={{ color: colors.textSecondary, marginBottom: 8, fontWeight: '600' }}>
-            เลือกการดำเนินการ:
-          </Text>
-
-          {/* Quick Action Grid */}
-          <View style={{ gap: 8 }}>
-            {/* 1. Add Activity / Appointment for this day (Highlighted Option) */}
-            <TouchableOpacity
-              style={[
-                styles.quickActionBtn,
-                {
-                  borderColor: '#8b5cf6',
-                  backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#f5f3ff',
-                },
-              ]}
-              onPress={() => {
-                dayActionSheet.close();
-                handleOpenAddActivity();
-              }}
-            >
-              <Plus size={20} color="#8b5cf6" />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ fontWeight: '700', color: '#8b5cf6', fontSize: 15 }}>
-                  เพิ่มกิจกรรม / นัดหมาย
-                </Text>
-                <Text variant="caption" style={{ color: isDark ? '#c4b5fd' : '#7c3aed' }}>
-                  บันทึกกิจกรรม พร้อมตั้งเวลาแจ้งเตือน
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* 2. Set as WFH */}
-            <TouchableOpacity
-              style={[styles.quickActionBtn, { borderColor: '#16a34a', backgroundColor: isDark ? '#14532d30' : '#f0fdf4' }]}
-              onPress={() => handleQuickSetStatus('wfh', 'ทำงานที่บ้าน (WFH)')}
-            >
-              <Home size={20} color="#16a34a" />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ fontWeight: '700', color: '#16a34a' }}>Work From Home (WFH)</Text>
-                <Text variant="caption" style={{ color: isDark ? '#86efac' : '#15803d' }}>
-                  กำหนดให้วันนี้เป็นการทำงานที่บ้าน
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* 3. Set as Regular Day Off */}
-            <TouchableOpacity
-              style={[styles.quickActionBtn, { borderColor: '#64748b', backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}
-              onPress={() => handleQuickSetStatus('regular_off', 'วันหยุดปกติ')}
-            >
-              <Coffee size={20} color="#64748b" />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ fontWeight: '700', color: colors.text }}>วันหยุดปกติ (Day Off)</Text>
-                <Text variant="caption" style={{ color: colors.textSecondary }}>
-                  กำหนดให้วันนี้เป็นวันหยุดประจำสัปดาห์
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* 4. Leave Request for this day */}
-            <TouchableOpacity
-              style={[styles.quickActionBtn, { borderColor: '#3b82f6', backgroundColor: isDark ? '#1e3a8a30' : '#eff6ff' }]}
-              onPress={() => {
-                const targetDate = new Date(selectedCalendarDate);
-                setEditingLeave(null);
-                setLeaveType('vacation');
-                setLeaveDurationType('full_day');
-                setLeaveReason('');
-                setLeaveRange({ startDate: targetDate, endDate: targetDate });
-                dayActionSheet.close();
-                leaveSheet.open();
-              }}
-            >
-              <Briefcase size={20} color="#3b82f6" />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ fontWeight: '700', color: '#3b82f6' }}>ยื่นขอลาสำหรับวันนี้</Text>
-                <Text variant="caption" style={{ color: isDark ? '#93c5fd' : '#1d4ed8' }}>
-                  ขอลาพักร้อน, ลาป่วย หรือลากิจ
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* 5. Custom Holiday / Edit Holiday */}
-            <TouchableOpacity
-              style={[styles.quickActionBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-              onPress={() => {
-                dayActionSheet.close();
-                if (currentDayHoliday) {
-                  handleOpenEditHoliday(currentDayHoliday);
-                } else {
-                  handleOpenAddHoliday(new Date(selectedCalendarDate));
-                }
-              }}
-            >
-              <Building2 size={20} color={colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={{ fontWeight: '700', color: colors.text }}>
-                  {currentDayHoliday ? 'แก้ไขวันหยุด / สถานะ' : 'เพิ่มวันหยุดนักขัตฤกษ์ / บริษัท'}
-                </Text>
-                <Text variant="caption" style={{ color: colors.textSecondary }}>
-                  {currentDayHoliday ? 'แก้ไขชื่อ, วันที่ หรือประเภทสถานะ' : 'กรอกชื่อวันหยุดเฉพาะสำหรับวันนี้'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* 6. Clear Status if exists */}
-            {(currentDayHoliday || currentDayLeave) && (
-              <Button
-                variant="destructive"
-                icon={Trash2}
-                style={{ marginTop: 8 }}
-                onPress={() => {
-                  dayActionSheet.close();
-                  clearStatusDialog.open();
-                }}
-              >
-                ลบ / ยกเลิกสถานะของวันนี้
-              </Button>
-            )}
-          </View>
-        </View>
-      </BottomSheet>
+        selectedCalendarDate={selectedCalendarDate}
+        formatDateThai={formatDateThai}
+        getThaiDayName={getThaiDayName}
+        currentDayHoliday={currentDayHoliday}
+        currentDayLeave={currentDayLeave}
+        selectedDayActivities={selectedDayActivities}
+        colors={colors}
+        isDark={isDark}
+        getHolidayBadge={getHolidayBadge}
+        getLeaveTypeBadge={getLeaveTypeBadge}
+        onAddActivity={() => {
+          dayActionSheet.close();
+          handleOpenAddActivity();
+        }}
+        onEditActivity={(act) => {
+          dayActionSheet.close();
+          handleOpenEditActivity(act);
+        }}
+        onDeleteActivity={(act) => {
+          dayActionSheet.close();
+          handleDeleteActivityPrompt(act);
+        }}
+        onQuickSetStatus={handleQuickSetStatus}
+        onRequestLeaveForDay={() => {
+          const targetDate = new Date(selectedCalendarDate);
+          setEditingLeave(null);
+          setLeaveType('vacation');
+          setLeaveDurationType('full_day');
+          setLeaveReason('');
+          setLeaveRange({ startDate: targetDate, endDate: targetDate });
+          dayActionSheet.close();
+          leaveSheet.open();
+        }}
+        onEditHoliday={() => {
+          dayActionSheet.close();
+          if (currentDayHoliday) {
+            handleOpenEditHoliday(currentDayHoliday);
+          } else {
+            handleOpenAddHoliday(new Date(selectedCalendarDate));
+          }
+        }}
+        onClearStatus={() => {
+          dayActionSheet.close();
+          clearStatusDialog.open();
+        }}
+      />
 
       {/* ========================================================= */}
       {/* BOTTOM SHEET 2: ADD / EDIT HOLIDAY */}

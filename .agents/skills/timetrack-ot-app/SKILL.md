@@ -260,8 +260,8 @@ For local reminders to alert the user even when the app is completely closed/kil
 - Textarea note input.
 
 ### 3. Calendar, Leaves & Activities (`app/leaves.tsx`)
-- Interactive Thai Buddhist calendar grid (พ.ศ. 2569) with status dots (Holiday, Leave, WFH, Activity).
-- Tap any date to open `dayActionSheet` (1-tap quick actions for WFH, Holiday, Leave, or Activity).
+- Interactive Thai Buddhist calendar grid (พ.ศ. 2569) with Remimo-style status dots (Holiday, Leave, WFH, Activity).
+- Tap any date to select and preview in `SelectedDayCard`; tap the selected date again, long-press, or tap "จัดการวันที่ & กิจกรรม" to open `DayActionSheet` (quick actions for WFH, Holiday, Leave, or Activity).
 - Full-height BottomSheets (0.96) with Pinned Footer for Activities, Leaves, Holidays, and Quotas.
 - Shareable Calendar Image Export via `react-native-view-shot` and `expo-sharing`.
 

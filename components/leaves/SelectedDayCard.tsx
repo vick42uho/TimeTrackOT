@@ -1,9 +1,22 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Briefcase, Clock, MapPin, Bell, Edit3, Trash2, Plus } from 'lucide-react-native';
+import {
+  Briefcase,
+  Clock,
+  MapPin,
+  Bell,
+  Edit3,
+  Trash2,
+  Plus,
+  Calendar as CalendarIcon,
+} from 'lucide-react-native';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ACTIVITY_CATEGORY_CONFIG } from './leavesConstants';
+import {
+  ACTIVITY_CATEGORY_CONFIG,
+  HOLIDAY_TYPE_CONFIG,
+  LEAVE_TYPE_OPTIONS,
+} from './leavesConstants';
 import type { Activity, Holiday, LeaveRequest } from '../../types';
 
 function formatReminder(minutes: number): string {
@@ -123,6 +136,7 @@ interface SelectedDayCardProps {
   onEditActivity: (act: Activity) => void;
   onDeleteActivity: (act: Activity) => void;
   onAddActivity: () => void;
+  onManageDay?: () => void;
 }
 
 export const SelectedDayCard = React.memo(function SelectedDayCard({
@@ -139,6 +153,7 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
   onEditActivity,
   onDeleteActivity,
   onAddActivity,
+  onManageDay,
 }: SelectedDayCardProps) {
   return (
     <Card style={styles.card}>
@@ -154,8 +169,8 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
 
         {selectedDateHoliday || selectedDateLeave ? (
           <View style={styles.badgeRow}>
-            {selectedDateLeave && getLeaveTypeBadge(selectedDateLeave.leaveType)}
             {selectedDateHoliday && getHolidayBadge(selectedDateHoliday.type)}
+            {selectedDateLeave && getLeaveTypeBadge(selectedDateLeave.leaveType)}
           </View>
         ) : (
           <View
@@ -171,6 +186,65 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
           </View>
         )}
       </View>
+
+      {/* Holiday / Leave Detailed Info if present */}
+      {(selectedDateHoliday || selectedDateLeave) && (
+        <View style={{ gap: 6, marginBottom: 12 }}>
+          {selectedDateHoliday && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                padding: 10,
+                borderRadius: 12,
+                backgroundColor: isDark
+                  ? `${HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || '#3b82f6'}15`
+                  : `${HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || '#3b82f6'}10`,
+                borderLeftWidth: 3,
+                borderLeftColor: HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || colors.primary,
+              }}
+            >
+              <CalendarIcon size={14} color={HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.color || colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                  {selectedDateHoliday.name}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                  {HOLIDAY_TYPE_CONFIG[selectedDateHoliday.type]?.label || 'วันหยุด'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {selectedDateLeave && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                padding: 10,
+                borderRadius: 12,
+                backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#fffbeb',
+                borderLeftWidth: 3,
+                borderLeftColor: LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.color || '#f59e0b',
+              }}
+            >
+              <Briefcase size={14} color={LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.color || '#f59e0b'} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                  {LEAVE_TYPE_OPTIONS.find((o) => o.type === selectedDateLeave.leaveType)?.label || 'การลา'}: {selectedDateLeave.durationDays} วัน
+                </Text>
+                {selectedDateLeave.reason ? (
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                    เหตุผล: {selectedDateLeave.reason}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
 
       {selectedDayActivities.length > 0 ? (
         <View style={styles.listGap}>
@@ -193,20 +267,39 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
         </View>
       )}
 
-      <Button
-        variant="outline"
-        size="sm"
-        icon={Plus}
-        onPress={onAddActivity}
-        style={{
-          borderColor: colors.primary,
-          backgroundColor: isDark ? `${colors.primary}15` : '#eff6ff',
-          minHeight: 38,
-        }}
-        textStyle={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}
-      >
-        เพิ่มกิจกรรม / นัดหมายในวันนี้
-      </Button>
+      {/* Action Buttons: Manage Date & Add Activity */}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+        {onManageDay && (
+          <Button
+            variant="default"
+            size="sm"
+            icon={CalendarIcon}
+            onPress={onManageDay}
+            style={{
+              flex: 1,
+              minHeight: 38,
+            }}
+            textStyle={{ fontWeight: '700', fontSize: 13 }}
+          >
+            จัดการวันที่ & กิจกรรม
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          icon={Plus}
+          onPress={onAddActivity}
+          style={{
+            borderColor: colors.primary,
+            backgroundColor: isDark ? `${colors.primary}15` : '#eff6ff',
+            minHeight: 38,
+            flex: onManageDay ? 1 : undefined,
+          }}
+          textStyle={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}
+        >
+          {onManageDay ? 'เพิ่มกิจกรรม' : 'เพิ่มกิจกรรม / นัดหมายในวันนี้'}
+        </Button>
+      </View>
     </Card>
   );
 });

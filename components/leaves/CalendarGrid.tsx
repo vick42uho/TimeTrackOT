@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text as RNText } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import {
@@ -20,6 +20,7 @@ interface CalendarGridProps {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onDayPress: (dateStr: string) => void;
+  onDayLongPress?: (dateStr: string) => void;
 }
 
 const DayCell = React.memo(function DayCell({
@@ -28,21 +29,33 @@ const DayCell = React.memo(function DayCell({
   isDark,
   colors,
   onDayPress,
+  onDayLongPress,
 }: {
   item: CalendarDayItem;
   isSelected: boolean;
   isDark: boolean;
   colors: any;
   onDayPress: (dateStr: string) => void;
+  onDayLongPress?: (dateStr: string) => void;
 }) {
   const hasHoliday = !!item.holiday;
   const hasLeave = !!item.leave;
   const hasActivities = (item.activities?.length || 0) > 0;
 
+  const primaryColor = colors?.primary || '#2563eb';
+  const textColor = isSelected
+    ? '#ffffff'
+    : item.isToday
+      ? primaryColor
+      : item.isWeekend
+        ? (colors?.textSecondary || '#64748b')
+        : (colors?.text || (isDark ? '#f8fafc' : '#0f172a'));
+
   return (
     <TouchableOpacity
       key={item.dateStr}
       onPress={() => onDayPress(item.dateStr)}
+      onLongPress={() => onDayLongPress?.(item.dateStr)}
       activeOpacity={0.7}
       style={[
         styles.dayCell,
@@ -56,37 +69,31 @@ const DayCell = React.memo(function DayCell({
         style={[
           styles.dateNumberCircle,
           isSelected && {
-            backgroundColor: colors.primary,
-            shadowColor: colors.primary,
+            backgroundColor: primaryColor,
+            shadowColor: primaryColor,
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.25,
             shadowRadius: 3.84,
             elevation: 3,
           },
           item.isToday && !isSelected && {
-            borderColor: colors.primary,
+            borderColor: primaryColor,
             borderWidth: 1.5,
             backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
           },
         ]}
       >
-        <Text
+        <RNText
           style={[
             styles.dayNumberText,
             {
-              color: isSelected
-                ? '#ffffff'
-                : item.isToday
-                  ? colors.primary
-                  : item.isWeekend
-                    ? colors.textSecondary
-                    : colors.text,
-              fontWeight: isSelected || item.isToday ? '700' : '500',
+              color: textColor,
+              fontFamily: isSelected || item.isToday ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
             },
           ]}
         >
-          {item.dayNumber}
-        </Text>
+          {String(item.dayNumber)}
+        </RNText>
       </View>
 
       {/* Status Dots Row (Remimo Style) */}
@@ -137,6 +144,7 @@ export const CalendarGrid = React.memo(function CalendarGrid({
   onPrevMonth,
   onNextMonth,
   onDayPress,
+  onDayLongPress,
 }: CalendarGridProps) {
   return (
     <>
@@ -185,6 +193,7 @@ export const CalendarGrid = React.memo(function CalendarGrid({
               isDark={isDark}
               colors={colors}
               onDayPress={onDayPress}
+              onDayLongPress={onDayLongPress}
             />
           );
         })}
@@ -263,7 +272,8 @@ const styles = StyleSheet.create({
   },
   dayNumberText: {
     fontSize: 13,
-    fontFamily: 'Sarabun_600SemiBold',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   statusDotsRow: {
     flexDirection: 'row',
