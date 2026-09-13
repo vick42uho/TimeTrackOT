@@ -93,10 +93,10 @@ const DayCell = React.memo(function DayCell({
 
   // Priority: Leave > Holiday (Max 1 Badge per cell to prevent overflow)
   let badge: { text: string; bg: string; textCol: string } | null = null;
-  let secondaryDotColor: string | null = null;
+  const dots: { id: string; color: string }[] = [];
 
   if (hasLeave && hasHoliday) {
-    // Leave is primary badge, Holiday becomes secondary dot (like Day 12 in reference image)
+    // Leave is primary badge, Holiday becomes secondary dot
     const lCol = getMiniTagColors(item.leave!.leaveType, isDark);
     badge = {
       text: LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา',
@@ -104,7 +104,10 @@ const DayCell = React.memo(function DayCell({
       textCol: lCol.text,
     };
     const hCol = getMiniTagColors(item.holiday!.type, isDark);
-    secondaryDotColor = hCol.text;
+    dots.push({ id: `holiday-${item.dateStr}`, color: hCol.text });
+    if (hasActivities) {
+      dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
+    }
   } else if (hasLeave) {
     const lCol = getMiniTagColors(item.leave!.leaveType, isDark);
     badge = {
@@ -113,7 +116,7 @@ const DayCell = React.memo(function DayCell({
       textCol: lCol.text,
     };
     if (hasActivities) {
-      secondaryDotColor = '#8b5cf6';
+      dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
     }
   } else if (hasHoliday) {
     const hCol = getMiniTagColors(item.holiday!.type, isDark);
@@ -123,10 +126,10 @@ const DayCell = React.memo(function DayCell({
       textCol: hCol.text,
     };
     if (hasActivities) {
-      secondaryDotColor = '#8b5cf6';
+      dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
     }
   } else if (hasActivities) {
-    secondaryDotColor = '#8b5cf6';
+    dots.push({ id: `act-${item.dateStr}`, color: '#8b5cf6' });
   }
 
   return (
@@ -182,18 +185,20 @@ const DayCell = React.memo(function DayCell({
         </View>
       )}
 
-      {/* Secondary Dot (Holiday dot if leave exists, or Activity dot) */}
-      {secondaryDotColor && (
-        <View style={styles.activityDotContainer}>
-          <View
-            style={[
-              styles.activityDot,
-              {
-                backgroundColor: secondaryDotColor,
-                marginTop: badge ? 2 : 4,
-              },
-            ]}
-          />
+      {/* Secondary Dots Row (e.g. Holiday dot + Activity dot side-by-side) */}
+      {dots.length > 0 && (
+        <View style={[styles.activityDotContainer, { marginTop: badge ? 2 : 4 }]}>
+          {dots.map((dot) => (
+            <View
+              key={dot.id}
+              style={[
+                styles.activityDot,
+                {
+                  backgroundColor: dot.color,
+                },
+              ]}
+            />
+          ))}
         </View>
       )}
     </TouchableOpacity>
@@ -357,8 +362,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   activityDotContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
   },
   activityDot: {
     width: 4.5,
