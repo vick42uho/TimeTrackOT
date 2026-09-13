@@ -106,7 +106,7 @@ const DayCell = React.memo(function DayCell({
     const hCol = getMiniTagColors(item.holiday!.type, isDark);
     dots.push({ id: `holiday-${item.dateStr}`, color: hCol.text });
     if (hasActivities) {
-      const maxActDots = Math.min(item.activities!.length, 2);
+      const maxActDots = Math.min(item.activities!.length, 4);
       for (let i = 0; i < maxActDots; i++) {
         dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
       }
@@ -119,7 +119,7 @@ const DayCell = React.memo(function DayCell({
       textCol: lCol.text,
     };
     if (hasActivities) {
-      const maxActDots = Math.min(item.activities!.length, 3);
+      const maxActDots = Math.min(item.activities!.length, 4);
       for (let i = 0; i < maxActDots; i++) {
         dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
       }
@@ -132,13 +132,13 @@ const DayCell = React.memo(function DayCell({
       textCol: hCol.text,
     };
     if (hasActivities) {
-      const maxActDots = Math.min(item.activities!.length, 3);
+      const maxActDots = Math.min(item.activities!.length, 4);
       for (let i = 0; i < maxActDots; i++) {
         dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
       }
     }
   } else if (hasActivities) {
-    const maxActDots = Math.min(item.activities!.length, 3);
+    const maxActDots = Math.min(item.activities!.length, 4);
     for (let i = 0; i < maxActDots; i++) {
       dots.push({ id: `act-${item.dateStr}-${i}`, color: '#8b5cf6' });
     }
@@ -377,12 +377,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 2.5,
   },
   activityDot: {
-    width: 4.5,
-    height: 4.5,
-    borderRadius: 2.25,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   calendarLegendRow: {
     flexDirection: 'row',
