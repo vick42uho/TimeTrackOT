@@ -25,6 +25,7 @@ import {
 } from '@/services/notificationService';
 import { extractUrls, handleOpenURL } from '@/utils/urlHelper';
 import { Activity, ActivityCategory } from '@/types';
+import { LOCATION_PRESETS } from '@/components/leaves/leavesConstants';
 import {
   Calendar,
   Clock,
@@ -679,40 +680,49 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
 
             {/* Quick Location Chips */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-              {[
-                { label: '🏢 ที่ทำงาน', val: 'ที่ทำงาน' },
-                { label: '🏠 ที่บ้าน', val: 'ที่บ้าน' },
-                { label: '☕ ร้านกาแฟ', val: 'ร้านกาแฟ' },
-                { label: '🏋️ ฟิตเนส', val: 'ฟิตเนส' },
-                { label: '🏥 โรงพยาบาล', val: 'โรงพยาบาล' },
-              ].map((loc) => (
-                <TouchableOpacity
-                  key={loc.val}
-                  onPress={() => setLocation(loc.val)}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 999,
-                    backgroundColor: location === loc.val
-                      ? (isDark ? 'rgba(139, 92, 246, 0.25)' : '#ede9fe')
-                      : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
-                    borderWidth: location === loc.val ? 1 : 0,
-                    borderColor: '#8b5cf6',
-                  }}
-                >
-                  <Text
+              {LOCATION_PRESETS.map((loc) => {
+                const isSelected = location === loc.val;
+                const IconComp = loc.icon;
+                return (
+                  <TouchableOpacity
+                    key={loc.val}
+                    onPress={() => setLocation(loc.val)}
                     style={{
-                      fontSize: 11.5,
-                      color: location === loc.val
-                        ? (isDark ? '#c4b5fd' : '#7c3aed')
-                        : colors.textSecondary,
-                      fontFamily: location === loc.val ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 999,
+                      backgroundColor: isSelected
+                        ? (isDark ? 'rgba(139, 92, 246, 0.25)' : '#ede9fe')
+                        : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
+                      borderWidth: isSelected ? 1 : 0,
+                      borderColor: '#8b5cf6',
                     }}
                   >
-                    {loc.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <IconComp
+                      size={12}
+                      color={
+                        isSelected
+                          ? (isDark ? '#c4b5fd' : '#7c3aed')
+                          : (isDark ? '#94a3b8' : '#64748b')
+                      }
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11.5,
+                        color: isSelected
+                          ? (isDark ? '#c4b5fd' : '#7c3aed')
+                          : colors.textSecondary,
+                        fontFamily: isSelected ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
+                      }}
+                    >
+                      {loc.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

@@ -80,6 +80,20 @@ export const REMINDER_OPTIONS: { label: string; value: number | null }[] = [
   { label: 'ก่อน 1 วัน', value: 1440 },
 ];
 
+export interface LocationPreset {
+  label: string;
+  val: string;
+  icon: any;
+}
+
+export const LOCATION_PRESETS: LocationPreset[] = [
+  { label: 'ที่ทำงาน', val: 'ที่ทำงาน', icon: Building2 },
+  { label: 'ที่บ้าน', val: 'ที่บ้าน', icon: Home },
+  { label: 'ร้านกาแฟ', val: 'ร้านกาแฟ', icon: Coffee },
+  { label: 'ฟิตเนส', val: 'ฟิตเนส', icon: Dumbbell },
+  { label: 'โรงพยาบาล', val: 'โรงพยาบาล', icon: HeartPulse },
+];
+
 export interface CalendarDayItem {
   dayNumber: number;
   dateStr: string;
