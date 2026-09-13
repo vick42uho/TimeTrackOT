@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import {
   Briefcase,
   Clock,
   MapPin,
+  ExternalLink,
   Bell,
   Edit3,
   Trash2,
@@ -18,6 +19,19 @@ import {
   LEAVE_TYPE_OPTIONS,
 } from './leavesConstants';
 import type { Activity, Holiday, LeaveRequest } from '../../types';
+
+const handleOpenMap = (locText: string) => {
+  if (!locText) return;
+  const query = encodeURI(locText.trim());
+  const mapUrl = Platform.select({
+    ios: `maps:0,0?q=${query}`,
+    android: `geo:0,0?q=${query}`,
+    default: `https://www.google.com/maps/search/?api=1&query=${query}`,
+  });
+  Linking.openURL(mapUrl).catch(() => {
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+  });
+};
 
 function formatReminder(minutes: number): string {
   if (minutes === 0) return 'ตรงเวลา';
@@ -95,15 +109,24 @@ const ActivityRow = React.memo(function ActivityRow({
           </View>
 
           {act.location ? (
-            <View style={styles.metaItem}>
-              <MapPin size={12} color={colors.textSecondary} />
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => handleOpenMap(act.location!)}
+              style={[styles.metaItem, { gap: 3 }]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <MapPin size={12} color="#8b5cf6" />
               <Text
-                style={[styles.metaText, { color: colors.textSecondary }]}
+                style={[
+                  styles.metaText,
+                  { color: isDark ? '#c4b5fd' : '#7c3aed', textDecorationLine: 'underline' },
+                ]}
                 numberOfLines={1}
               >
                 {act.location}
               </Text>
-            </View>
+              <ExternalLink size={10} color={isDark ? '#c4b5fd' : '#7c3aed'} />
+            </TouchableOpacity>
           ) : null}
 
           {act.reminderMinutes !== null && act.reminderMinutes !== undefined && (

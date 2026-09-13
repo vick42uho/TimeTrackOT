@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { X, Save, Bell, BellOff } from 'lucide-react-native';
+import { View, StyleSheet, TouchableOpacity, Platform, Linking } from 'react-native';
+import { X, Save, Bell, BellOff, MapPin, ExternalLink } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
@@ -216,14 +216,75 @@ export const ActivitySheet = React.memo(function ActivitySheet({
         </View>
 
         <View>
-          <Text variant="caption" style={[styles.label, { color: colors.textSecondary }]}>
-            สถานที่ (ไม่บังคับ)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text variant="caption" style={[styles.label, { color: colors.textSecondary, marginBottom: 0 }]}>
+              สถานที่ / พิกัด (ไม่บังคับ)
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                const query = encodeURI((actLocation || '').trim());
+                const mapUrl = Platform.select({
+                  ios: query ? `maps:0,0?q=${query}` : 'maps:',
+                  android: query ? `geo:0,0?q=${query}` : 'geo:0,0',
+                  default: query ? `https://www.google.com/maps/search/?api=1&query=${query}` : 'https://www.google.com/maps',
+                });
+                Linking.openURL(mapUrl).catch(() => {
+                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+                });
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
+              <MapPin size={13} color="#8b5cf6" />
+              <Text style={{ fontSize: 12, color: '#8b5cf6', fontWeight: '700', fontFamily: 'Sarabun_700Bold' }}>
+                {actLocation.trim() ? 'เปิดดูในแผนที่' : 'เปิด Google Maps'}
+              </Text>
+              <ExternalLink size={11} color="#8b5cf6" />
+            </TouchableOpacity>
+          </View>
           <Input
             placeholder="เช่น สวนรถไฟ, ห้องประชุม 2, ร้านอาหาร"
             value={actLocation}
             onChangeText={onChangeActLocation}
           />
+
+          {/* Quick Location Suggestion Chips */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            {[
+              { label: '🏢 ที่ทำงาน', val: 'ที่ทำงาน' },
+              { label: '🏠 ที่บ้าน', val: 'ที่บ้าน' },
+              { label: '☕ ร้านกาแฟ', val: 'ร้านกาแฟ' },
+              { label: '🏋️ ฟิตเนส', val: 'ฟิตเนส' },
+              { label: '🏥 โรงพยาบาล', val: 'โรงพยาบาล' },
+            ].map((loc) => (
+              <TouchableOpacity
+                key={loc.val}
+                onPress={() => onChangeActLocation(loc.val)}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 999,
+                  backgroundColor: actLocation === loc.val
+                    ? (isDark ? 'rgba(139, 92, 246, 0.25)' : '#ede9fe')
+                    : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
+                  borderWidth: actLocation === loc.val ? 1 : 0,
+                  borderColor: '#8b5cf6',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11.5,
+                    color: actLocation === loc.val
+                      ? (isDark ? '#c4b5fd' : '#7c3aed')
+                      : colors.textSecondary,
+                    fontFamily: actLocation === loc.val ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
+                  }}
+                >
+                  {loc.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View>

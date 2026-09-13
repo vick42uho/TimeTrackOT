@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import {
   Calendar as CalendarIcon,
   Plus,
@@ -9,6 +9,8 @@ import {
   Building2,
   Trash2,
   Edit3,
+  MapPin,
+  ExternalLink,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -92,10 +94,40 @@ const DayActivityRow = React.memo(function DayActivityRow({
             </View>
           )}
         </View>
-        <Text style={[styles.activityMeta, { color: colors.textSecondary }]}>
-          {act.isAllDay ? 'ตลอดวัน' : `${act.startTime || ''}${act.endTime ? ` - ${act.endTime}` : ''} น.`}
-          {act.location ? ` • ${act.location}` : ''}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+          <Text style={[styles.activityMeta, { color: colors.textSecondary }]}>
+            {act.isAllDay ? 'ตลอดวัน' : `${act.startTime || ''}${act.endTime ? ` - ${act.endTime}` : ''} น.`}
+          </Text>
+          {act.location ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                const query = encodeURI((act.location || '').trim());
+                const mapUrl = Platform.select({
+                  ios: `maps:0,0?q=${query}`,
+                  android: `geo:0,0?q=${query}`,
+                  default: `https://www.google.com/maps/search/?api=1&query=${query}`,
+                });
+                Linking.openURL(mapUrl).catch(() => {
+                  Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+                });
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text style={[styles.activityMeta, { color: colors.textSecondary }]}>•</Text>
+              <MapPin size={10} color="#8b5cf6" />
+              <Text
+                style={[
+                  styles.activityMeta,
+                  { color: isDark ? '#c4b5fd' : '#7c3aed', textDecorationLine: 'underline' },
+                ]}
+              >
+                {act.location}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
       <View style={styles.activityActions}>
         <TouchableOpacity onPress={() => onEdit(act)} style={styles.iconBtn}>

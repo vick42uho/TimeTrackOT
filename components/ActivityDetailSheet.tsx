@@ -165,7 +165,10 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
   const CategoryIcon = categoryMeta.icon;
 
   const handleOpenMap = (locText: string) => {
-    if (!locText) return;
+    if (!locText || !locText.trim()) {
+      Linking.openURL('https://www.google.com/maps');
+      return;
+    }
     const urls = extractUrls(locText);
     if (urls.length > 0) {
       handleOpenURL(urls[0]);
@@ -646,22 +649,71 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
 
           {/* Location */}
           <View>
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: colors.textSecondary,
-                marginBottom: 6,
-                fontFamily: 'Sarabun_700Bold',
-              }}
-            >
-              สถานที่ / พิกัด (ไม่บังคับ)
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color: colors.textSecondary,
+                  fontFamily: 'Sarabun_700Bold',
+                }}
+              >
+                สถานที่ / พิกัด (ไม่บังคับ)
+              </Text>
+              <TouchableOpacity
+                onPress={() => handleOpenMap(location || '')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+              >
+                <Icon name={MapPin} size={13} color="#8b5cf6" />
+                <Text style={{ fontSize: 12, color: '#8b5cf6', fontWeight: '700', fontFamily: 'Sarabun_700Bold' }}>
+                  {location.trim() ? 'เปิดดูในแผนที่' : 'เปิด Google Maps'}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <Input
               placeholder="เช่น ห้องประชุมชั้น 4, สวนลุมพินี, ร้านกาแฟ"
               value={location}
               onChangeText={setLocation}
             />
+
+            {/* Quick Location Chips */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {[
+                { label: '🏢 ที่ทำงาน', val: 'ที่ทำงาน' },
+                { label: '🏠 ที่บ้าน', val: 'ที่บ้าน' },
+                { label: '☕ ร้านกาแฟ', val: 'ร้านกาแฟ' },
+                { label: '🏋️ ฟิตเนส', val: 'ฟิตเนส' },
+                { label: '🏥 โรงพยาบาล', val: 'โรงพยาบาล' },
+              ].map((loc) => (
+                <TouchableOpacity
+                  key={loc.val}
+                  onPress={() => setLocation(loc.val)}
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 999,
+                    backgroundColor: location === loc.val
+                      ? (isDark ? 'rgba(139, 92, 246, 0.25)' : '#ede9fe')
+                      : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9'),
+                    borderWidth: location === loc.val ? 1 : 0,
+                    borderColor: '#8b5cf6',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 11.5,
+                      color: location === loc.val
+                        ? (isDark ? '#c4b5fd' : '#7c3aed')
+                        : colors.textSecondary,
+                      fontFamily: location === loc.val ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
+                    }}
+                  >
+                    {loc.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Note */}
