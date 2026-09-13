@@ -41,24 +41,56 @@ interface DayActionSheetProps {
 const DayActivityRow = React.memo(function DayActivityRow({
   act,
   colors,
+  isDark,
   onEdit,
   onDelete,
 }: {
   act: Activity;
   colors: any;
+  isDark?: boolean;
   onEdit: (act: Activity) => void;
   onDelete: (act: Activity) => void;
 }) {
   const catCfg = ACTIVITY_CATEGORY_CONFIG[act.category] || ACTIVITY_CATEGORY_CONFIG.general;
   const CatIcon = catCfg.icon;
   return (
-    <View style={[styles.activityRow, { backgroundColor: colors.card, borderLeftColor: catCfg.color }]}>
+    <View
+      style={[
+        styles.activityRow,
+        {
+          backgroundColor: isDark ? 'rgba(139, 92, 246, 0.12)' : '#f5f3ff',
+          borderLeftColor: '#8b5cf6',
+        },
+      ]}
+    >
       <View style={styles.activityContent}>
         <View style={styles.activityTitleRow}>
-          <CatIcon size={12} color={catCfg.color} />
+          <CatIcon size={12} color="#8b5cf6" />
           <Text style={[styles.activityTitle, { color: colors.text }]}>
             {act.title}
           </Text>
+          {catCfg && (
+            <View
+              style={{
+                backgroundColor: isDark ? 'rgba(139, 92, 246, 0.25)' : '#ede9fe',
+                paddingHorizontal: 5,
+                paddingVertical: 1,
+                borderRadius: 4,
+                marginLeft: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 9.5,
+                  fontFamily: 'Sarabun_700Bold',
+                  color: isDark ? '#c4b5fd' : '#7c3aed',
+                  includeFontPadding: false,
+                }}
+              >
+                {catCfg.label}
+              </Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.activityMeta, { color: colors.textSecondary }]}>
           {act.isAllDay ? 'ตลอดวัน' : `${act.startTime || ''}${act.endTime ? ` - ${act.endTime}` : ''} น.`}
@@ -152,6 +184,7 @@ export const DayActionSheet = React.memo(function DayActionSheet({
                   key={act.id}
                   act={act}
                   colors={colors}
+                  isDark={isDark}
                   onEdit={onEditActivity}
                   onDelete={onDeleteActivity}
                 />

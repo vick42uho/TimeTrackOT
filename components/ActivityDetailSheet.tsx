@@ -49,11 +49,11 @@ export const ACTIVITY_CATEGORY_CONFIG: Record<
   ActivityCategory,
   { label: string; shortLabel: string; icon: any; color: string; bgColor: string }
 > = {
-  work: { label: 'งาน / ประชุม', shortLabel: 'งาน', icon: Briefcase, color: '#3b82f6', bgColor: '#eff6ff' },
+  work: { label: 'งาน / ประชุม', shortLabel: 'งาน', icon: Briefcase, color: '#8b5cf6', bgColor: '#f5f3ff' },
   exercise: { label: 'ออกกำลังกาย', shortLabel: 'ออกกำลัง', icon: Dumbbell, color: '#10b981', bgColor: '#ecfdf5' },
   personal: { label: 'ธุระส่วนตัว / ครอบครัว', shortLabel: 'ธุระ', icon: Home, color: '#ec4899', bgColor: '#fdf2f8' },
   dining: { label: 'กินข้าว / สังสรรค์', shortLabel: 'กินข้าว', icon: Utensils, color: '#f59e0b', bgColor: '#fffbeb' },
-  travel: { label: 'เที่ยว / ทำบุญ', shortLabel: 'เที่ยว/วัด', icon: Compass, color: '#8b5cf6', bgColor: '#f5f3ff' },
+  travel: { label: 'เที่ยว / ทำบุญ', shortLabel: 'เที่ยว/วัด', icon: Compass, color: '#a855f7', bgColor: '#faf5ff' },
   general: { label: 'ทั่วไป', shortLabel: 'ทั่วไป', icon: Tag, color: '#64748b', bgColor: '#f8fafc' },
 };
 

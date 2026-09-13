@@ -53,15 +53,37 @@ const ActivityRow = React.memo(function ActivityRow({
       style={[
         styles.activityRow,
         {
-          borderLeftColor: catCfg.color,
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+          borderLeftColor: '#8b5cf6',
+          backgroundColor: isDark ? 'rgba(139, 92, 246, 0.12)' : '#f5f3ff',
         },
       ]}
     >
       <View style={styles.activityMain}>
         <View style={styles.titleRow}>
-          <CatIcon size={14} color={catCfg.color} />
+          <CatIcon size={14} color="#8b5cf6" />
           <Text style={[styles.activityTitle, { color: colors.text }]}>{act.title}</Text>
+          {catCfg && (
+            <View
+              style={{
+                backgroundColor: isDark ? 'rgba(139, 92, 246, 0.25)' : '#ede9fe',
+                paddingHorizontal: 6,
+                paddingVertical: 1.5,
+                borderRadius: 4,
+                marginLeft: 4,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontFamily: 'Sarabun_700Bold',
+                  color: isDark ? '#c4b5fd' : '#7c3aed',
+                  includeFontPadding: false,
+                }}
+              >
+                {catCfg.label}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.metaRow}>
@@ -290,12 +312,12 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
           icon={Plus}
           onPress={onAddActivity}
           style={{
-            borderColor: colors.primary,
-            backgroundColor: isDark ? `${colors.primary}15` : '#eff6ff',
+            borderColor: '#8b5cf6',
+            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : '#f5f3ff',
             minHeight: 38,
             flex: onManageDay ? 1 : undefined,
           }}
-          textStyle={{ color: colors.primary, fontWeight: '700', fontSize: 13 }}
+          textStyle={{ color: '#8b5cf6', fontWeight: '700', fontSize: 13 }}
         >
           {onManageDay ? 'เพิ่มกิจกรรม' : 'เพิ่มกิจกรรม / นัดหมายในวันนี้'}
         </Button>
