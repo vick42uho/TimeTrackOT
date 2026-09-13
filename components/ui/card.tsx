@@ -9,11 +9,12 @@ import {
   TextStyle,
   ViewProps as RNViewProps,
   ViewStyle,
+  StyleProp,
 } from 'react-native';
 
 interface CardProps extends RNViewProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Card = memo(function Card({

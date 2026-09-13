@@ -30,6 +30,9 @@ import { TimeInput } from '../components/TimeInput';
 import { PreviewCard } from '@/components/entry/PreviewCard';
 import { DateNavigator } from '@/components/entry/DateNavigator';
 import { TimePickersCard } from '@/components/entry/TimePickersCard';
+import { TimeEntryAttachmentCard } from '@/components/entry/TimeEntryAttachmentCard';
+import { ImagePreviewModal } from '@/components/leaves/ImagePreviewModal';
+import { deleteAttachmentFile } from '@/utils/leaveAttachmentHelper';
 import {
   InteractiveTourOverlay,
   APP_TOUR_STEPS,
@@ -79,6 +82,8 @@ const TimeEntryContent: React.FC = () => {
   const [clockIn, setClockIn] = useState('');
   const [clockOut, setClockOut] = useState('');
   const [reason, setReason] = useState('');
+  const [attachmentUri, setAttachmentUri] = useState<string>('');
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<any>(null);
   const [workSchedule, setWorkSchedule] = useState<any>(null);
@@ -151,11 +156,13 @@ const TimeEntryContent: React.FC = () => {
       setClockIn(entry.clockIn || '');
       setClockOut(entry.clockOut || '');
       setReason(entry.reason || '');
+      setAttachmentUri(entry.attachmentUri || '');
     } else {
       setCurrentEntry(null);
       setClockIn('');
       setClockOut('');
       setReason('');
+      setAttachmentUri('');
     }
   }, [isReady, selectedDate, getDateFromString, getTimeEntry, getWorkSchedule]);
 
@@ -268,6 +275,7 @@ const TimeEntryContent: React.FC = () => {
         clockIn: clockIn || undefined,
         clockOut: clockOut || undefined,
         reason: reason || undefined,
+        attachmentUri: attachmentUri || undefined,
         regularHours,
         overtimeHours,
         lateArrivalHours,
@@ -301,6 +309,9 @@ const TimeEntryContent: React.FC = () => {
   const confirmDelete = async () => {
     setIsLoading(true);
     try {
+      if (currentEntry?.attachmentUri) {
+        await deleteAttachmentFile(currentEntry.attachmentUri);
+      }
       const ok = await deleteTimeEntry(selectedDate);
       if (ok) {
         if (Platform.OS !== 'web') {
@@ -357,6 +368,7 @@ const TimeEntryContent: React.FC = () => {
         clockIn: clockIn || undefined,
         clockOut: clockOut || undefined,
         reason: reason || undefined,
+        attachmentUri: attachmentUri || undefined,
         regularHours,
         overtimeHours,
         lateArrivalHours,
@@ -530,6 +542,14 @@ const TimeEntryContent: React.FC = () => {
           timeCardRef={timeCardRef}
         />
 
+        <TimeEntryAttachmentCard
+          attachmentUri={attachmentUri}
+          colors={colors}
+          isDark={isDark}
+          onChangeAttachmentUri={setAttachmentUri}
+          onPreview={(uri) => setPreviewImageUri(uri)}
+        />
+
         <PreviewCard preview={detailedPreview} colors={colors} isDark={isDark} />
 
         {/* Primary Action Buttons (Thumb Zone) */}
@@ -570,6 +590,14 @@ const TimeEntryContent: React.FC = () => {
           </Button>
         )}
       </ScrollView>
+
+      {/* Image Preview Modal for Proof Attachment */}
+      <ImagePreviewModal
+        isVisible={!!previewImageUri}
+        imageUri={previewImageUri}
+        onClose={() => setPreviewImageUri(null)}
+        title={`หลักฐานการลงเวลา (${formatDateThai(selectedDate)})`}
+      />
 
       {/* Delete Confirmation Alert Dialog */}
       <AlertDialog

@@ -16,6 +16,7 @@ export interface TimeEntry {
   clockIn?: string; // HH:MM format
   clockOut?: string; // HH:MM format
   reason?: string;
+  attachmentUri?: string; // URI ของรูปภาพหลักฐานการลงเวลา
   regularHours: number;
   overtimeHours: number;
   lateArrivalHours?: number;

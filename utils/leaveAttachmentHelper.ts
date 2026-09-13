@@ -13,7 +13,10 @@ export interface PickImageResult {
  * Copies a selected image URI to the app's permanent document directory.
  * This guarantees the image remains accessible even if the user deletes it from their system photo gallery.
  */
-export async function saveAttachmentPermanently(tempUri: string): Promise<string> {
+export async function saveAttachmentPermanently(
+  tempUri: string,
+  prefix: string = 'attachment'
+): Promise<string> {
   if (Platform.OS === 'web') {
     return tempUri;
   }
@@ -29,7 +32,7 @@ export async function saveAttachmentPermanently(tempUri: string): Promise<string
       ? fileExtension.toLowerCase()
       : 'jpg';
 
-    const targetFileName = `leave_doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${cleanExt}`;
+    const targetFileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${cleanExt}`;
     const targetPath = `${docDir}${targetFileName}`;
 
     await FileSystem.copyAsync({
@@ -39,7 +42,7 @@ export async function saveAttachmentPermanently(tempUri: string): Promise<string
 
     return targetPath;
   } catch (error) {
-    console.error('Error saving leave attachment permanently:', error);
+    console.error('Error saving attachment permanently:', error);
     return tempUri;
   }
 }
@@ -64,17 +67,22 @@ export async function deleteAttachmentFile(uri?: string): Promise<void> {
   }
 }
 
+export interface AttachmentPickerOptions {
+  prefix?: string;
+  permissionMessage?: string;
+}
+
 /**
  * Prompts user for camera permission and opens camera to capture a photo.
  */
-export async function takePhotoWithCamera(): Promise<PickImageResult> {
+export async function takePhotoWithCamera(options?: AttachmentPickerOptions): Promise<PickImageResult> {
   try {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'ต้องใช้สิทธิ์เข้าถึงกล้อง',
-          'กรุณาอนุญาตให้แอปเข้าถึงกล้องถ่ายรูปในการตั้งค่า เพื่อถ่ายรูปใบรับรองแพทย์หรือเอกสารแนบ',
+          options?.permissionMessage || 'กรุณาอนุญาตให้แอปเข้าถึงกล้องถ่ายรูปในการตั้งค่า เพื่อถ่ายรูปภาพหลักฐานหรือเอกสารแนบ',
           [{ text: 'ตกลง' }]
         );
         return { success: false, error: 'Camera permission denied' };
@@ -91,7 +99,10 @@ export async function takePhotoWithCamera(): Promise<PickImageResult> {
       return { success: false, canceled: true };
     }
 
-    const permanentUri = await saveAttachmentPermanently(result.assets[0].uri);
+    const permanentUri = await saveAttachmentPermanently(
+      result.assets[0].uri,
+      options?.prefix || 'attachment'
+    );
     return { success: true, uri: permanentUri };
   } catch (error: any) {
     console.error('Error in takePhotoWithCamera:', error);
@@ -102,14 +113,14 @@ export async function takePhotoWithCamera(): Promise<PickImageResult> {
 /**
  * Prompts user for media library permission and opens image picker.
  */
-export async function pickImageFromGallery(): Promise<PickImageResult> {
+export async function pickImageFromGallery(options?: AttachmentPickerOptions): Promise<PickImageResult> {
   try {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
           'ต้องใช้สิทธิ์เข้าถึงคลังรูปภาพ',
-          'กรุณาอนุญาตให้แอปเข้าถึงคลังรูปภาพในการตั้งค่า เพื่อเลือกรูปใบรับรองแพทย์หรือเอกสารแนบ',
+          options?.permissionMessage || 'กรุณาอนุญาตให้แอปเข้าถึงคลังรูปภาพในการตั้งค่า เพื่อเลือกรูปภาพหลักฐานหรือเอกสารแนบ',
           [{ text: 'ตกลง' }]
         );
         return { success: false, error: 'Media library permission denied' };
@@ -126,7 +137,10 @@ export async function pickImageFromGallery(): Promise<PickImageResult> {
       return { success: false, canceled: true };
     }
 
-    const permanentUri = await saveAttachmentPermanently(result.assets[0].uri);
+    const permanentUri = await saveAttachmentPermanently(
+      result.assets[0].uri,
+      options?.prefix || 'attachment'
+    );
     return { success: true, uri: permanentUri };
   } catch (error: any) {
     console.error('Error in pickImageFromGallery:', error);

@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { X, Edit3 } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Image } from 'react-native';
+import { X, Edit3, Camera, Eye } from 'lucide-react-native';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { ImagePreviewModal } from '@/components/leaves/ImagePreviewModal';
 import type { TimeEntry } from '../../types';
 
 interface DetailModalProps {
@@ -41,6 +42,8 @@ export const DetailModal = React.memo(function DetailModal({
   onClose,
   onEdit,
 }: DetailModalProps) {
+  const [previewVisible, setPreviewVisible] = useState(false);
+
   return (
     <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -88,6 +91,41 @@ export const DetailModal = React.memo(function DetailModal({
                 <DetailRow label="หมายเหตุ / เหตุผล">{entry.reason}</DetailRow>
               ) : null}
 
+              {entry.attachmentUri ? (
+                <View style={styles.attachmentWrap}>
+                  <Text style={[styles.label, { marginBottom: 6 }]}>หลักฐานภาพถ่าย:</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setPreviewVisible(true)}
+                    style={[
+                      styles.attachmentBox,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: colors.backgroundAlt,
+                      },
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: entry.attachmentUri }}
+                      style={styles.attachmentImg}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.attachmentMeta}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Camera size={14} color="#2563EB" />
+                        <Text style={[styles.attachmentTitle, { color: colors.text }]}>
+                          รูปหลักฐานการลงเวลา
+                        </Text>
+                      </View>
+                      <Text style={[styles.attachmentHint, { color: colors.textSecondary }]}>
+                        แตะเพื่อดูรูปภาพขนาดเต็ม
+                      </Text>
+                    </View>
+                    <Eye size={18} color="#2563EB" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               <Button
                 variant="default"
                 size="sm"
@@ -101,6 +139,13 @@ export const DetailModal = React.memo(function DetailModal({
           )}
         </View>
       </View>
+
+      <ImagePreviewModal
+        isVisible={previewVisible}
+        imageUri={entry?.attachmentUri || null}
+        onClose={() => setPreviewVisible(false)}
+        title={entry ? `หลักฐานการลงเวลา (${formatDateThai(entry.date)})` : 'หลักฐานการลงเวลา'}
+      />
     </Modal>
   );
 });
@@ -152,5 +197,35 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     marginTop: 14,
+  },
+  attachmentWrap: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  attachmentBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 10,
+  },
+  attachmentImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+  },
+  attachmentMeta: {
+    flex: 1,
+    gap: 2,
+  },
+  attachmentTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Sarabun_700Bold',
+  },
+  attachmentHint: {
+    fontSize: 10,
+    fontFamily: 'Sarabun_400Regular',
   },
 });

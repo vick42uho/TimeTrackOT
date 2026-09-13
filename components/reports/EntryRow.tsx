@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight, Clock, Zap, AlertTriangle, LogOut, CheckSquare, Square } from 'lucide-react-native';
+import { ChevronRight, Clock, Zap, AlertTriangle, LogOut, CheckSquare, Square, Camera } from 'lucide-react-native';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import type { TimeEntry } from '../../types';
@@ -142,6 +142,20 @@ export const EntryRow = React.memo(function EntryRow({
             {entry.clockIn || '--:--'} - {entry.clockOut || '--:--'}
           </Text>
         </View>
+        {entry.attachmentUri ? (
+          <View
+            style={[
+              styles.proofBadge,
+              {
+                backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#eff6ff',
+                borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#bfdbfe',
+              },
+            ]}
+          >
+            <Icon name={Camera} size={11} color="#2563EB" />
+            <Text style={styles.proofBadgeText}>มีรูปหลักฐาน</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
 
       <View style={styles.badgesRow}>
@@ -234,7 +248,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Sarabun_700Bold',
   },
   timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  proofBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  proofBadgeText: {
+    fontSize: 10,
+    color: '#2563EB',
+    fontWeight: '600',
+    fontFamily: 'Sarabun_600SemiBold',
   },
   clockText: {
     fontSize: 13,

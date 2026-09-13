@@ -93,6 +93,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
             clock_in TEXT,
             clock_out TEXT,
             reason TEXT,
+            attachment_uri TEXT,
             regular_hours REAL DEFAULT 0,
             overtime_hours REAL DEFAULT 0,
             late_arrival_hours REAL DEFAULT 0,
@@ -199,6 +200,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
         try { await database.execAsync(`ALTER TABLE time_entries ADD COLUMN late_arrival_used INTEGER DEFAULT 0;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE time_entries ADD COLUMN early_leave_hours REAL DEFAULT 0;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE time_entries ADD COLUMN early_leave_used INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await database.execAsync(`ALTER TABLE time_entries ADD COLUMN attachment_uri TEXT;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE holidays ADD COLUMN type TEXT NOT NULL DEFAULT 'public';`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE holidays ADD COLUMN is_recurring INTEGER DEFAULT 0;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN duration_type TEXT NOT NULL DEFAULT 'full_day';`); } catch (e) {}
@@ -349,6 +351,7 @@ export const useDatabase = () => {
           clockIn: result.clock_in,
           clockOut: result.clock_out,
           reason: result.reason,
+          attachmentUri: result.attachment_uri || undefined,
           regularHours: result.regular_hours,
           overtimeHours: result.overtime_hours,
           lateArrivalHours: result.late_arrival_hours || 0,
@@ -375,15 +378,15 @@ export const useDatabase = () => {
       if (existingEntry) {
         await db.runAsync(
           `UPDATE time_entries 
-           SET clock_in = ?, clock_out = ?, reason = ?, regular_hours = ?, overtime_hours = ?, late_arrival_hours = ?, early_leave_hours = ?, overtime_used = ?, late_arrival_used = ?, early_leave_used = ?, updated_at = CURRENT_TIMESTAMP
+           SET clock_in = ?, clock_out = ?, reason = ?, attachment_uri = ?, regular_hours = ?, overtime_hours = ?, late_arrival_hours = ?, early_leave_hours = ?, overtime_used = ?, late_arrival_used = ?, early_leave_used = ?, updated_at = CURRENT_TIMESTAMP
            WHERE date = ?`,
-          [entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.earlyLeaveHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.earlyLeaveUsed ? 1 : 0, entry.date]
+          [entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.attachmentUri || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.earlyLeaveHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.earlyLeaveUsed ? 1 : 0, entry.date]
         );
       } else {
         await db.runAsync(
-          `INSERT INTO time_entries (date, clock_in, clock_out, reason, regular_hours, overtime_hours, late_arrival_hours, early_leave_hours, overtime_used, late_arrival_used, early_leave_used)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [entry.date, entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.earlyLeaveHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.earlyLeaveUsed ? 1 : 0]
+          `INSERT INTO time_entries (date, clock_in, clock_out, reason, attachment_uri, regular_hours, overtime_hours, late_arrival_hours, early_leave_hours, overtime_used, late_arrival_used, early_leave_used)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [entry.date, entry.clockIn || null, entry.clockOut || null, entry.reason || null, entry.attachmentUri || null, entry.regularHours || 0, entry.overtimeHours || 0, entry.lateArrivalHours || 0, entry.earlyLeaveHours || 0, entry.overtimeUsed ? 1 : 0, entry.lateArrivalUsed ? 1 : 0, entry.earlyLeaveUsed ? 1 : 0]
         );
       }
     } catch (error) {
@@ -406,6 +409,7 @@ export const useDatabase = () => {
         clockIn: result.clock_in,
         clockOut: result.clock_out,
         reason: result.reason,
+        attachmentUri: result.attachment_uri || undefined,
         regularHours: result.regular_hours,
         overtimeHours: result.overtime_hours,
         lateArrivalHours: result.late_arrival_hours || 0,
@@ -451,6 +455,10 @@ export const useDatabase = () => {
       if (entry.reason !== undefined) {
         updateFields.push('reason = ?');
         values.push(entry.reason || null);
+      }
+      if (entry.attachmentUri !== undefined) {
+        updateFields.push('attachment_uri = ?');
+        values.push(entry.attachmentUri || null);
       }
       if (entry.regularHours !== undefined) {
         updateFields.push('regular_hours = ?');
@@ -510,11 +518,14 @@ export const useDatabase = () => {
         clockIn: result.clock_in,
         clockOut: result.clock_out,
         reason: result.reason,
+        attachmentUri: result.attachment_uri || undefined,
         regularHours: result.regular_hours,
         overtimeHours: result.overtime_hours,
         lateArrivalHours: result.late_arrival_hours || 0,
+        earlyLeaveHours: result.early_leave_hours || 0,
         overtimeUsed: result.overtime_used === 1,
         lateArrivalUsed: result.late_arrival_used === 1,
+        earlyLeaveUsed: result.early_leave_used === 1,
         createdAt: result.created_at,
         updatedAt: result.updated_at,
       }));
@@ -1519,13 +1530,14 @@ export const useDatabase = () => {
         if (!entry.date) continue;
         await db.runAsync(
           `INSERT OR REPLACE INTO time_entries
-           (date, clock_in, clock_out, reason, regular_hours, overtime_hours, late_arrival_hours, early_leave_hours, overtime_used, late_arrival_used, early_leave_used, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+           (date, clock_in, clock_out, reason, attachment_uri, regular_hours, overtime_hours, late_arrival_hours, early_leave_hours, overtime_used, late_arrival_used, early_leave_used, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
           [
             entry.date,
             entry.clockIn || null,
             entry.clockOut || null,
             entry.reason || null,
+            entry.attachmentUri || null,
             entry.regularHours || 0,
             entry.overtimeHours || 0,
             entry.lateArrivalHours || 0,
