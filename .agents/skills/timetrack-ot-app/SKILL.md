@@ -447,5 +447,21 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
     - BottomSheet displaying category chip, time, location (tap to open Google Maps), alarm toggle, and notes with auto-detected URLs.
     - Direct [Edit], [Delete], and [View in Calendar] actions from Dashboard.
 
+11. **Leaves Calendar Architecture & Disappearing Date Prevention (Build 28)**:
+    - **Visual Format & Mini Badges (`components/leaves/CalendarGrid.tsx`)**:
+      - Preserves high-readability status badges inside day cells (`calendarMiniTag`):
+        - Holiday / WFH / Regular Off: `[หยุดปกติ]`, `[WFH]`, `[นักขัตฯ]`, `[หยุด บ.]`, `[พิเศษ]`.
+        - Leave Requests: `[ลาป่วย]`, `[พักร้อน]`, `[ลากิจ]`, `[อื่นๆ]`.
+        - Activities: Dedicated purple dot (`#8b5cf6`).
+      - Weekend subtle tint (`#f8fafc`), Selection border + soft tint (`#eff6ff`), Today accent border.
+      - Fixed cell height `52px` with flex layout preventing vertical collapse.
+    - **Disappearing Date Cells Root Cause & Elimination**:
+      - **Root Cause**: On Android React Native, when unselecting a day cell after scrolling or closing a bottom sheet, dynamically switching between `fontWeight: '700'` and `fontWeight: '500'` on a Text component with loaded Sarabun font caused Android's native text layout cache to fail to resolve the font weight, rendering glyphs with 0 width/height (invisible numbers).
+      - **Permanent Fix**: Direct use of `RNText` (`import { Text as RNText } from 'react-native'`) with explicit Sarabun font variants (`fontFamily: isSelected || item.isToday ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold'`), `includeFontPadding: false`, explicit `String(item.dayNumber)`, and complete elimination of conflicting numeric `fontWeight` attributes.
+    - **Smart 2-Tap & Long-Press UX**:
+      - 1st tap: Smoothly selects the date and updates the preview card below without intrusive popups.
+      - 2nd tap on selected date OR Long-Press OR clicking "จัดการวันที่ & กิจกรรม": Opens `DayActionSheet`.
+
+
 
 

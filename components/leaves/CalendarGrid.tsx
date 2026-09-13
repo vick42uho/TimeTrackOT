@@ -43,13 +43,11 @@ const DayCell = React.memo(function DayCell({
   const hasActivities = (item.activities?.length || 0) > 0;
 
   const primaryColor = colors?.primary || '#2563eb';
-  const textColor = isSelected
-    ? '#ffffff'
-    : item.isToday
-      ? primaryColor
-      : item.isWeekend
-        ? (colors?.textSecondary || '#64748b')
-        : (colors?.text || (isDark ? '#f8fafc' : '#0f172a'));
+  const textColor = item.isToday
+    ? primaryColor
+    : item.isWeekend
+      ? (colors?.textSecondary || '#64748b')
+      : (colors?.text || (isDark ? '#f8fafc' : '#0f172a'));
 
   return (
     <TouchableOpacity
@@ -60,76 +58,89 @@ const DayCell = React.memo(function DayCell({
       style={[
         styles.dayCell,
         item.isWeekend && !isSelected && {
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : '#f8fafc',
+          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : '#f8fafc',
+        },
+        isSelected && {
+          borderColor: primaryColor,
+          borderWidth: 1.5,
+          backgroundColor: isDark ? `${primaryColor}25` : '#eff6ff',
+        },
+        item.isToday && !isSelected && {
+          borderWidth: 1,
+          borderColor: primaryColor,
         },
       ]}
     >
-      {/* Day Number Circle */}
-      <View
+      {/* Day Number */}
+      <RNText
         style={[
-          styles.dateNumberCircle,
-          isSelected && {
-            backgroundColor: primaryColor,
-            shadowColor: primaryColor,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-            elevation: 3,
-          },
-          item.isToday && !isSelected && {
-            borderColor: primaryColor,
-            borderWidth: 1.5,
-            backgroundColor: isDark ? 'rgba(59, 130, 246, 0.12)' : '#eff6ff',
+          styles.dayNumberText,
+          {
+            color: textColor,
+            fontFamily: isSelected || item.isToday ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
           },
         ]}
       >
-        <RNText
+        {String(item.dayNumber)}
+      </RNText>
+
+      {/* Status Badges / Tags on Calendar Day */}
+      {hasHoliday && (
+        <View
           style={[
-            styles.dayNumberText,
+            styles.calendarMiniTag,
             {
-              color: textColor,
-              fontFamily: isSelected || item.isToday ? 'Sarabun_700Bold' : 'Sarabun_600SemiBold',
+              backgroundColor: isDark
+                ? `${HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6'}35`
+                : `${HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6'}18`,
             },
           ]}
         >
-          {String(item.dayNumber)}
-        </RNText>
-      </View>
-
-      {/* Status Dots Row (Remimo Style) */}
-      <View style={styles.statusDotsRow}>
-        {hasHoliday && (
-          <View
+          <RNText
+            numberOfLines={1}
             style={[
-              styles.statusDot,
-              {
-                backgroundColor:
-                  HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || '#3b82f6',
-              },
+              styles.calendarMiniTagText,
+              { color: HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.color || primaryColor },
             ]}
-          />
-        )}
-        {hasLeave && (
-          <View
+          >
+            {HOLIDAY_TYPE_CONFIG[item.holiday!.type]?.shortLabel || 'หยุด'}
+          </RNText>
+        </View>
+      )}
+
+      {hasLeave && (
+        <View
+          style={[
+            styles.calendarMiniTag,
+            {
+              backgroundColor: isDark
+                ? `${LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color || '#f59e0b'}35`
+                : `${LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color || '#f59e0b'}18`,
+            },
+          ]}
+        >
+          <RNText
+            numberOfLines={1}
             style={[
-              styles.statusDot,
+              styles.calendarMiniTagText,
               {
-                backgroundColor:
+                color:
                   LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.color ||
                   '#f59e0b',
               },
             ]}
-          />
-        )}
-        {hasActivities && (
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: '#8b5cf6' },
-            ]}
-          />
-        )}
-      </View>
+          >
+            {LEAVE_TYPE_OPTIONS.find((o) => o.type === item.leave!.leaveType)?.shortLabel || 'ลา'}
+          </RNText>
+        </View>
+      )}
+
+      {/* Activity Dot */}
+      {hasActivities && (
+        <View style={styles.activityDotContainer}>
+          <View style={styles.activityDot} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 });
@@ -257,36 +268,46 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: `${100 / 7}%`,
-    height: 48,
+    height: 52,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  dateNumberCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 3,
+    borderRadius: 8,
+    marginVertical: 1,
   },
   dayNumberText: {
     fontSize: 13,
+    lineHeight: 18,
     textAlign: 'center',
     includeFontPadding: false,
   },
-  statusDotsRow: {
+  calendarMiniTag: {
+    marginTop: 2,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderRadius: 4,
+    maxWidth: '92%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarMiniTagText: {
+    fontSize: 9,
+    fontFamily: 'Sarabun_700Bold',
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
+  activityDotContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    height: 6,
+    gap: 2,
     marginTop: 2,
   },
-  statusDot: {
-    width: 5.5,
-    height: 5.5,
-    borderRadius: 3,
+  activityDot: {
+    width: 4.5,
+    height: 4.5,
+    borderRadius: 2.25,
+    backgroundColor: '#8b5cf6',
   },
   calendarLegendRow: {
     flexDirection: 'row',
