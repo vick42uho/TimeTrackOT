@@ -79,6 +79,7 @@ export interface LeaveRequest {
   durationDays: number;
   durationType: LeaveDurationType;
   reason?: string;
+  attachmentUri?: string;
   status: LeaveStatus;
   createdAt?: string;
 }

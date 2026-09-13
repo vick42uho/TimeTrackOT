@@ -11,6 +11,7 @@ import {
   Edit3,
   MapPin,
   ExternalLink,
+  FileImage,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ interface DayActionSheetProps {
   onRequestLeaveForDay: () => void;
   onEditHoliday: () => void;
   onClearStatus: () => void;
+  onPreviewAttachment?: (uri: string) => void;
 }
 
 const DayActivityRow = React.memo(function DayActivityRow({
@@ -161,6 +163,7 @@ export const DayActionSheet = React.memo(function DayActionSheet({
   onRequestLeaveForDay,
   onEditHoliday,
   onClearStatus,
+  onPreviewAttachment,
 }: DayActionSheetProps) {
   return (
     <BottomSheet
@@ -194,6 +197,26 @@ export const DayActionSheet = React.memo(function DayActionSheet({
                 <Text variant="subtitle" style={styles.statusName}>
                   ลางาน ({currentDayLeave.durationDays} วัน) {currentDayLeave.reason ? `- ${currentDayLeave.reason}` : ''}
                 </Text>
+                {currentDayLeave.attachmentUri ? (
+                  <TouchableOpacity
+                    onPress={() => onPreviewAttachment?.(currentDayLeave.attachmentUri!)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingVertical: 2,
+                      paddingHorizontal: 6,
+                      borderRadius: 6,
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7',
+                      marginLeft: 'auto',
+                    }}
+                  >
+                    <FileImage size={12} color="#d97706" />
+                    <Text style={{ fontSize: 10.5, fontWeight: '700', color: isDark ? '#fcd34d' : '#b45309', fontFamily: 'Sarabun_700Bold' }}>
+                      เอกสารแนบ
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             )}
           </View>

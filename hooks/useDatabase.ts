@@ -125,6 +125,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
             duration_days REAL NOT NULL,
             duration_type TEXT NOT NULL DEFAULT 'full_day',
             reason TEXT,
+            attachment_uri TEXT,
             status TEXT NOT NULL DEFAULT 'approved',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
@@ -202,6 +203,7 @@ async function getOrInitDb(): Promise<SQLite.SQLiteDatabase> {
         try { await database.execAsync(`ALTER TABLE holidays ADD COLUMN is_recurring INTEGER DEFAULT 0;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN duration_type TEXT NOT NULL DEFAULT 'full_day';`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN reason TEXT;`); } catch (e) {}
+        try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN attachment_uri TEXT;`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE leaves ADD COLUMN status TEXT NOT NULL DEFAULT 'approved';`); } catch (e) {}
         try { await database.execAsync(`ALTER TABLE activities ADD COLUMN is_alarm INTEGER DEFAULT 0;`); } catch (e) {}
 
@@ -685,6 +687,7 @@ export const useDatabase = () => {
         durationDays: r.duration_days,
         durationType: r.duration_type,
         reason: r.reason,
+        attachmentUri: r.attachment_uri || undefined,
         status: r.status,
         createdAt: r.created_at,
       }));
@@ -699,8 +702,8 @@ export const useDatabase = () => {
     try {
       const db = await getOrInitDb();
       await db.runAsync(
-        `INSERT INTO leaves (leave_type, start_date, end_date, duration_days, duration_type, reason, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        `INSERT INTO leaves (leave_type, start_date, end_date, duration_days, duration_type, reason, attachment_uri, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
         [
           leave.leaveType,
           leave.startDate,
@@ -708,6 +711,7 @@ export const useDatabase = () => {
           leave.durationDays,
           leave.durationType || 'full_day',
           leave.reason || '',
+          leave.attachmentUri || null,
           leave.status || 'approved',
         ]
       );
@@ -747,6 +751,10 @@ export const useDatabase = () => {
       if (leave.reason !== undefined) {
         updateFields.push('reason = ?');
         values.push(leave.reason);
+      }
+      if (leave.attachmentUri !== undefined) {
+        updateFields.push('attachment_uri = ?');
+        values.push(leave.attachmentUri || null);
       }
       if (leave.status !== undefined) {
         updateFields.push('status = ?');
@@ -1408,6 +1416,7 @@ export const useDatabase = () => {
       durationDays: r.duration_days,
       durationType: r.duration_type,
       reason: r.reason,
+      attachmentUri: r.attachment_uri || undefined,
       status: r.status,
       createdAt: r.created_at,
     }));
@@ -1566,8 +1575,8 @@ export const useDatabase = () => {
         if (!leave.startDate || !leave.endDate) continue;
         await db.runAsync(
           `INSERT INTO leaves
-           (leave_type, start_date, end_date, duration_days, duration_type, reason, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+           (leave_type, start_date, end_date, duration_days, duration_type, reason, attachment_uri, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
           [
             leave.leaveType || 'vacation',
             leave.startDate,
@@ -1575,6 +1584,7 @@ export const useDatabase = () => {
             Number(leave.durationDays) || 1,
             leave.durationType || 'full_day',
             leave.reason || null,
+            leave.attachmentUri || null,
             leave.status || 'approved',
           ]
         );

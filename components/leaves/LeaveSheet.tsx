@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { X, Save } from 'lucide-react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { X, Save, Camera, Image as ImageIcon, Trash2, Eye, FileImage } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Input } from '@/components/ui/input';
 import { DatePicker, DateRange } from '@/components/ui/date-picker';
 import { LEAVE_TYPE_OPTIONS } from './leavesConstants';
+import { pickImageFromGallery, takePhotoWithCamera } from '@/utils/leaveAttachmentHelper';
 import type { LeaveDurationType, LeaveRequest, LeaveType } from '../../types';
 
 interface LeaveSheetProps {
@@ -21,6 +22,9 @@ interface LeaveSheetProps {
   onChangeLeaveRange: (r: DateRange) => void;
   leaveReason: string;
   onChangeLeaveReason: (v: string) => void;
+  leaveAttachmentUri?: string;
+  onChangeAttachmentUri?: (v: string) => void;
+  onPreviewAttachment?: (uri: string) => void;
   colors: any;
   onSave: () => void;
 }
@@ -43,6 +47,9 @@ export const LeaveSheet = React.memo(function LeaveSheet({
   onChangeLeaveRange,
   leaveReason,
   onChangeLeaveReason,
+  leaveAttachmentUri = '',
+  onChangeAttachmentUri,
+  onPreviewAttachment,
   colors,
   onSave,
 }: LeaveSheetProps) {
@@ -146,6 +153,135 @@ export const LeaveSheet = React.memo(function LeaveSheet({
           value={leaveReason}
           onChangeText={onChangeLeaveReason}
         />
+
+        {/* Attachment / Medical Certificate Section */}
+        <View>
+          <Text variant="caption" style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            {leaveType === 'sick' ? 'ใบรับรองแพทย์ / เอกสารแนบ (ไม่บังคับ):' : 'เอกสารหลักฐานแนบ (ไม่บังคับ):'}
+          </Text>
+
+          {leaveAttachmentUri ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                padding: 10,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+              }}
+            >
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => onPreviewAttachment?.(leaveAttachmentUri)}
+                style={{ position: 'relative' }}
+              >
+                <Image
+                  source={{ uri: leaveAttachmentUri }}
+                  style={{ width: 64, height: 64, borderRadius: 8 }}
+                  resizeMode="cover"
+                />
+                <View
+                  style={{
+                    position: 'absolute',
+                    right: 4,
+                    bottom: 4,
+                    backgroundColor: 'rgba(0,0,0,0.65)',
+                    borderRadius: 10,
+                    padding: 3,
+                  }}
+                >
+                  <Eye size={12} color="#ffffff" />
+                </View>
+              </TouchableOpacity>
+
+              <View style={{ flex: 1, gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <FileImage size={14} color="#10b981" />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, fontFamily: 'Sarabun_700Bold' }}>
+                    {leaveType === 'sick' ? 'แนบใบรับรองแพทย์แล้ว' : 'แนบเอกสารหลักฐานแล้ว'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={Eye}
+                    onPress={() => onPreviewAttachment?.(leaveAttachmentUri)}
+                    style={{ flex: 1, paddingVertical: 4 }}
+                  >
+                    ดูรูป
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    icon={Trash2}
+                    onPress={() => onChangeAttachmentUri?.('')}
+                    style={{ paddingVertical: 4, borderColor: '#ef4444' }}
+                  >
+                    <Text style={{ color: '#ef4444', fontSize: 11, fontWeight: '600' }}>ลบ</Text>
+                  </Button>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  const res = await takePhotoWithCamera();
+                  if (res.success && res.uri) {
+                    onChangeAttachmentUri?.(res.uri);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                }}
+              >
+                <Camera size={16} color={colors.primary} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text, fontFamily: 'Sarabun_600SemiBold' }}>
+                  ถ่ายรูป
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={async () => {
+                  const res = await pickImageFromGallery();
+                  if (res.success && res.uri) {
+                    onChangeAttachmentUri?.(res.uri);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 10,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                }}
+              >
+                <ImageIcon size={16} color={colors.primary} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text, fontFamily: 'Sarabun_600SemiBold' }}>
+                  เลือกจากคลังภาพ
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
     </BottomSheet>
   );

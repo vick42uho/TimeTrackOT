@@ -44,6 +44,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  FileImage,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
@@ -108,6 +109,7 @@ import { SelectedDayCard } from '@/components/leaves/SelectedDayCard';
 import { DayActionSheet } from '@/components/leaves/DayActionSheet';
 import { LeaveSheet } from '@/components/leaves/LeaveSheet';
 import { LeavesDialogs } from '@/components/leaves/LeavesDialogs';
+import { ImagePreviewModal } from '@/components/leaves/ImagePreviewModal';
 import type { CalendarDayItem } from '@/components/leaves/leavesConstants';
 
 const LeavesContent: React.FC = () => {
@@ -292,6 +294,8 @@ const LeavesContent: React.FC = () => {
   });
   const [leaveDurationType, setLeaveDurationType] = useState<LeaveDurationType>('full_day');
   const [leaveReason, setLeaveReason] = useState('');
+  const [leaveAttachmentUri, setLeaveAttachmentUri] = useState<string>('');
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
 
   // Edit Quota State
   const [editingQuotas, setEditingQuotas] = useState<Record<LeaveType, string>>({
@@ -969,6 +973,7 @@ const LeavesContent: React.FC = () => {
     setLeaveType('vacation');
     setLeaveDurationType('full_day');
     setLeaveReason('');
+    setLeaveAttachmentUri('');
     const d = defaultDate || new Date(selectedYear, selectedMonth - 1, 1);
     setLeaveRange({ startDate: d, endDate: d });
     leaveSheet.open();
@@ -979,6 +984,7 @@ const LeavesContent: React.FC = () => {
     setLeaveType(l.leaveType);
     setLeaveDurationType(l.durationType);
     setLeaveReason(l.reason || '');
+    setLeaveAttachmentUri(l.attachmentUri || '');
     const [sy, sm, sd] = l.startDate.split('-').map(Number);
     const [ey, em, ed] = l.endDate.split('-').map(Number);
     setLeaveRange({
@@ -1016,6 +1022,8 @@ const LeavesContent: React.FC = () => {
       duration = diffDays;
     }
 
+    const currentAttachmentUri = leaveAttachmentUri;
+    setLeaveAttachmentUri('');
     setLeaveReason('');
     setLeaveDurationType('full_day');
     const wasEditing = editingLeave;
@@ -1028,7 +1036,16 @@ const LeavesContent: React.FC = () => {
       setLeaves((prev) =>
         prev.map((x) =>
           x.id === wasEditing.id
-            ? { ...x, leaveType, startDate: startStr, endDate: endStr, durationDays: duration, durationType: leaveDurationType, reason: leaveReason.trim() || undefined }
+            ? {
+                ...x,
+                leaveType,
+                startDate: startStr,
+                endDate: endStr,
+                durationDays: duration,
+                durationType: leaveDurationType,
+                reason: leaveReason.trim() || undefined,
+                attachmentUri: currentAttachmentUri || undefined,
+              }
             : x
         )
       );
@@ -1040,6 +1057,7 @@ const LeavesContent: React.FC = () => {
         durationDays: duration,
         durationType: leaveDurationType,
         reason: leaveReason.trim() || undefined,
+        attachmentUri: currentAttachmentUri || undefined,
       });
 
       if (ok) {
@@ -1059,6 +1077,7 @@ const LeavesContent: React.FC = () => {
       durationDays: duration,
       durationType: leaveDurationType,
       reason: leaveReason.trim() || undefined,
+      attachmentUri: currentAttachmentUri || undefined,
       status: 'approved',
     });
 
@@ -1372,6 +1391,7 @@ const LeavesContent: React.FC = () => {
                 onDeleteActivity={handleDeleteActivityPrompt}
                 onAddActivity={handleOpenAddActivity}
                 onManageDay={dayActionSheet.open}
+                onPreviewAttachment={setPreviewImageUri}
               />
 
               {/* Accordion: Monthly vs Yearly */}
@@ -1643,6 +1663,35 @@ const LeavesContent: React.FC = () => {
                           {formatDateThai(l.startDate)}
                           {l.startDate !== l.endDate && ` - ${formatDateThai(l.endDate)}`}
                         </Text>
+                        {l.attachmentUri ? (
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => setPreviewImageUri(l.attachmentUri!)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 4,
+                              marginTop: 6,
+                              paddingVertical: 3,
+                              paddingHorizontal: 8,
+                              borderRadius: 6,
+                              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7',
+                              alignSelf: 'flex-start',
+                            }}
+                          >
+                            <FileImage size={12} color="#d97706" />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: '700',
+                                color: isDark ? '#fcd34d' : '#b45309',
+                                fontFamily: 'Sarabun_700Bold',
+                              }}
+                            >
+                              {l.leaveType === 'sick' ? 'ใบรับรองแพทย์' : 'เอกสารแนบ'}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <TouchableOpacity
@@ -1764,6 +1813,7 @@ const LeavesContent: React.FC = () => {
           setLeaveType('vacation');
           setLeaveDurationType('full_day');
           setLeaveReason('');
+          setLeaveAttachmentUri('');
           setLeaveRange({ startDate: targetDate, endDate: targetDate });
           dayActionSheet.close();
           leaveSheet.open();
@@ -1780,6 +1830,7 @@ const LeavesContent: React.FC = () => {
           dayActionSheet.close();
           clearStatusDialog.open();
         }}
+        onPreviewAttachment={setPreviewImageUri}
       />
 
       {/* ========================================================= */}
@@ -1802,7 +1853,6 @@ const LeavesContent: React.FC = () => {
         }
       >
         <View style={{ gap: 16, paddingBottom: 16 }}>
-          {/* Holiday Name */}
           <Input
             label="ชื่อวันหยุด / หมายเหตุ"
             placeholder="เช่น วันหยุดประจำปีบริษัท, WFH ประจำสัปดาห์"
@@ -1810,23 +1860,21 @@ const LeavesContent: React.FC = () => {
             onChangeText={setHolidayName}
           />
 
-          {/* Date Picker */}
           <DatePicker
             label="วันที่"
             mode="date"
             value={holidayDate}
-            onChange={(d) => d && setHolidayDate(d)}
+            onChange={(d) => d && setHolidayDate(d as Date)}
           />
 
-          {/* Holiday Type Selector */}
           <View>
             <Text variant="caption" style={{ marginBottom: 8, color: colors.textSecondary, fontWeight: '600' }}>
               ประเภทวันหยุด / สถานะ:
             </Text>
             <View style={{ gap: 8 }}>
               {(Object.keys(HOLIDAY_TYPE_CONFIG) as HolidayType[]).map((t) => {
-                const isSel = holidayType === t;
                 const cfg = HOLIDAY_TYPE_CONFIG[t];
+                const isSel = holidayType === t;
                 return (
                   <TouchableOpacity
                     key={t}
@@ -1873,6 +1921,9 @@ const LeavesContent: React.FC = () => {
         onChangeLeaveRange={(r) => setLeaveRange(r)}
         leaveReason={leaveReason}
         onChangeLeaveReason={setLeaveReason}
+        leaveAttachmentUri={leaveAttachmentUri}
+        onChangeAttachmentUri={setLeaveAttachmentUri}
+        onPreviewAttachment={setPreviewImageUri}
         colors={colors}
         onSave={handleSaveLeave}
       />
@@ -2259,6 +2310,14 @@ const LeavesContent: React.FC = () => {
           markTourCompleted();
           router.replace('/');
         }}
+      />
+
+      {/* Fullscreen Image Preview Modal */}
+      <ImagePreviewModal
+        isVisible={!!previewImageUri}
+        imageUri={previewImageUri}
+        onClose={() => setPreviewImageUri(null)}
+        title="ใบรับรองแพทย์ / เอกสารแนบ"
       />
 
       {/* Bottom Navigation */}

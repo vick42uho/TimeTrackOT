@@ -10,6 +10,7 @@ import {
   Trash2,
   Plus,
   Calendar as CalendarIcon,
+  FileImage,
 } from 'lucide-react-native';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -182,6 +183,7 @@ interface SelectedDayCardProps {
   onDeleteActivity: (act: Activity) => void;
   onAddActivity: () => void;
   onManageDay?: () => void;
+  onPreviewAttachment?: (uri: string) => void;
 }
 
 export const SelectedDayCard = React.memo(function SelectedDayCard({
@@ -199,6 +201,7 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
   onDeleteActivity,
   onAddActivity,
   onManageDay,
+  onPreviewAttachment,
 }: SelectedDayCardProps) {
   return (
     <Card style={styles.card}>
@@ -284,6 +287,35 @@ export const SelectedDayCard = React.memo(function SelectedDayCard({
                   <Text style={{ fontSize: 11, color: colors.textSecondary }}>
                     เหตุผล: {selectedDateLeave.reason}
                   </Text>
+                ) : null}
+                {selectedDateLeave.attachmentUri ? (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => onPreviewAttachment?.(selectedDateLeave.attachmentUri!)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      marginTop: 6,
+                      paddingVertical: 3,
+                      paddingHorizontal: 8,
+                      borderRadius: 6,
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7',
+                      alignSelf: 'flex-start',
+                    }}
+                  >
+                    <FileImage size={13} color="#d97706" />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: isDark ? '#fcd34d' : '#b45309',
+                        fontFamily: 'Sarabun_700Bold',
+                      }}
+                    >
+                      {selectedDateLeave.leaveType === 'sick' ? 'ดูใบรับรองแพทย์' : 'ดูเอกสารแนบ'}
+                    </Text>
+                  </TouchableOpacity>
                 ) : null}
               </View>
             </View>

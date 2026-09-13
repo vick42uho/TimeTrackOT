@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Trash2, FileImage } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,6 +14,7 @@ interface LeavesHistoryTabProps {
   getLeaveTypeBadge: (type: LeaveType) => React.ReactNode;
   onOpenLeaveSheet: () => void;
   onDeleteLeave: (leave: LeaveRequest) => void;
+  onPreviewAttachment?: (uri: string) => void;
   scrollViewRef?: React.RefObject<ScrollView | null>;
   requestLeaveBtnRef?: React.RefObject<View | null>;
 }
@@ -24,12 +25,14 @@ const LeaveRow = React.memo(function LeaveRow({
   formatDateThai,
   getLeaveTypeBadge,
   onDeleteLeave,
+  onPreviewAttachment,
 }: {
   leave: LeaveRequest;
   colors: any;
   formatDateThai: (d: string) => string;
   getLeaveTypeBadge: (type: LeaveType) => React.ReactNode;
   onDeleteLeave: (leave: LeaveRequest) => void;
+  onPreviewAttachment?: (uri: string) => void;
 }) {
   return (
     <Card style={styles.holidayCard}>
@@ -48,6 +51,28 @@ const LeaveRow = React.memo(function LeaveRow({
             {formatDateThai(leave.startDate)}
             {leave.startDate !== leave.endDate && ` - ${formatDateThai(leave.endDate)}`}
           </Text>
+          {leave.attachmentUri ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => onPreviewAttachment?.(leave.attachmentUri!)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: 4,
+                paddingVertical: 2,
+                paddingHorizontal: 6,
+                borderRadius: 6,
+                backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                alignSelf: 'flex-start',
+              }}
+            >
+              <FileImage size={12} color="#d97706" />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#b45309' }}>
+                {leave.leaveType === 'sick' ? 'ใบรับรองแพทย์' : 'เอกสารแนบ'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
         <TouchableOpacity
           onPress={() => onDeleteLeave(leave)}
@@ -74,6 +99,7 @@ export const LeavesHistoryTab = React.memo(function LeavesHistoryTab({
   getLeaveTypeBadge,
   onOpenLeaveSheet,
   onDeleteLeave,
+  onPreviewAttachment,
   scrollViewRef,
   requestLeaveBtnRef,
 }: LeavesHistoryTabProps) {
@@ -125,6 +151,7 @@ export const LeavesHistoryTab = React.memo(function LeavesHistoryTab({
             formatDateThai={formatDateThai}
             getLeaveTypeBadge={getLeaveTypeBadge}
             onDeleteLeave={onDeleteLeave}
+            onPreviewAttachment={onPreviewAttachment}
           />
         ))}
       </View>
