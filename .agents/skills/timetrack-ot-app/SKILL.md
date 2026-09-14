@@ -632,3 +632,45 @@ To guarantee that the alarm wakes the user under all conditions (silent mode, DN
   5. Run `npx eas init --force --non-interactive` to bind project to new account.
   6. Provision Android Keystore on the new account via EAS GraphQL API (`generateRandomKeystoreAsync` + `createKeystoreAsync` + `createAndroidAppBuildCredentialsAsync`).
   7. Run `npx eas build -p android --profile preview --non-interactive`.
+
+---
+
+## 18. Comprehensive Backup & Restore Engine (`hooks/useDatabase.ts`)
+
+### Full-Stack Data Schema (`BackupPayload`)
+The JSON export format encapsulates both relational SQLite tables and non-relational device preferences (`AsyncStorage`):
+
+```ts
+export interface BackupPayload {
+  metadata: BackupMetadata;
+  data: {
+    timeEntries: TimeEntry[];      // Includes attachmentUri proof photo paths
+    workSchedules: WorkSchedule[];  // Shift rules (month, year, start, end, workDays)
+    holidays: Holiday[];            // National & company holidays
+    leaves: LeaveRequest[];         // Leave requests & medical cert attachmentUri
+    leaveQuotas: LeaveQuota[];      // Annual allowances
+    activities?: Activity[];        // Calendar appointments & alerts
+    tasksNotes?: TaskNote[];        // Checklist & memo notes (supports titleless entries)
+    settings?: AppSettingsBackup;   // Smart alarm, haptics, theme mode
+  };
+}
+```
+
+### Key Engineering Features
+1. **Attendance Proof Photo Preservation**:
+   - `exportBackupData` explicitly includes `attachmentUri: r.attachment_uri || undefined` on each `TimeEntry` so photo proof links are retained during backup and restored into SQLite.
+2. **Flexible Note Restoration**:
+   - `importBackupData` evaluates notes based on multiple attributes:
+     ```ts
+     const hasTitle = Boolean(tn.title && tn.title.trim().length > 0);
+     const hasContent = Boolean(tn.content && tn.content.trim().length > 0);
+     const hasItems = Boolean(tn.items && tn.items.length > 0);
+     if (!hasTitle && !hasContent && !hasItems) continue;
+     ```
+   - Guarantees quick notes and to-do lists saved without a title are restored completely.
+3. **Cross-Device Settings Synchronization**:
+   - Exports `SmartAlarmConfig` (wake offset, WFH time, custom sound, goodnight alert), `hapticsEnabled`, and `themeMode`.
+   - On import, automatically restores these settings back into `AsyncStorage` and syncs native alarm audio preferences.
+4. **Atomic Transaction Safety**:
+   - All table deletions and insertions in `'replace'` mode execute inside `db.withTransactionAsync()`, ensuring complete database rollback if parsing or insertion fails.
+
