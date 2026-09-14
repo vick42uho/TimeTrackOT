@@ -96,6 +96,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
   const [color, setColor] = useState<TaskNoteColor>('default');
   const [isPinned, setIsPinned] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [noteSelection, setNoteSelection] = useState<{ start: number; end: number } | undefined>(undefined);
 
   const noteInputRef = useRef<TextInput>(null);
 
@@ -108,6 +109,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
         setItems(initialData.items ? [...initialData.items] : []);
         setColor(initialData.color || 'default');
         setIsPinned(!!initialData.isPinned);
+        setNoteSelection({ start: 0, end: 0 });
       } else {
         setTitle('');
         setContent('');
@@ -116,6 +118,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
         setNewItemText('');
         setColor('default');
         setIsPinned(false);
+        setNoteSelection(undefined);
       }
     }
   }, [isVisible, initialData]);
@@ -149,18 +152,37 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      showNativeAlert({ title: 'กรุณาระบุหัวข้อ', message: 'โปรดใส่หัวข้องานหรือบันทึก' });
-      return;
+    let finalTitle = title.trim();
+    const trimmedContent = content.trim();
+    const hasItems = items.length > 0;
+    const validItems = items.filter((i) => i.text.trim());
+
+    // Auto-generate title if user didn't specify one
+    if (!finalTitle) {
+      if (trimmedContent) {
+        // Take the first non-empty line of content
+        const firstLine = trimmedContent
+          .split('\n')
+          .map((l) => l.trim())
+          .find((l) => l.length > 0) || '';
+        finalTitle = firstLine.length > 40 ? firstLine.substring(0, 40) + '...' : (firstLine || 'บันทึกข้อความ');
+      } else if (validItems.length > 0) {
+        const firstItem = validItems[0].text.trim();
+        finalTitle = firstItem.length > 40 ? firstItem.substring(0, 40) + '...' : firstItem;
+      } else {
+        showNativeAlert({
+          title: 'ไม่มีข้อมูลบันทึก',
+          message: 'โปรดใส่หัวข้อหรือเนื้อหาสำหรับบันทึก',
+        });
+        return;
+      }
     }
 
     try {
       setIsSaving(true);
       triggerHaptic('success');
 
-      const hasItems = items.length > 0;
       const allDone = hasItems && items.every((i) => i.isDone);
-      const trimmedContent = content.trim();
 
       // Determine the primary type:
       let resolvedType = type;
@@ -171,7 +193,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
       }
 
       await onSave({
-        title: title.trim(),
+        title: finalTitle,
         content: trimmedContent ? trimmedContent : undefined,
         type: resolvedType,
         items: items,
@@ -433,6 +455,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
                 onPress={() => {
                   triggerHaptic('selection');
                   setType('note');
+                  setNoteSelection({ start: 0, end: 0 });
                 }}
                 style={{
                   flex: 1,
@@ -584,7 +607,7 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder={type === 'checklist' ? 'หัวข้องานสิ่งที่ต้องทำ...' : 'หัวข้อบันทึกข้อความ...'}
+              placeholder={type === 'checklist' ? 'หัวข้องาน (เว้นว่างได้)...' : 'หัวข้อบันทึก (เว้นว่างได้)...'}
               placeholderTextColor={colors.textSecondary}
               style={{
                 color: colors.text,
@@ -603,7 +626,17 @@ export const TaskNoteModal: React.FC<TaskNoteModalProps> = ({
               <TextInput
                 ref={noteInputRef}
                 value={content}
-                onChangeText={setContent}
+                onChangeText={(text) => {
+                  if (noteSelection) setNoteSelection(undefined);
+                  setContent(text);
+                }}
+                onTouchStart={() => {
+                  if (noteSelection) setNoteSelection(undefined);
+                }}
+                onFocus={() => {
+                  if (noteSelection) setNoteSelection(undefined);
+                }}
+                selection={noteSelection}
                 placeholder="เริ่มพิมพ์เนื้อหาบันทึกข้อความของคุณที่นี่... สามารถพิมพ์ข้อความยาวได้เต็มที่ หน้าจอจะขยายตามต้องการ"
                 placeholderTextColor={colors.textSecondary}
                 multiline={true}
