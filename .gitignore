@@ -43,3 +43,6 @@ netlify.toml
 
 pnpm-lock.yaml
 package-lock.json
+
+# Native build artifacts
+modules/**/android/build/
