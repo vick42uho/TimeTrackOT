@@ -30,7 +30,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.timetrackot",
-      "versionCode": 36,
+      "versionCode": 37,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
@@ -39,6 +39,7 @@
         "VIBRATE",
         "WAKE_LOCK",
         "USE_FULL_SCREEN_INTENT",
+        "SYSTEM_ALERT_WINDOW",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "com.android.alarm.permission.SET_ALARM",

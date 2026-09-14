@@ -1,5 +1,6 @@
 package expo.modules.fullscreenalarm
 
+import android.app.ActivityOptions
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -16,7 +17,7 @@ import androidx.core.app.NotificationManagerCompat
 class AlarmReceiver : BroadcastReceiver() {
 
   companion object {
-    const val CHANNEL_ID = "smart_workday_alarm_v5"
+    const val CHANNEL_ID = "smart_workday_alarm_v6"
     const val CHANNEL_NAME = "นาฬิกาปลุกวันทำงาน (Smart Workday Alarm)"
     const val CHANNEL_DESC = "เสียงปลุกเฉพาะวันทำงานจริง และงดปลุกวันหยุด/วันลาอัตโนมัติ"
   }
@@ -116,19 +117,44 @@ class AlarmReceiver : BroadcastReceiver() {
       putExtra("reason", reason)
     }
 
+    // Build ActivityOptions to allow background activity launch on Android 14+ (API 34+)
+    val optionsBundle = if (Build.VERSION.SDK_INT >= 34) {
+      ActivityOptions.makeBasic().apply {
+        setPendingIntentBackgroundActivityStartMode(
+          ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+        )
+      }.toBundle()
+    } else {
+      null
+    }
+
     // Directly attempt to pop up the full-screen AlarmActivity immediately
     try {
-      context.startActivity(launchIntent)
+      if (optionsBundle != null) {
+        context.startActivity(launchIntent, optionsBundle)
+      } else {
+        context.startActivity(launchIntent)
+      }
     } catch (e: Exception) {
       e.printStackTrace()
     }
 
-    val fullScreenPendingIntent = PendingIntent.getActivity(
-      context,
-      alarmId.hashCode(),
-      launchIntent,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
+    val fullScreenPendingIntent = if (optionsBundle != null) {
+      PendingIntent.getActivity(
+        context,
+        alarmId.hashCode(),
+        launchIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        optionsBundle
+      )
+    } else {
+      PendingIntent.getActivity(
+        context,
+        alarmId.hashCode(),
+        launchIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      )
+    }
 
     // 6. Action PendingIntents for Snooze & Dismiss buttons (shown on lockscreen notification)
     val snoozeIntent = Intent(context, AlarmActionReceiver::class.java).apply {

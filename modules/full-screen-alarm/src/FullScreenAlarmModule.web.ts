@@ -17,10 +17,16 @@ class FullScreenAlarmModuleWeb extends NativeModule implements FullScreenAlarmMo
   canUseFullScreenIntent(): boolean {
     return false;
   }
+  canDrawOverlays(): boolean {
+    return false;
+  }
   async openExactAlarmSettings(): Promise<boolean> {
     return false;
   }
   async openFullScreenIntentSettings(): Promise<boolean> {
+    return false;
+  }
+  async openOverlaySettings(): Promise<boolean> {
     return false;
   }
   async openLockScreenPermissionSettings(): Promise<boolean> {

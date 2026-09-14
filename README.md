@@ -143,7 +143,12 @@
   - คำนวณล่วงหน้า 21 วันอัตโนมัติ: ปลุกเฉพาะวันทำงานจริง และ**งดปลุกในวันหยุดนักขัตฤกษ์, วันหยุดชดเชย, วันหยุดประจำสัปดาห์ (เสาร์-อาทิตย์), และวันลาที่บันทึกไว้**
 - **Native Android Full-Screen Activity & Background Execution**:
   - พัฒนาโมดูล Native ภาษา Kotlin (`modules/full-screen-alarm`) ทำงานร่วมกับ `AlarmManager.setExactAndAllowWhileIdle(RTC_WAKEUP)`
-  - ปลุกหน้าจอสว่างอัตโนมัติและแสดงผลแบบเต็มจอเหนือหน้าจอล็อคทันทีผ่าน `AlarmActivity` (`FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`)
+  - **รองรับสถาปัตยกรรม Android 14+ (API 34+) เต็มรูปแบบ**:
+    - แนบ `ActivityOptions.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)` บน `PendingIntent` ป้องกันปัญหาระบบ Android 14 บล็อกการเปิด Activity จากพื้นหลังและลดระดับเป็น Heads-up Notification
+    - กำหนด `android:exported="true"` พร้อม Intent Filter บน `AlarmActivity` รับประกันว่ากระบวนการ `SystemUI` บนหน้าจอล็อกของทุกค่าย (Samsung One UI, Xiaomi HyperOS, Vivo, Oppo) สามารถสั่งเปิดหน้าต่างปลุกเต็มจอได้ 100%
+    - เพิ่มสิทธิ์ `android.permission.SYSTEM_ALERT_WINDOW` (แสดงทับแอปอื่น) เพื่อเปิดหน้าต่างปลุกเด้งทับแอปอื่นได้ทันทีแม้ผู้ใช้กำลังใช้งานเครื่องอยู่
+    - ระบบตรวจจับและเปิดหน้าตั้งค่าสิทธิ์ในคลิกเดียว (1-Tap Deep Link): สิทธิ์ Full-Screen Intent (Android 14+), สิทธิ์แสดงทับแอปอื่น (Display over other apps), และสิทธิ์บนหน้าจอล็อกของ Xiaomi HyperOS / Vivo / Oppo
+  - ปลุกหน้าจอสว่างอัตโนมัติและแสดงผลแบบเต็มจอเหนือหน้าจอล็อคทันทีผ่าน `AlarmActivity` (`FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, `FLAG_ALLOW_LOCK_WHILE_SCREEN_ON`, `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`)
   - **ระบบเสียงปลุก 2 ชั้น (Dual-Audio Engine)** ผ่าน `AlarmRingtoneService` (Foreground Service แบบ `mediaPlayback` บน Android 14+):
     - **Engine A (`MediaPlayer`)**: โหลดไฟล์เสียงหลัก `alarm.wav` วนซ้ำต่อเนื่อง พร้อมกลไกความปลอดภัยค้นหา Resource ID ป้องกัน Resource Not Found
     - **Engine B (`RingtoneManager` Fallback)**: ระบบสำรองฉุกเฉิน สลับไปเล่นเสียงนาฬิกาปลุกมาตรฐานของระบบเครื่องทันทีหากพบข้อผิดพลาด รับประกันว่ามีเสียงปลุกดังเสมอ 100%

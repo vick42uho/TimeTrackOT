@@ -18,8 +18,10 @@ declare class FullScreenAlarmNativeModule extends NativeModule<FullScreenAlarmEv
   dismissAlarm(id: string): Promise<boolean>;
   canScheduleExactAlarms(): boolean;
   canUseFullScreenIntent(): boolean;
+  canDrawOverlays(): boolean;
   openExactAlarmSettings(): Promise<boolean>;
   openFullScreenIntentSettings(): Promise<boolean>;
+  openOverlaySettings(): Promise<boolean>;
   openLockScreenPermissionSettings(): Promise<boolean>;
   setCustomAlarmSound(soundPath: string | null): Promise<boolean>;
   getCustomAlarmSound(): string | null;
@@ -36,8 +38,10 @@ const FallbackModule: FullScreenAlarmModuleType = {
   dismissAlarm: async () => false,
   canScheduleExactAlarms: () => false,
   canUseFullScreenIntent: () => false,
+  canDrawOverlays: () => false,
   openExactAlarmSettings: async () => false,
   openFullScreenIntentSettings: async () => false,
+  openOverlaySettings: async () => false,
   openLockScreenPermissionSettings: async () => false,
   setCustomAlarmSound: async () => false,
   getCustomAlarmSound: () => null,

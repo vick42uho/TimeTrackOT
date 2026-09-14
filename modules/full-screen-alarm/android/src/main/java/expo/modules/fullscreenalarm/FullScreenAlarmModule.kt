@@ -161,6 +161,36 @@ class FullScreenAlarmModule : Module() {
       }
     }
 
+    Function("canDrawOverlays") {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val context = appContext.reactContext ?: return@Function true
+        Settings.canDrawOverlays(context)
+      } else {
+        true
+      }
+    }
+
+    AsyncFunction("openOverlaySettings") {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val context = appContext.reactContext ?: return@AsyncFunction false
+        try {
+          val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}")
+          ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+          }
+          context.startActivity(intent)
+          true
+        } catch (e: Exception) {
+          e.printStackTrace()
+          false
+        }
+      } else {
+        true
+      }
+    }
+
     AsyncFunction("openExactAlarmSettings") {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val context = appContext.reactContext ?: return@AsyncFunction false

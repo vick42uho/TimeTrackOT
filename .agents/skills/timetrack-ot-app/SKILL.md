@@ -378,11 +378,17 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
      - Launches `AlarmActivity` with `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_REORDER_TO_FRONT`.
      - Builds high-priority notification with **`.setFullScreenIntent(fullScreenPendingIntent, true)`** on custom channel `smart_workday_alarm_v4` with `USAGE_ALARM`.
    - **`AlarmActivity` (Native Kotlin Activity)**:
-     - Implements true full-screen lock screen bypass with `FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, and `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`.
+     - Implements true full-screen lock screen bypass with `FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, `FLAG_ALLOW_LOCK_WHILE_SCREEN_ON`, and `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`.
+     - Overrides `onAttachedToWindow()` to enforce `setShowWhenLocked(true)` and `setTurnScreenOn(true)` before first frame render on Samsung / Xiaomi devices.
+     - Registered with `android:exported="true"` and an intent-filter (`ALARM_TRIGGER`) so `SystemUI` and foreign processes can invoke it from the lock screen.
      - Renders real-time digital clock (`HH:mm:ss`), Thai Buddhist date (*พ.ศ.*), and reason badge.
      - Features Remimo-style top Dynamic Island pill with circular `[✕]` close button.
      - Embeds full-width "เลื่อนหรือแตะเพื่อปิดปลุก" slider and direct fallback tap-to-stop button.
      - Handles dismissal cleanly by stopping `AlarmRingtoneService`, releasing wake locks, and calling `finishAndRemoveTask()`.
+   - **`AlarmReceiver` (BroadcastReceiver)**:
+     - Builds `ActivityOptions` with `setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)` for Android 14+ (API 34+).
+     - Passes `optionsBundle` to both `PendingIntent.getActivity()` and `context.startActivity(launchIntent, optionsBundle)` to prevent OS downgrading to Heads-Up notifications.
+     - Bumps channel to `smart_workday_alarm_v6` with `IMPORTANCE_HIGH`, `setBypassDnd(true)`, and `VISIBILITY_PUBLIC`.
    - **`AlarmRingtoneService` (Foreground Service)**:
      - Runs with `FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK` on Android 14+.
      - Streams `alarm.wav` continuously via `MediaPlayer` configured with `AudioAttributes.USAGE_ALARM` and `USAGE_ALARM` audio attributes to pierce DND and silent mode.
@@ -393,6 +399,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_notes_date ON tasks_notes(date, is_pinned, 
        - `ACTION_DISMISS`: Stops ringtone service, cancels notification, and silences alarm immediately.
    - **`FullScreenAlarmModule` (Kotlin)**:
      - Lifecycle hooks ensuring `setShowWhenLocked(true)` and `setTurnScreenOn(true)` are dynamically applied.
+     - Exposes `canUseFullScreenIntent()`, `canDrawOverlays()`, `openOverlaySettings()`, and `openLockScreenPermissionSettings()`.
      - Sends `onAlarmTriggered` event to React Native runtime and provides `getInitialAlarm()` for cold-start launches.
 
 2. **Dedicated Alarm Audio Tone (`assets/sounds/alarm.wav` & `res/raw/alarm.wav`)**:
@@ -673,4 +680,27 @@ export interface BackupPayload {
    - On import, automatically restores these settings back into `AsyncStorage` and syncs native alarm audio preferences.
 4. **Atomic Transaction Safety**:
    - All table deletions and insertions in `'replace'` mode execute inside `db.withTransactionAsync()`, ensuring complete database rollback if parsing or insertion fails.
+
+---
+
+## 19. Android 14+ Full-Screen Alarm & OEM Pop-up Engine
+
+### The Android 14 (API 34+) Background Launch Dilemma
+Beginning with Android 14 (API 34), Google placed strict restrictions on `PendingIntent` background activity launches:
+1. **`MODE_BACKGROUND_ACTIVITY_START_ALLOWED`**:
+   - In `AlarmReceiver.kt`, if `PendingIntent.getActivity()` is called without `ActivityOptions.setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)`, Android 14 suppresses the full-screen window and demotes the alarm notification to a top Heads-Up notification banner.
+   - Fixed by bundling `optionsBundle` directly into `PendingIntent.getActivity(..., optionsBundle)` and `context.startActivity(launchIntent, optionsBundle)`.
+2. **`AlarmActivity` Export & Intent Filter**:
+   - `AlarmActivity` is explicitly configured as `android:exported="true"` with an `<intent-filter>` containing `expo.modules.fullscreenalarm.ALARM_TRIGGER` and `android.intent.category.DEFAULT`. This guarantees foreign system processes (`com.android.systemui`) on OEM skins (Samsung One UI, Xiaomi HyperOS/MIUI, Vivo, Oppo) can start the activity directly from the lock screen.
+3. **`SYSTEM_ALERT_WINDOW` & Overlay Permissions**:
+   - `android.permission.SYSTEM_ALERT_WINDOW` is declared in `AndroidManifest.xml` and `app.json`.
+   - Native module bridges `canDrawOverlays(): Boolean` and `openOverlaySettings(): Promise<Boolean>` via `Settings.ACTION_MANAGE_OVERLAY_PERMISSION`.
+   - When granted, Android allows direct `context.startActivity()` from the background even when the device is actively in use by another app.
+4. **OEM Security Gateways (Xiaomi / Vivo / Oppo)**:
+   - On Xiaomi (HyperOS / MIUI), Vivo, and Oppo, the system blocks background pop-ups and lockscreen takeovers by default.
+   - `SmartAlarmModal.tsx` provides real-time detection and one-tap access to:
+     - `openLockScreenPermissionSettings()`: "แสดงบนหน้าจอล็อก (Show on Lock screen)" & "แสดงหน้าต่างป๊อปอัปขณะทำงานในเบื้องหลัง"
+     - `openOverlaySettings()`: "อนุญาตให้แสดงทับแอปพลิเคชันอื่น (Display over other apps)"
+     - `openFullScreenIntentSettings()`: "ใช้การแจ้งเตือนแบบเต็มหน้าจอ (Full-Screen Intent)" on Android 14+.
+
 

@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  AppState,
 } from 'react-native';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
@@ -93,6 +94,23 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
   const [showLockScreenGuide, setShowLockScreenGuide] = useState(false);
   const [isTestingAlarmModal, setIsTestingAlarmModal] = useState(false);
 
+  // Permission states for Android Full-Screen & Overlay
+  const [canFullScreen, setCanFullScreen] = useState(true);
+  const [canDrawOverlays, setCanDrawOverlays] = useState(true);
+  const [canExactAlarm, setCanExactAlarm] = useState(true);
+
+  const checkPermissions = () => {
+    if (Platform.OS === 'android' && isFullScreenAlarmAvailable) {
+      try {
+        setCanFullScreen(FullScreenAlarm.canUseFullScreenIntent());
+        setCanDrawOverlays(FullScreenAlarm.canDrawOverlays());
+        setCanExactAlarm(FullScreenAlarm.canScheduleExactAlarms());
+      } catch (e) {
+        console.warn('Error checking alarm permissions:', e);
+      }
+    }
+  };
+
   // Form states
   const [enabled, setEnabled] = useState(false);
   const [alarmTime, setAlarmTime] = useState('06:30');
@@ -141,11 +159,22 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
     }
   }, [visible, isPlayingPreview, previewPlayer]);
 
-  // Load config on open
+  // Load config and permissions on open
   useEffect(() => {
     if (visible) {
       loadConfig();
+      checkPermissions();
     }
+  }, [visible]);
+
+  // Re-check permissions when returning from Android Settings
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && visible) {
+        checkPermissions();
+      }
+    });
+    return () => sub.remove();
   }, [visible]);
 
   const loadConfig = async () => {
@@ -364,6 +393,115 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
             }}
           />
         </View>
+
+        {/* Permission Required Banner for Android (Full-Screen / Overlay) */}
+        {Platform.OS === 'android' && enabled && (!canFullScreen || !canDrawOverlays) && (
+          <View
+            style={{
+              backgroundColor: isDark ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2',
+              borderRadius: 14,
+              padding: 14,
+              borderWidth: 1.5,
+              borderColor: isDark ? '#ef4444' : '#fecaca',
+              gap: 10,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Icon name={AlertCircle} size={18} color="#ef4444" />
+              <Text
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: '700',
+                  color: isDark ? '#f87171' : '#dc2626',
+                  fontFamily: 'Sarabun_700Bold',
+                  flex: 1,
+                }}
+              >
+                ต้องเปิดสิทธิ์เพื่อให้หน้าต่างปลุกเด้งเต็มจอ
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 11.5,
+                lineHeight: 18,
+                color: isDark ? '#fca5a5' : '#991b1b',
+                fontFamily: 'Sarabun_400Regular',
+              }}
+            >
+              หากไม่เปิดสิทธิ์นี้ Android จะแสดงเพียงแถบ Heads-up ด้านบน และจะไม่ยอมเด้งหน้าต่างปลุกขึ้นมาทับหน้าจอล็อกอัตโนมัติ
+            </Text>
+
+            <View style={{ gap: 8, marginTop: 4 }}>
+              {!canFullScreen && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    triggerHaptic('impact-light');
+                    if (isFullScreenAlarmAvailable) {
+                      await FullScreenAlarm.openFullScreenIntentSettings();
+                    }
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    backgroundColor: '#ef4444',
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Icon name={ExternalLink} size={14} color="#ffffff" />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#ffffff',
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    เปิดสิทธิ์การแจ้งเตือนแบบเต็มจอ (Android 14+)
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {!canDrawOverlays && (
+                <TouchableOpacity
+                  onPress={async () => {
+                    triggerHaptic('impact-light');
+                    if (isFullScreenAlarmAvailable) {
+                      await FullScreenAlarm.openOverlaySettings();
+                    }
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#ef4444' : '#dc2626',
+                  }}
+                >
+                  <Icon name={ExternalLink} size={14} color={isDark ? '#f87171' : '#dc2626'} />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: isDark ? '#f87171' : '#dc2626',
+                      fontFamily: 'Sarabun_700Bold',
+                    }}
+                  >
+                    เปิดสิทธิ์แสดงทับแอปอื่น (Display over other apps)
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Section 1: Workday Alarm Time (Normal) */}
         <View
@@ -987,7 +1125,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                       fontFamily: 'Sarabun_700Bold',
                     }}
                   >
-                    การตั้งค่าให้เด้งเต็มจอ (Xiaomi / Vivo / Oppo)
+                    การตั้งค่าให้เด้งเต็มจอ (Xiaomi / Vivo / Oppo / Android 14+)
                   </Text>
                   <Text
                     style={{
@@ -996,7 +1134,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                       fontFamily: 'Sarabun_400Regular',
                     }}
                   >
-                    เปิดสิทธิ์แสดงหน้าต่างปลุกบนหน้าจอล็อกทันที
+                    เปิดสิทธิ์แสดงหน้าต่างปลุกบนหน้าจอล็อกและแสดงทับแอปอื่น
                   </Text>
                 </View>
               </View>
@@ -1026,59 +1164,123 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                     fontFamily: 'Sarabun_400Regular',
                   }}
                 >
-                  บนมือถือเช่น <Text style={{ fontWeight: '700', color: colors.text }}>Xiaomi (HyperOS / MIUI), Vivo, Oppo</Text> ระบบจะบล็อกไม่ให้แอพเปิดหน้าต่างเด้งขึ้นมาเองขณะล็อกหน้าจอเป็นค่าเริ่มต้น (ทำให้เห็นเป็นแค่แถบการแจ้งเตือน) หากต้องการให้เด้งเต็มจออัตโนมัติ:
+                  บนมือถือเช่น <Text style={{ fontWeight: '700', color: colors.text }}>Xiaomi (HyperOS / MIUI), Vivo, Oppo</Text> รวมถึง <Text style={{ fontWeight: '700', color: colors.text }}>Android 14+</Text> ระบบจะบล็อกไม่ให้แอพเปิดหน้าต่างเด้งขึ้นมาเองขณะล็อกหน้าจอเป็นค่าเริ่มต้น (ทำให้เห็นเป็นแค่แถบการแจ้งเตือน Heads-up) หากต้องการให้เด้งเต็มจออัตโนมัติ:
                 </Text>
 
                 <View style={{ gap: 5, paddingLeft: 6 }}>
                   <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
-                    1. กดปุ่ม <Text style={{ fontWeight: '700' }}>"เปิดหน้าตั้งค่าสิทธิ์บนหน้าจอล็อก"</Text> ด้านล่าง
+                    1. <Text style={{ fontWeight: '700', color: '#2563eb' }}>สิทธิ์บนหน้าจอล็อก:</Text> ติ๊กเปิด "แสดงบนหน้าจอล็อก" และ "แสดงหน้าต่างป๊อปอัปขณะทำงานในเบื้องหลัง"
                   </Text>
                   <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
-                    2. ไปที่เมนู <Text style={{ fontWeight: '700', color: '#2563eb' }}>"สิทธิ์อื่นๆ (Other permissions)"</Text>
+                    2. <Text style={{ fontWeight: '700', color: '#16a34a' }}>สิทธิ์แสดงทับแอปอื่น:</Text> ติ๊กเปิด "อนุญาตให้แสดงทับแอปพลิเคชันอื่น" (Display over other apps)
                   </Text>
                   <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
-                    3. ติ๊กเปิด <Text style={{ fontWeight: '700', color: '#16a34a' }}>"แสดงบนหน้าจอล็อก (Show on Lock screen)"</Text> ให้เป็นสีเขียว
-                  </Text>
-                  <Text style={{ fontSize: 11, color: colors.text, fontFamily: 'Sarabun_500Medium' }}>
-                    4. ติ๊กเปิด <Text style={{ fontWeight: '700', color: '#16a34a' }}>"แสดงหน้าต่างป๊อปอัปขณะทำงานในเบื้องหลัง"</Text> ให้เป็นสีเขียว
+                    3. <Text style={{ fontWeight: '700', color: '#d97706' }}>สิทธิ์ Android 14+:</Text> อนุญาต "ใช้การแจ้งเตือนแบบเต็มหน้าจอ" (Full-Screen Intent)
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  onPress={async () => {
-                    triggerHaptic('impact-light');
-                    if (isFullScreenAlarmAvailable) {
-                      await FullScreenAlarm.openLockScreenPermissionSettings();
-                    } else {
-                      openAppBatterySettings();
-                    }
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff',
-                    paddingVertical: 9,
-                    paddingHorizontal: 12,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe',
-                    marginTop: 4,
-                  }}
-                >
-                  <Icon name={ExternalLink} size={14} color="#2563eb" />
-                  <Text
+                <View style={{ gap: 8, marginTop: 4 }}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      triggerHaptic('impact-light');
+                      if (isFullScreenAlarmAvailable) {
+                        await FullScreenAlarm.openLockScreenPermissionSettings();
+                      } else {
+                        openAppBatterySettings();
+                      }
+                    }}
                     style={{
-                      fontSize: 12,
-                      fontWeight: '700',
-                      color: '#2563eb',
-                      fontFamily: 'Sarabun_700Bold',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.2)' : '#eff6ff',
+                      paddingVertical: 9,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(59, 130, 246, 0.4)' : '#bfdbfe',
                     }}
                   >
-                    เปิดหน้าตั้งค่าสิทธิ์บนหน้าจอล็อก
-                  </Text>
-                </TouchableOpacity>
+                    <Icon name={ExternalLink} size={14} color="#2563eb" />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: '#2563eb',
+                        fontFamily: 'Sarabun_700Bold',
+                      }}
+                    >
+                      เปิดหน้าตั้งค่าสิทธิ์บนหน้าจอล็อก (Xiaomi/Vivo/Oppo)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={async () => {
+                      triggerHaptic('impact-light');
+                      if (isFullScreenAlarmAvailable) {
+                        await FullScreenAlarm.openOverlaySettings();
+                      }
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5',
+                      paddingVertical: 9,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(16, 185, 129, 0.4)' : '#a7f3d0',
+                    }}
+                  >
+                    <Icon name={ExternalLink} size={14} color="#059669" />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: '#059669',
+                        fontFamily: 'Sarabun_700Bold',
+                      }}
+                    >
+                      เปิดหน้าสิทธิ์แสดงทับแอปอื่น (Display over other apps)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={async () => {
+                      triggerHaptic('impact-light');
+                      if (isFullScreenAlarmAvailable) {
+                        await FullScreenAlarm.openFullScreenIntentSettings();
+                      }
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7',
+                      paddingVertical: 9,
+                      paddingHorizontal: 12,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a',
+                    }}
+                  >
+                    <Icon name={ExternalLink} size={14} color="#d97706" />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: '#d97706',
+                        fontFamily: 'Sarabun_700Bold',
+                      }}
+                    >
+                      เปิดหน้าสิทธิ์ Full-Screen Intent (Android 14+)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
