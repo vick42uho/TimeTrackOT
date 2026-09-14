@@ -135,6 +135,12 @@ export interface BackupMetadata {
   };
 }
 
+export interface AppSettingsBackup {
+  smartAlarm?: any;
+  hapticsEnabled?: boolean;
+  themeMode?: string;
+}
+
 export interface BackupPayload {
   metadata: BackupMetadata;
   data: {
@@ -145,6 +151,7 @@ export interface BackupPayload {
     leaveQuotas: LeaveQuota[];
     activities?: Activity[];
     tasksNotes?: TaskNote[];
+    settings?: AppSettingsBackup;
   };
 }
 

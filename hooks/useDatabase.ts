@@ -1,6 +1,7 @@
 
 import * as SQLite from 'expo-sqlite';
 import { useState, useEffect, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   TimeEntry,
   WorkSchedule,
@@ -15,7 +16,10 @@ import {
   RestoreResult,
   Activity,
   TaskNote,
+  AppSettingsBackup,
 } from '../types';
+import { getSmartAlarmConfig, saveSmartAlarmConfig } from '../services/smartAlarmService';
+import { getGlobalHapticsEnabled, setGlobalHapticsEnabled } from './useHaptics';
 
 const DATABASE_NAME = 'timetracker.db';
 
@@ -1382,6 +1386,7 @@ export const useDatabase = () => {
       clockIn: r.clock_in,
       clockOut: r.clock_out,
       reason: r.reason,
+      attachmentUri: r.attachment_uri || undefined,
       regularHours: r.regular_hours || 0,
       overtimeHours: r.overtime_hours || 0,
       lateArrivalHours: r.late_arrival_hours || 0,
@@ -1466,10 +1471,25 @@ export const useDatabase = () => {
     const tasksNotesRaw = await db.getAllAsync<any>('SELECT * FROM tasks_notes ORDER BY created_at ASC');
     const tasksNotes: TaskNote[] = tasksNotesRaw.map(mapTaskNoteRow);
 
+    // 8. App Settings (AsyncStorage)
+    let settings: AppSettingsBackup | undefined;
+    try {
+      const smartAlarm = await getSmartAlarmConfig();
+      const hapticsEnabled = getGlobalHapticsEnabled();
+      const themeMode = (await AsyncStorage.getItem('app_theme_mode')) || 'system';
+      settings = {
+        smartAlarm,
+        hapticsEnabled,
+        themeMode,
+      };
+    } catch (settingsErr) {
+      console.warn('Could not read settings for backup:', settingsErr);
+    }
+
     return {
       metadata: {
         appName: 'TimeTrackOT',
-        appVersion: '1.4.0',
+        appVersion: '1.5.1',
         schemaVersion: 1,
         exportedAt: new Date().toISOString(),
         totalRecords: {
@@ -1490,6 +1510,7 @@ export const useDatabase = () => {
         leaveQuotas,
         activities,
         tasksNotes,
+        settings,
       },
     };
   };
@@ -1639,13 +1660,17 @@ export const useDatabase = () => {
 
       // 7. Insert tasks_notes
       for (const tn of tasksNotes) {
-        if (!tn.title) continue;
+        const hasTitle = Boolean(tn.title && tn.title.trim().length > 0);
+        const hasContent = Boolean(tn.content && tn.content.trim().length > 0);
+        const hasItems = Boolean(tn.items && tn.items.length > 0);
+        if (!hasTitle && !hasContent && !hasItems) continue;
+
         await db.runAsync(
           `INSERT INTO tasks_notes
            (title, content, type, items_json, is_completed, color, is_pinned, date, reminder_time, notification_id, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
           [
-            tn.title,
+            tn.title || '',
             tn.content || null,
             tn.type || 'checklist',
             JSON.stringify(tn.items || []),
@@ -1659,6 +1684,23 @@ export const useDatabase = () => {
         );
       }
     });
+
+    // 8. Restore App Settings if present
+    if (payload.data.settings) {
+      try {
+        if (payload.data.settings.smartAlarm) {
+          await saveSmartAlarmConfig(payload.data.settings.smartAlarm);
+        }
+        if (payload.data.settings.hapticsEnabled !== undefined) {
+          await setGlobalHapticsEnabled(payload.data.settings.hapticsEnabled);
+        }
+        if (payload.data.settings.themeMode) {
+          await AsyncStorage.setItem('app_theme_mode', payload.data.settings.themeMode);
+        }
+      } catch (settingsErr) {
+        console.warn('Could not restore app settings:', settingsErr);
+      }
+    }
 
     return {
       success: true,
