@@ -449,7 +449,7 @@ class AlarmActivity : Activity() {
                 val dayName = if (dayOfWeek in 0..6) THAI_DAYS[dayOfWeek] else ""
                 val monthName = if (month in 0..11) THAI_MONTHS[month] else ""
 
-                dateTextView.text = "$dayNameที่ $dayOfMonth $monthName $thaiYear"
+                dateTextView.text = "${dayName}ที่ $dayOfMonth $monthName $thaiYear"
 
                 timeHandler.postDelayed(this, 1000)
             }

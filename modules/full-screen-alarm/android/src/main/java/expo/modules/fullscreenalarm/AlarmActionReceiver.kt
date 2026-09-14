@@ -39,7 +39,7 @@ class AlarmActionReceiver : BroadcastReceiver() {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
 
         val alarmIntent = Intent(context, AlarmReceiver::class.java).apply {
-          action = "expo.modules.fullscreenalarm.ALARM_WAKEUP"
+          this.action = "expo.modules.fullscreenalarm.ALARM_WAKEUP"
           putExtra("alarmId", "${alarmId}_snooze")
           putExtra("title", "ถึงเวลาตื่นแล้ว! ($reason - เลื่อนปลุก $snoozeMinutes นาที)")
           putExtra("message", "ถึงเวลาที่เลื่อนปลุกไว้แล้ว เริ่มต้นวันใหม่อย่างสดชื่นครับ")
