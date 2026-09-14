@@ -2,7 +2,7 @@
 
 แอปพลิเคชันบันทึกเวลาทำงาน, คำนวณค่าล่วงเวลา (OT เช้า-เย็น), ถ่ายรูปแนบหลักฐานการลงเวลา, บันทึกกิจกรรม & แจ้งเตือนนัดหมาย, จัดการวันหยุด & วันลาพร้อมแนบใบรับรองแพทย์, และรายงานสรุปชั่วโมงทำงาน สร้างด้วย **React Native 0.81**, **Expo SDK 54**, **Expo SQLite (WAL Mode)**, **Expo Notifications** และระบบ UI ดีไซน์ **BNA UI** พร้อมสัญลักษณ์เวกเตอร์ไอคอนมาตรฐานระดับสากล
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.5.1-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)
 ![Database](https://img.shields.io/badge/database-Expo%20SQLite%20(WAL)-green.svg)
 ![Design](https://img.shields.io/badge/UI-BNA%20UI%20%2B%20Sarabun-orange.svg)
@@ -142,7 +142,16 @@
 - **Native Android Full-Screen Activity & Background Execution**:
   - พัฒนาโมดูล Native ภาษา Kotlin (`modules/full-screen-alarm`) ทำงานร่วมกับ `AlarmManager.setExactAndAllowWhileIdle(RTC_WAKEUP)`
   - ปลุกหน้าจอสว่างอัตโนมัติและแสดงผลแบบเต็มจอเหนือหน้าจอล็อคทันทีผ่าน `AlarmActivity` (`FLAG_SHOW_WHEN_LOCKED`, `FLAG_DISMISS_KEYGUARD`, `FLAG_TURN_SCREEN_ON`, `FLAG_KEEP_SCREEN_ON`, `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`)
-  - เล่นเสียงปลุก `alarm.wav` วนซ้ำต่อเนื่องผ่าน `AlarmRingtoneService` (Foreground Service แบบ `mediaPlayback` บน Android 14+) ด้วย Audio Stream ชนิด `ALARM` ที่สามารถเจาะผ่านโหมดเงียบและ DND ได้อย่างแน่นอน
+  - **ระบบเสียงปลุก 2 ชั้น (Dual-Audio Engine)** ผ่าน `AlarmRingtoneService` (Foreground Service แบบ `mediaPlayback` บน Android 14+):
+    - **Engine A (`MediaPlayer`)**: โหลดไฟล์เสียงหลัก `alarm.wav` วนซ้ำต่อเนื่อง พร้อมกลไกความปลอดภัยค้นหา Resource ID ป้องกัน Resource Not Found
+    - **Engine B (`RingtoneManager` Fallback)**: ระบบสำรองฉุกเฉิน สลับไปเล่นเสียงนาฬิกาปลุกมาตรฐานของระบบเครื่องทันทีหากพบข้อผิดพลาด รับประกันว่ามีเสียงปลุกดังเสมอ 100%
+  - **Dynamic Audio Focus & Volume Enforcement**:
+    - ขอสิทธิ์เสียงระดับสูงสุด (`USAGE_ALARM` + `AUDIOFOCUS_GAIN_TRANSIENT` + `FLAG_AUDIBILITY_ENFORCED`) บังคับส่งสัญญาณเสียงออกทางลำโพงนาฬิกาปลุก ดังชัดเจนแม้เปิดโหมดเงียบหรือโหมดห้ามรบกวน (Do Not Disturb - DND)
+    - ปรับระดับเสียงปลุกขึ้นสูงสุดขณะปลุก และคืนค่าระดับเสียงเดิมของผู้ใช้โดยอัตโนมัติเมื่อกดปิดปลุก
+  - **ระบบสั่นฉุกเฉิน 16 จังหวะ (16-Cycle Emergency Vibration)**:
+    - รูปแบบการสั่นหนักสลับเบาต่อเนื่อง 16 จังหวะ กระตุ้นให้รู้สึกตัวและตื่นได้แน่นอน
+  - **Auto-Dismiss Heads-Up Notification**:
+    - เมื่อหน้าจอปลุกเต็มจอเปิดขึ้นมา ระบบจะสั่งยกเลิกแถบแจ้งเตือนลอยสีขาวด้านบนทันที เพื่อป้องกันไม่ให้แบนเนอร์แจ้งเตือนตกลงมาบดบังอินเทอร์เฟซปิดปลุก
 - **อินเทอร์เฟซ Dynamic Island สไตล์ Remimo & ระบบปิดปลุก 3 ชั้น (3-Tier Dismiss Engine)**:
   - **ชั้นที่ 1 (Remimo Dynamic Island [✕])**: แถบแคปซูลด้านบนหัวเรื่อง แสดงข้อมูลแอพและเหตุผลการปลุก พร้อมปุ่มวงกลม `[✕]` แตะ 1 ครั้งปิดการปลุกได้ทันที
   - **ชั้นที่ 2 (แถบเลื่อนหรือแตะเพื่อปิดปลุก - Slide or Tap to Stop)**:
@@ -157,8 +166,9 @@
   - เลือกระหว่าง: ปลุกเวลาปกติ, ปลุกช้าลง (ตั้งเวลาแยกได้ เช่น `07:30 น.`), หรือไม่ต้องปลุกในวัน WFH
 - **Goodnight Alert (คืนก่อนวันหยุด)**:
   - แจ้งเตือนล่วงหน้าตอน 20:00 น. ในคืนก่อนถึงวันหยุด/วันลาว่าระบบปิดนาฬิกาปลุกให้แล้ว
-- **Live 7-Day Preview**:
+- **Live 7-Day Preview & Quick Test Alarm**:
   - แถบจำลองตารางปลุก 7 วันข้างหน้าแบบเรียลไทม์ในหน้าต่างตั้งค่า เห็นชัดเจนว่าวันไหนปลุก วันไหนงดปลุก
+  - **ปุ่มทดสอบปลุก 5 วินาที**: ตั้งเวลาปลุกทดสอบล่วงหน้า 5 วินาที พร้อมคำแนะนำให้ผู้ใช้ล็อกหน้าจอทันที เพื่อทดสอบการปลุกขณะหน้าจอปิดได้อย่างสมจริง
 
 ---
 
@@ -241,6 +251,8 @@ TimeTrack OT ยกระดับสู่การบริหารจัด�
 - **ระบบปักหมุด (Pin to Top)**: ตรึงรายการสำคัญให้อยู่บนสุดเสมอ
 - **Dual Layout Switcher (สลับมุมมอง List / Grid)**: เลือกดูได้ทั้งแบบรายการแถวเดี่ยวเต็มจอ (List) หรือแบบตาราง 2 คอลัมน์สไตล์ Google Keep Masonry (Grid) แตะสลับได้ทันทีข้างช่องค้นหา
 - **Interactive Overflow & Quick Card Opening**: แตะปุ่มชิป `[+ ดูเพิ่มอีก X ข้อ]` หรือแตะที่หัวข้อ/เนื้อหาการ์ดเพื่อเปิดดูรายละเอียดและเช็กลิสต์ทั้งหมดแบบเต็มจอได้ทันที
+- **เปิดดูเนื้อหาเริ่มจากบนสุดเสมอ (Auto-Scroll to Top)**: เมื่อกดเปิดดูการ์ดโน้ตที่มีข้อความยาว ระบบจะ Reset ตำแหน่ง ScrollView ให้แสดงผลจากด้านบนสุดเสมอ ไม่เลื่อนจมไปค้างอยู่ด้านล่าง
+- **บันทึกได้ยืดหยุ่นโดยไม่ต้องใส่หัวข้อ (Flexible Title Validation)**: รองรับการจดบันทึกข้อความด่วนหรือ To-Do List โดยไม่จำเป็นต้องระบุหัวข้อ (Title) ก่อนบันทึก เพียงมีหัวข้อ เนื้อหา หรือรายการงานอย่างใดอย่างหนึ่ง ก็สามารถกดบันทึกได้ทันที
 - **สถาปัตยกรรม Performance ขั้นสูง**:
   - **SQLite High-Speed Config**: รองรับ WAL Mode, synchronous = NORMAL, Cache Size 16MB, In-Memory Temp Store, Memory-Mapped I/O 256MB (`PRAGMA mmap_size`), พร้อม Index ทุกตารางสำหรับการสืบค้นแบบทันที
   - **Single-Pass State Memoization**: คำนวณยอดสถานะ (ค้าง, เสร็จ, ปักหมุด) ในรอบเดียว `O(N)` ลดภาระ Garbage Collection 66%
@@ -348,11 +360,25 @@ npm run web       # สำหรับ Web Browser
 ## วิธี Build ไฟล์และการเผยแพร่แอป (Distribution Guide)
 
 ### 1. การสร้างไฟล์สำหรับทดสอบ / ติดตั้งใช้งานภายใน (Standalone APK)
-สร้างไฟล์ `.apk` เพื่อนำไปแชร์ให้เพื่อนร่วมงานหรือทดสอบบนเครื่องจริงได้ทันที:
+
+#### วิธีที่ 1.1: Build ผ่าน EAS Cloud (สะดวก รวดเร็ว พร้อมลิงก์ดาวน์โหลดและ QR Code)
 ```bash
 npx eas-cli@latest build -p android --profile preview
 ```
-*เมื่อคำสั่งทำงานเสร็จสิ้น จะได้ลิงก์ดาวน์โหลดไฟล์ `.apk` พร้อม QR Code สำหรับสแกนติดตั้งบนอุปกรณ์ Android*
+*เมื่อคำสั่งทำงานเสร็จสิ้น จะได้รับลิงก์ดาวน์โหลดไฟล์ `.apk` พร้อม QR Code สำหรับสแกนติดตั้งบนอุปกรณ์ Android ทันที*
+> **หมายเหตุการสลับบัญชี Expo**: หากโควตา Cloud Build ฟรีของบัญชีเดิมเต็ม (30 ครั้ง/เดือน) สามารถสลับบัญชีใหม่ด้วย `npx eas logout` $\rightarrow$ `npx eas login` $\rightarrow$ ปรับ `owner` ใน `app.json` แล้วรัน `npx eas init --force` เพื่อเริ่มรอบโควตาใหม่ได้ทันที
+
+#### วิธีที่ 1.2: Build ภายในเครื่องของคุณเองโดยตรง (Local Gradle Build - ไม่จำกัดโควตา ฟรี 100%)
+สำหรับเครื่องคอมพิวเตอร์ที่มี Android SDK และ JDK 21 ติดตั้งอยู่แล้ว สามารถคอมไพล์เป็นไฟล์ APK ได้โดยไม่ต้องพึ่งพาเซิร์ฟเวอร์คลาวด์:
+```bash
+# เตรียมโค้ดเนทีฟ
+npx expo prebuild --platform android --no-install
+
+# คอมไพล์ไฟล์ APK ด้วย Gradle
+cd android
+.\gradlew.bat assembleDebug --no-daemon
+```
+*ไฟล์ APK ที่สร้างเสร็จแล้วจะอยู่ที่: `android/app/build/outputs/apk/debug/app-debug.apk`*
 
 ### 2. การสร้างไฟล์เพื่อนำขึ้น Google Play Store (.aab)
 สร้างไฟล์ Android App Bundle สำหรับส่งเข้า Google Play Console:
@@ -371,6 +397,6 @@ npx eas-cli@latest build -p android --profile production
 ## ข้อมูลผู้พัฒนา & ข้อเสนอแนะ
 
 - **ผู้พัฒนา (Developer)**: Wick
-- **เวอร์ชัน**: 1.5.0 (กันยายน 2569 - Build 30)
+- **เวอร์ชัน**: 1.5.1 (กันยายน 2569 - Build 35)
 - **การจัดเก็บข้อมูล**: ออฟไลน์ 100% ภายในเครื่อง ปลอดภัย เป็นส่วนตัวสูงสุด
 - **แจ้งปัญหาและข้อเสนอแนะ**: [แบบฟอร์มรับฟังข้อเสนอแนะ](https://forms.gle/BKx4Pz6VB65kdaka8)

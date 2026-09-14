@@ -537,3 +537,98 @@ To prevent data loss if a user deletes or moves the original photo in their devi
 - **Direct Sideloading**: Distribute `.apk` via cloud drive, chat applications (LINE, Telegram), or internal company portals.
 - **APKPure / Alternative Stores**: Submit APK directly to APKPure (free developer submit) for public search and download without listing fees.
 - **GitHub Releases**: Tag releases with bundled APK assets for open, transparent version tracking.
+
+---
+
+## 15. Smart Workday Alarm & Dual-Audio Native Engine (`modules/full-screen-alarm`)
+
+### Architecture Overview
+The Smart Workday Alarm is an Android native module written in Kotlin that integrates directly with Android's system alarm scheduler (`AlarmManager`), audio manager (`AudioManager`), and lockscreen window manager (`WindowManager`).
+
+```
+TypeScript Service (`smartAlarmService.ts`)
+       │
+       ▼ (Calculates 21-day schedule filtering holidays & leaves)
+Native Module Bridge (`FullScreenAlarmModule.kt`)
+       │
+       ▼ (Schedules via AlarmManager.setExactAndAllowWhileIdle)
+System Alarm Broadcast Receiver (`AlarmReceiver.kt`)
+       ├──▶ Audio Service (`AlarmRingtoneService.kt`) ── Dual-Audio Engine
+       └──▶ Full-Screen Lockscreen UI (`AlarmActivity.kt`) ── Auto-dismiss banner
+```
+
+### Dual-Audio Engine (`AlarmRingtoneService.kt`)
+To guarantee that the alarm wakes the user under all conditions (silent mode, DND, volume muted, corrupted audio asset):
+1. **Audio Focus Request**:
+   - Requests `AudioManager.AUDIOFOCUS_GAIN_TRANSIENT` with `AudioAttributes.USAGE_ALARM` and `AudioAttributes.CONTENT_TYPE_SONIFICATION`.
+   - Forces audio routing through the hardware alarm speaker.
+2. **Engine A (`MediaPlayer`)**:
+   - Safe resource loader: Resolves `R.raw.alarm` dynamically via `resources.getIdentifier("alarm", "raw", packageName)`.
+   - Configured with `FLAG_AUDIBILITY_ENFORCED` and `isLooping = true`.
+3. **Engine B (`RingtoneManager` Fallback)**:
+   - On error or failed resource resolution, automatically falls over to the system default alarm ringtone (`RingtoneManager.TYPE_ALARM`).
+   - Sets stream type directly to `AudioManager.STREAM_ALARM`.
+4. **Emergency Volume Fallback**:
+   - Queries `STREAM_ALARM` maximum volume and temporarily raises output to 100% or user preference, restoring initial volume upon dismissal.
+
+### Heads-Up Notification Auto-Dismiss (`AlarmActivity.kt`)
+- **Root Cause of Overlay Bug**: On Android 10-15, when a high-priority notification with full-screen intent triggers, Android displays both the full-screen activity and drops a floating white heads-up banner from the top of the screen. This banner partially covers the black Remimo alarm controls.
+- **Permanent Fix**: In `AlarmActivity.onCreate()`, the activity immediately calls `notificationManager.cancel(alarmId.hashCode())`. This dismisses the white floating banner while keeping the full-screen black activity active.
+
+### Emergency Vibration Pattern (`AlarmReceiver.kt`)
+- Employs a 16-cycle intensive vibration array:
+  `longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000, 500, 1000)`
+- Channel bumped to `smart_workday_alarm_v5` with `IMPORTANCE_HIGH` and public visibility.
+
+### 5-Second Test Delay
+- In `SmartAlarmModal.tsx`, the quick test alarm schedules 5 seconds ahead (`Date.now() + 5000`) with clear UX guidance instructing the user to immediately lock their phone to test screen-off wakeup.
+
+---
+
+## 16. Notes & Quick Tasks Architecture (`components/notes/NoteModal.tsx`)
+
+### Scroll Position Management
+- **Problem**: When opening an existing note with extensive content, the modal's `ScrollView` previously retained or calculated an offset near the bottom, causing users to see the end of the text instead of the beginning.
+- **Solution**: On modal open (`useEffect` triggered by `visible`), explicit programmatic scroll-to-top is executed:
+  ```ts
+  scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  ```
+
+### Flexible Title Validation
+- Notes can now be saved without requiring a non-empty title string.
+- Validates that at least **one** field is present (either title, content, or checklist items):
+  ```ts
+  const hasTitle = title.trim().length > 0;
+  const hasContent = content.trim().length > 0;
+  const hasChecklist = checklistItems.some(i => i.text.trim().length > 0);
+  if (!hasTitle && !hasContent && !hasChecklist) {
+    Alert.alert('ข้อมูลไม่ครบ', 'กรุณาระบุหัวข้อ เนื้อหา หรือรายการงานอย่างน้อย 1 อย่าง');
+    return;
+  }
+  ```
+
+---
+
+## 17. Multi-Account EAS Cloud & Local Gradle Build Automation
+
+### Local Gradle Android Build (No Cloud Quota Limits)
+- When EAS free cloud build quota (30 builds/month) is exhausted, build APK locally using the machine's Android SDK and OpenJDK 21:
+  ```powershell
+  $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+  $env:ANDROID_HOME = "C:\Users\it-dev\AppData\Local\Android\Sdk"
+  $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+  npx expo prebuild --platform android --no-install
+  cd android
+  .\gradlew.bat assembleDebug --no-daemon
+  ```
+- Generates `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+### Multi-Account EAS Cloud Build Setup
+- When switching Expo accounts for cloud builds:
+  1. `npx eas logout`
+  2. Log in using `SessionManager` or interactive `npx eas login`.
+  3. Update `owner` in `app.json` to the new username.
+  4. Clear previous `extra.eas.projectId` in `app.json`.
+  5. Run `npx eas init --force --non-interactive` to bind project to new account.
+  6. Provision Android Keystore on the new account via EAS GraphQL API (`generateRandomKeystoreAsync` + `createKeystoreAsync` + `createAndroidAppBuildCredentialsAsync`).
+  7. Run `npx eas build -p android --profile preview --non-interactive`.
