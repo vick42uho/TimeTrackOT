@@ -64,6 +64,14 @@ class AlarmActivity : Activity() {
         alarmTime = intent.getStringExtra("alarmTime") ?: ""
         reason = intent.getStringExtra("reason") ?: "วันทำงานปกติ"
 
+        // ปิดแถบ Heads-up Notification สีขาวทันที เพื่อไม่ให้ลอยลงมาทับส่วนหัวของหน้าจอปลุกเต็มจอ
+        try {
+            val notificationManager = NotificationManagerCompat.from(this)
+            notificationManager.cancel(alarmId.hashCode())
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         // 2. สร้าง UI หน้าต่างปลุกเต็มจอแบบ Programmatic View Tree
         val rootView = buildAlarmView()
         setContentView(rootView)
