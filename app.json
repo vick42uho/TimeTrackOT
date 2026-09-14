@@ -30,7 +30,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.timetrackot",
-      "versionCode": 34,
+      "versionCode": 35,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
