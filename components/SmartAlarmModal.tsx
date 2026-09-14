@@ -1308,7 +1308,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
               onPress={async () => {
                 triggerHaptic('impact-light');
                 await triggerTestSmartAlarm();
-                success('ส่งการแจ้งเตือนแล้ว', 'ระบบจะส่งแถบเตือนมาที่หน้าจอใน 3 วินาที');
+                success('ส่งสัญญาณปลุกแล้ว', 'ระบบจะปลุกใน 5 วินาที (รีบล็อกหน้าจอเพื่อทดสอบ)');
               }}
               style={{
                 flex: 1,
@@ -1333,7 +1333,7 @@ export const SmartAlarmModal: React.FC<SmartAlarmModalProps> = ({
                   fontFamily: 'Sarabun_600SemiBold',
                 }}
               >
-                ยิงแถบเตือน (3 วิ)
+                ทดสอบปลุก (5 วิ)
               </Text>
             </TouchableOpacity>
           </View>

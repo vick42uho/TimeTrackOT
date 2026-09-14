@@ -16,7 +16,7 @@ import androidx.core.app.NotificationManagerCompat
 class AlarmReceiver : BroadcastReceiver() {
 
   companion object {
-    const val CHANNEL_ID = "smart_workday_alarm_v4"
+    const val CHANNEL_ID = "smart_workday_alarm_v5"
     const val CHANNEL_NAME = "นาฬิกาปลุกวันทำงาน (Smart Workday Alarm)"
     const val CHANNEL_DESC = "เสียงปลุกเฉพาะวันทำงานจริง และงดปลุกวันหยุด/วันลาอัตโนมัติ"
   }
@@ -67,8 +67,12 @@ class AlarmReceiver : BroadcastReceiver() {
 
     // 3. Prepare sound URI for notification (used as heads-up fallback on lockscreen)
     val soundUri = Uri.parse("android.resource://${context.packageName}/raw/alarm")
-    // Minimal pattern here — actual continuous vibration is handled by AlarmRingtoneService
-    val notifVibrationPattern = longArrayOf(0, 500, 300, 500)
+    // Repeating emergency vibration pattern: 16 intense cycles
+    val notifVibrationPattern = longArrayOf(
+      0L,
+      1000L, 500L, 1000L, 500L, 1000L, 500L, 1000L, 500L,
+      1000L, 500L, 1000L, 500L, 1000L, 500L, 1000L, 500L
+    )
 
     // 4. Ensure Notification Channel exists on API 26+
     val notificationManager = NotificationManagerCompat.from(context)
@@ -76,6 +80,7 @@ class AlarmReceiver : BroadcastReceiver() {
       val audioAttributes = AudioAttributes.Builder()
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .setUsage(AudioAttributes.USAGE_ALARM)
+        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
         .build()
 
       val channel = NotificationChannel(

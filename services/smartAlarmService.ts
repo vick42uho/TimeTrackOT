@@ -30,7 +30,7 @@ import { toLocalDateString, getDatesInRange } from '../utils/dateHelper';
 export const SMART_ALARM_CONFIG_KEY = '@timetrack_smart_alarm_config';
 export const SMART_ALARM_SCHEDULED_IDS_KEY = '@timetrack_smart_alarm_scheduled_ids';
 
-export const SMART_ALARM_CHANNEL_ID = 'smart_workday_alarm_v4';
+export const SMART_ALARM_CHANNEL_ID = 'smart_workday_alarm_v5';
 export const SMART_ALARM_PRE_REMINDER_CHANNEL_ID = 'smart-alarm-goodnight';
 export const SMART_ALARM_CATEGORY = 'smart_alarm_actions';
 
@@ -76,6 +76,7 @@ export async function initSmartAlarmChannels(): Promise<void> {
       'smart-workday-alarm-v2',
       'smart-workday-alarm-v3',
       'smart_workday_alarm_v3',
+      'smart_workday_alarm_v4',
     ];
     for (const chId of legacyChannels) {
       await deleteNotificationChannelAsync(chId).catch(() => {});
@@ -768,14 +769,14 @@ export async function snoozeSmartAlarm(
 }
 
 /**
- * Trigger an immediate test alarm (in 3 seconds) for user to verify sound & UI
+ * Trigger an immediate test alarm (in 5 seconds) for user to verify sound & UI
  */
 export async function triggerTestSmartAlarm(): Promise<string | undefined> {
   if (Platform.OS === 'web') return undefined;
 
   try {
     await initSmartAlarmChannels();
-    const triggerDate = new Date(Date.now() + 3000); // 3 seconds from now
+    const triggerDate = new Date(Date.now() + 5000); // 5 seconds gives user time to lock screen
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 

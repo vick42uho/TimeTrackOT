@@ -8,8 +8,11 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -19,6 +22,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
+import java.io.File
 
 /**
  * AlarmRingtoneService — ForegroundService ที่คุมเสียงปลุก + การสั่นต่อเนื่อง
@@ -55,6 +59,8 @@ class AlarmRingtoneService : Service() {
     }
 
     private var mediaPlayer: MediaPlayer? = null
+    private var systemRingtone: Ringtone? = null
+    private var audioFocusRequest: Any? = null
     private var vibrator: Vibrator? = null
     private val autoStopHandler = Handler(Looper.getMainLooper())
     private val autoStopRunnable = Runnable { stopSelf() }
@@ -121,10 +127,21 @@ class AlarmRingtoneService : Service() {
         } catch (_: Exception) {}
 
         try {
-            if (mediaPlayer?.isPlaying == true) mediaPlayer?.stop()
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.stop()
+            }
             mediaPlayer?.release()
             mediaPlayer = null
         } catch (_: Exception) {}
+
+        try {
+            if (systemRingtone?.isPlaying == true) {
+                systemRingtone?.stop()
+            }
+            systemRingtone = null
+        } catch (_: Exception) {}
+
+        abandonAlarmAudioFocus()
     }
 
     // -------------------------------------------------------------------
@@ -160,13 +177,57 @@ class AlarmRingtoneService : Service() {
         }
     }
 
+    private fun requestAlarmAudioFocus(audioManager: AudioManager) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val playbackAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                    .build()
+                val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(playbackAttributes)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setOnAudioFocusChangeListener { /* maintain alarm focus */ }
+                    .build()
+                audioFocusRequest = focusRequest
+                audioManager.requestAudioFocus(focusRequest)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    null,
+                    AudioManager.STREAM_ALARM,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun abandonAlarmAudioFocus() {
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                (audioFocusRequest as? AudioFocusRequest)?.let {
+                    audioManager.abandonAudioFocusRequest(it)
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(null)
+            }
+            audioFocusRequest = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun startAudio() {
         try {
-            // 1. ตรวจสอบระดับเสียงช่องสัญญาณ STREAM_ALARM
-            //    ถ้าผู้ใช้หรี่เสียงไว้ต่ำกว่า 70% ให้ปรับขึ้นมาเป็น 85% ของระดับสูงสุด
-            //    เพื่อให้มั่นใจว่าเสียงจะดังแน่นอน แม้เครื่องจะเปิดโหมดเงียบ (Silent) หรือหรี่เสียงไว้
+            // 1. Request AudioFocus & check STREAM_ALARM volume
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             audioManager?.let { am ->
+                requestAlarmAudioFocus(am)
                 try {
                     val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_ALARM)
                     val currentVol = am.getStreamVolume(AudioManager.STREAM_ALARM)
@@ -178,49 +239,62 @@ class AlarmRingtoneService : Service() {
                 }
             }
 
-            // 2. ตรวจสอบว่ามีการตั้งค่าไฟล์เสียงแบบกำหนดเอง (Custom Alarm Sound) ไว้หรือไม่
+            val alarmAudioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                .setLegacyStreamType(AudioManager.STREAM_ALARM)
+                .build()
+
+            // 2. Check for custom alarm sound
             val prefs = getSharedPreferences("TimeTrackAlarmPrefs", Context.MODE_PRIVATE)
             val customSoundPath = prefs.getString("custom_alarm_sound_path", null)
 
-            val player = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setLegacyStreamType(AudioManager.STREAM_ALARM)
-                        .build()
-                )
-                isLooping = true
-                setVolume(1.0f, 1.0f)
-            }
+            var engineAStarted = false
 
-            var loaded = false
-
-            // A. ลองโหลด Custom sound ถ้ามีและไฟล์ยังมีอยู่จริงในเครื่อง
+            // Engine A-1: Try Custom Sound
             if (!customSoundPath.isNullOrEmpty()) {
                 try {
-                    val customFile = java.io.File(customSoundPath)
+                    val customFile = File(customSoundPath)
                     if (customFile.exists() && customFile.canRead()) {
-                        player.setDataSource(customFile.absolutePath)
-                        player.prepare()
-                        loaded = true
+                        val player = MediaPlayer().apply {
+                            setAudioAttributes(alarmAudioAttributes)
+                            isLooping = true
+                            setVolume(1.0f, 1.0f)
+                            setDataSource(customFile.absolutePath)
+                            prepare()
+                            setOnErrorListener { _, _, _ ->
+                                startSystemRingtoneFallback()
+                                true
+                            }
+                        }
+                        player.start()
+                        mediaPlayer = player
+                        engineAStarted = true
                     }
                 } catch (eCustom: Exception) {
                     eCustom.printStackTrace()
                 }
             }
 
-            // B. ถ้าไม่มี Custom sound หรือโหลดไม่สำเร็จ ให้โหลด res/raw/alarm.wav ผ่าน openRawResourceFd
-            if (!loaded) {
+            // Engine A-2: Try bundled raw resource res/raw/alarm.wav
+            if (!engineAStarted) {
                 try {
                     val resId = resources.getIdentifier("alarm", "raw", packageName)
                     if (resId != 0) {
-                        val afd = resources.openRawResourceFd(resId)
-                        if (afd != null) {
-                            player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                            afd.close()
-                            player.prepare()
-                            loaded = true
+                        val player = MediaPlayer.create(this, resId, alarmAudioAttributes, audioManager?.generateAudioSessionId() ?: 0)
+                            ?: MediaPlayer.create(this, resId)
+                        if (player != null) {
+                            player.isLooping = true
+                            player.setAudioAttributes(alarmAudioAttributes)
+                            player.setVolume(1.0f, 1.0f)
+                            player.setOnErrorListener { _, _, _ ->
+                                startSystemRingtoneFallback()
+                                true
+                            }
+                            player.start()
+                            mediaPlayer = player
+                            engineAStarted = true
                         }
                     }
                 } catch (eRaw: Exception) {
@@ -228,23 +302,48 @@ class AlarmRingtoneService : Service() {
                 }
             }
 
-            // C. Fallback สุดท้าย: ระบบเริ่มต้นของ Android (System Default Alarm Ringtone)
-            if (!loaded) {
-                try {
-                    val defaultAlarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
-                    player.setDataSource(applicationContext, defaultAlarmUri)
-                    player.prepare()
-                    loaded = true
-                } catch (eDefault: Exception) {
-                    eDefault.printStackTrace()
-                }
+            // Engine B (Failover): If Engine A did not start, trigger Native System Ringtone Engine
+            if (!engineAStarted) {
+                startSystemRingtoneFallback()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            startSystemRingtoneFallback()
+        }
+    }
+
+    /**
+     * Engine B: Native System Ringtone Engine
+     * Uses android.media.Ringtone which communicates with the system audio server directly.
+     * Can bypass third-party restrictions and read OEM system ringtones.
+     */
+    private fun startSystemRingtoneFallback() {
+        if (systemRingtone?.isPlaying == true) return
+        try {
+            var alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            if (alarmUri == null) {
+                alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            }
+            if (alarmUri == null) {
+                alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
             }
 
-            if (loaded) {
-                player.start()
-                mediaPlayer = player
-            } else {
-                player.release()
+            if (alarmUri != null) {
+                val ringtone = RingtoneManager.getRingtone(applicationContext, alarmUri)
+                if (ringtone != null) {
+                    val alarmAudioAttributes = AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                        .setLegacyStreamType(AudioManager.STREAM_ALARM)
+                        .build()
+                    ringtone.audioAttributes = alarmAudioAttributes
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        ringtone.isLooping = true
+                    }
+                    ringtone.play()
+                    systemRingtone = ringtone
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()

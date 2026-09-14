@@ -31,8 +31,8 @@ yarn-error.*
 
 .natively/
 
-android/
-ios/
+/android/
+/ios/
 
 # Derived native alarm sound — single source is assets/sounds/alarm.wav
 # Synced at install via scripts/sync-alarm-sound.js (postinstall)
